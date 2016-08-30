@@ -1,0 +1,22 @@
+group 'fmontoto.thesis'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.5
+
+
+ext {
+    LD_LIBRARY_PATH = '/home/fmontoto/install/lib/scapi:/home/fmontoto/install/ssl/lib:/home/fmontoto/install/lib'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile files('/home/fmontoto/install/lib/scapi/commons-exec-1.2.jar',
+            '/home/fmontoto/install/lib/scapi/Scapi-2.4.jar',
+            '/home/fmontoto/install/lib/scapi/bcprov-jdk16-146.jar')
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+}
