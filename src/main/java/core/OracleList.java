@@ -1,3 +1,5 @@
+package core;
+
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 
 import java.util.concurrent.Callable;

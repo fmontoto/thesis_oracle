@@ -1,11 +1,12 @@
+package core;
+
+import core.OracleList;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRpcException;
-import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.logging.*;
 
 /**
  * Created by fmontoto on 30-08-16.

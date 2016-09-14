@@ -18,7 +18,8 @@ dependencies {
    compile files(
            '/home/fmontoto/install/lib/scapi/commons-exec-1.2.jar',
            '/home/fmontoto/install/lib/scapi/Scapi-2.4.jar',
-           '/home/fmontoto/install/lib/scapi/bcprov-jdk16-146.jar')
+           '/home/fmontoto/install/lib/scapi/bcprov-jdk16-146.jar',
+           '/home/fmontoto/install/share/java/zmq.jar')
     compile group: 'wf.bitcoin', name: 'JavaBitcoindRpcClient', version: '0.9.9'
     // https://mvnrepository.com/artifact/org.slf4j/slf4j-api
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.6.1'
