@@ -18,6 +18,28 @@
         <SOURCES />
       </library>
     </orderEntry>
+    <orderEntry type="library" name="Gradle: org.zeromq:jzmq:3.1.1-SNAPSHOT" level="project" />
+    <orderEntry type="library" name="Gradle: wf.bitcoin:JavaBitcoindRpcClient:0.9.9" level="project" />
+    <orderEntry type="library" name="Gradle: org.slf4j:slf4j-simple:1.6.1" level="project" />
+    <orderEntry type="library" name="Gradle: com.sparkjava:spark-core:2.5" level="project" />
+    <orderEntry type="library" name="Gradle: org.zeromq:jzmq-core:3.1.1-SNAPSHOT" level="project" />
+    <orderEntry type="library" name="Gradle: org.zeromq:jzmq-devices:3.1.1-SNAPSHOT" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-server:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-webapp:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty.websocket:websocket-server:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty.websocket:websocket-servlet:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.zeromq:jzmq-jni:3.1.1-SNAPSHOT" level="project" />
+    <orderEntry type="library" name="Gradle: javax.servlet:javax.servlet-api:3.1.0" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-http:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-io:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-xml:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-servlet:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty.websocket:websocket-common:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty.websocket:websocket-client:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty.websocket:websocket-api:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-util:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-security:9.3.6.v20151106" level="project" />
+    <orderEntry type="library" name="Gradle: org.slf4j:slf4j-api:1.7.13" level="project" />
     <orderEntry type="module-library">
       <library>
         <CLASSES>
@@ -39,29 +61,13 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="jar://$USER_HOME$/install/share/java/zmq.jar!/" />
+          <root url="jar://$USER_HOME$/install/lib/scapi/commons-exec-1.2.jar!/" />
+          <root url="jar://$USER_HOME$/install/lib/scapi/Scapi-2.4.jar!/" />
+          <root url="jar://$USER_HOME$/install/lib/scapi/bcprov-jdk16-146.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
-    <orderEntry type="library" name="Gradle: wf.bitcoin:JavaBitcoindRpcClient:0.9.9" level="project" />
-    <orderEntry type="library" name="Gradle: org.slf4j:slf4j-simple:1.6.1" level="project" />
-    <orderEntry type="library" name="Gradle: com.sparkjava:spark-core:2.5" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-server:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-webapp:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty.websocket:websocket-server:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty.websocket:websocket-servlet:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: javax.servlet:javax.servlet-api:3.1.0" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-http:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-io:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-xml:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-servlet:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty.websocket:websocket-common:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty.websocket:websocket-client:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty.websocket:websocket-api:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-util:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty:jetty-security:9.3.6.v20151106" level="project" />
-    <orderEntry type="library" name="Gradle: org.slf4j:slf4j-api:1.7.13" level="project" />
   </component>
 </module>

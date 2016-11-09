@@ -1,10 +1,13 @@
 package commandline;
 
 import core.Constants;
+import key.Secp256k1;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
+import java.security.InvalidAlgorithmParameterException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,10 +19,18 @@ public class CLI {
 
     private Scanner in;
     private Context zctx;
+    private int my_port;
+    private String other_party_addr;
     private Socket plain_sock_rcv;
     private Socket plain_sock_send;
     private Socket auth_sock_rcv;
     private Socket auth_sock_send;
+    // Bitcoin
+    private String other_party_bitcoin_address;
+    private String my_private_key;
+    private String my_bitcoin_address;
+
+
 
     private ExecutorService executor;
 
@@ -57,17 +68,20 @@ public class CLI {
         return address + ":" + port;
     }
 
-    private int getMyPort() {
-        return getPort("local", Constants.DEFAULT_PORT);
+    private void get_configuration() {
+        my_port = getPort("local", Constants.DEFAULT_PORT);
+        other_party_addr = getOtherPartyAddress();
     }
 
-    private void startMyPort(int port) {
-
+    private void start_communications() {
+        plain_sock_rcv.bind("tcp://*:" + my_port);
     }
 
-    public void run() {
-        startMyPort(getMyPort());
-        String other_party_uri = getOtherPartyAddress();
+    public void run() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException {
+        Secp256k1 a = new Secp256k1();
+        get_configuration();
+        start_communications();
+
 
     }
 
