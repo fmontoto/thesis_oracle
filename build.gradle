@@ -22,6 +22,10 @@ dependencies {
            '/home/fmontoto/install/lib/scapi/bcprov-jdk16-146.jar'
    )
 
+
+    // https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk15on
+    compile group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.55'
+
     compile group: 'org.zeromq', name: 'jzmq', version: '3.1.1-SNAPSHOT'
     compile group: 'wf.bitcoin', name: 'JavaBitcoindRpcClient', version: '0.9.9'
     // https://mvnrepository.com/artifact/org.slf4j/slf4j-api
