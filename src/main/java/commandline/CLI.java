@@ -1,5 +1,6 @@
 package commandline;
 
+import communication.PlainSocketNegotiation;
 import core.Constants;
 import key.Secp256k1;
 import org.zeromq.ZMQ;
@@ -9,20 +10,21 @@ import org.zeromq.ZMQ.Socket;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Scanner;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * Created by fmontoto on 01-09-16.
  */
 public class CLI {
 
+    private final ZMQ.Curve.KeyPair curveKey;
     private Scanner in;
     private Context zctx;
     private int my_port;
     private String other_party_addr;
-    private Socket plain_sock_rcv;
-    private Socket plain_sock_send;
     private Socket auth_sock_rcv;
     private Socket auth_sock_send;
     // Bitcoin
@@ -36,13 +38,12 @@ public class CLI {
 
     public CLI() {
         zctx = ZMQ.context(2);
-        plain_sock_rcv = zctx.socket(ZMQ.PAIR);
-        plain_sock_send = zctx.socket(ZMQ.PAIR);
         auth_sock_rcv = zctx.socket(ZMQ.PAIR);
         auth_sock_send = zctx.socket(ZMQ.PAIR);
 
         in = new Scanner(System.in);
         executor = Executors.newFixedThreadPool(2);
+        curveKey = ZMQ.Curve.generateKeyPair();
     }
 
     private int getPort(String port_name, int default_value) {
@@ -65,7 +66,7 @@ public class CLI {
         System.out.println("Insert other party address");
         String address = in.nextLine();
         int port = getPort("other party", Constants.DEFAULT_PORT);
-        return address + ":" + port;
+        return "tcp://" + address + ":" + port;
     }
 
     private void get_configuration() {
@@ -73,14 +74,12 @@ public class CLI {
         other_party_addr = getOtherPartyAddress();
     }
 
-    private void start_communications() {
-        plain_sock_rcv.bind("tcp://*:" + my_port);
-    }
-
-    public void run() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException {
+    public void run() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, ExecutionException, InterruptedException {
         Secp256k1 a = new Secp256k1();
         get_configuration();
-        start_communications();
+        Future<String> otherPartyCurveKey = executor.submit(
+                new PlainSocketNegotiation(other_party_addr, my_port, curveKey.publicKey, zctx));
+        System.out.println(otherPartyCurveKey.get());
 
 
     }

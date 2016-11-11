@@ -6,6 +6,7 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.ExecutionException;
 
 import static spark.Spark.get;
 
@@ -13,7 +14,7 @@ import static spark.Spark.get;
  * Created by fmontoto on 30-08-16.
  */
 public class EntryPoint {
-    public static void main(String[] args) throws IOException, InvalidAlgorithmParameterException, NoSuchAlgorithmException {
+    public static void main(String[] args) throws IOException, InvalidAlgorithmParameterException, NoSuchAlgorithmException, ExecutionException, InterruptedException {
         if(args.length < 1) {
             new CLI().run();
         }

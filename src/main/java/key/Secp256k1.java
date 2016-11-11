@@ -12,10 +12,10 @@ import java.util.logging.Logger;
 public class Secp256k1 {
     private static final Logger LOGGER = Logger.getLogger( Secp256k1.class.getName() );
     // The curve is defined at https://en.bitcoin.it/wiki/Secp256k1
-    static private final BigInteger p =
+    static public final BigInteger p =
             new BigInteger("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 16);
-    static private final BigInteger a = BigInteger.valueOf(0);
-    static private final BigInteger b = BigInteger.valueOf(7);
+    static public final BigInteger a = BigInteger.valueOf(0);
+    static public final BigInteger b = BigInteger.valueOf(7);
     static private final BigInteger x =
             new BigInteger("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 16);
     static private final BigInteger y =

@@ -6,6 +6,7 @@ import com.sun.org.apache.xml.internal.security.algorithms.MessageDigestAlgorith
 import com.sun.org.apache.xml.internal.security.algorithms.implementations.IntegrityHmac;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.jetty.util.ArrayUtil;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -133,9 +134,24 @@ public class Utils {
     }
 
 
+    static public byte[] get32ByteRepresentation(BigInteger val) {
+        byte[] ret = val.toByteArray();
+        if(ret.length == 32)
+            return ret;
+        if(ret.length == 33 && ret[0] == 0x00)
+            return Arrays.copyOfRange(ret, 1, ret.length);
+        if(ret.length < 32) {
+            byte[] new_ret = new byte[32];
+            for(int i = 0; i < ret.length; i++)
+                new_ret[ret.length - 1 - i] = ret[ret.length - 1 - i];
+            return new_ret;
+        }
+        throw new InvalidParameterException("val is " + ret.length + " bytes long");
 
+
+    }
 
     static public String bitcoinB58Decode() {
-        return "";
+        throw new NotImplementedException();
     }
 }
