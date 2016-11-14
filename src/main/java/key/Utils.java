@@ -55,7 +55,6 @@ public class Utils {
         Security.addProvider(new BouncyCastleProvider());
         MessageDigest r160dig = null;
         MessageDigest sha256dig = null;
-        System.out.println(MessageDigestAlgorithm.ALGO_ID_DIGEST_RIPEMD160);
         try{
 
 //            MessageDigestAlgorithm.getInstance(MessageDigestAlgorithm.ALGO_ID_DIGEST_RIPEMD160);
@@ -89,7 +88,7 @@ public class Utils {
         byteStream.write(hashValue, 0, 4);
         byte[] diggested_data = byteStream.toByteArray();
         int leading_zeros = count_leading(diggested_data, (byte) 0x00);
-        BigInteger num = new BigInteger(1, diggested_data);
+        BigInteger num = bytesToBigInteger(diggested_data);
         String result = encodeB58(num);
         StringBuilder sb = new StringBuilder();
         for(int i = 0; i < leading_zeros; i++)
@@ -147,8 +146,10 @@ public class Utils {
             return new_ret;
         }
         throw new InvalidParameterException("val is " + ret.length + " bytes long");
+    }
 
-
+    static public BigInteger bytesToBigInteger(byte[] val) {
+        return new BigInteger(1, val);
     }
 
     static public String bitcoinB58Decode() {

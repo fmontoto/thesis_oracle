@@ -82,8 +82,8 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
         this(hexToByteArray(privateKeyHex));
     }
 
-    BitcoinPublicKey getPublicKey() {
-        return new BitcoinPublicKey();
+    public BitcoinPublicKey getPublicKey() {
+        throw new NotImplementedException();
     }
 
     @Override

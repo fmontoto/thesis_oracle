@@ -6,9 +6,12 @@ import java.nio.charset.Charset;
 import java.util.concurrent.Callable;
 import java.util.logging.Logger;
 
+import static communication.Utils.exchangeData;
+
 /**
  * Created by fmontoto on 11-11-16.
  */
+
 public class PlainSocketNegotiation implements Callable<String> {
 
     private static final Logger LOGGER = Logger.getLogger(PlainSocketNegotiation.class.getName());
@@ -18,8 +21,6 @@ public class PlainSocketNegotiation implements Callable<String> {
     private ZMQ.Context ctx;
     private ZMQ.Socket plain_sock_rcv;
     private ZMQ.Socket plain_sock_send;
-    private boolean myKeyWasReceived = false;
-    private boolean receivedOtherPartyKey = false;
     private String otherPartyPublicKey = null;
     private static final Charset utf8 = Charset.forName("UTF-8");
     private static final String sendPublicKeyMsg = "Hi!, this is my publickey:";
@@ -38,42 +39,15 @@ public class PlainSocketNegotiation implements Callable<String> {
         plain_sock_send.connect(this.otherPartyAddr);
     }
 
-    private void parseResponse(String response) {
-
-        if(response.startsWith(sendPublicKeyMsg)) {
-            otherPartyPublicKey = response.substring(sendPublicKeyMsg.length(), response.length());
-            if(otherPartyPublicKey.length() != 40) {
-                LOGGER.warning("Got an unexpected public length:" + otherPartyPublicKey.length());
-                otherPartyPublicKey = null;
-            }
-            else{
-                receivedOtherPartyKey = true;
-                plain_sock_rcv.send("I got your key");
-            }
-
-        }
-        else if(response.startsWith("I got your key!")) {
-           myKeyWasReceived = true;
-        }
-
-    }
-
+    /**
+     * This function will stablish plain text communication in order to exchange ZMQ Elliptic public keys from both
+     * parties to start a secure communication channel.
+     * @return Public key got from the other party.
+     * @throws Exception
+     */
     @Override
     public String call() throws Exception {
-        ZMQ.Poller pollItems = new ZMQ.Poller(1);
-        pollItems.register(plain_sock_rcv, ZMQ.Poller.POLLIN);
-        String msg;
-
-        while (!Thread.currentThread ().isInterrupted () && (myKeyWasReceived && receivedOtherPartyKey)) {
-            if(!myKeyWasReceived)
-                plain_sock_send.send("Hi!, this is my publickey:" + publicZMQKey);
-            pollItems.poll(500);
-            if (pollItems.pollin(0)) {
-                msg = plain_sock_rcv.recvStr(utf8);
-                System.out.println(msg);
-                parseResponse(msg);
-            }
-        }
+        otherPartyPublicKey = exchangeData("zmqPublicKey", publicZMQKey, 40, plain_sock_rcv, plain_sock_send);
         plain_sock_rcv.close();
         plain_sock_send.close();
         return otherPartyPublicKey;

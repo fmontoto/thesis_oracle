@@ -10,23 +10,24 @@ import org.zeromq.ZMQ.Socket;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Scanner;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
+import java.util.logging.Logger;
 
 /**
  * Created by fmontoto on 01-09-16.
  */
 public class CLI {
+    private static final Logger LOGGER = Logger.getLogger(CLI.class.getName());
 
     private final ZMQ.Curve.KeyPair curveKey;
     private Scanner in;
+    // Communication
     private Context zctx;
     private int my_port;
     private String other_party_addr;
     private Socket auth_sock_rcv;
     private Socket auth_sock_send;
+    private String otherPartyPublicZmqKey;
     // Bitcoin
     private String other_party_bitcoin_address;
     private String my_private_key;
@@ -63,9 +64,13 @@ public class CLI {
     }
 
     private String getOtherPartyAddress() {
-        System.out.println("Insert other party address");
+        // TODO Final version can not have localhost as default, testing purposes.
+        System.out.println("Insert other party address (default=localhost)");
         String address = in.nextLine();
-        int port = getPort("other party", Constants.DEFAULT_PORT);
+        if(address.isEmpty())
+            address = "localhost";
+        int port = getPort("other party " +
+                "", Constants.DEFAULT_PORT);
         return "tcp://" + address + ":" + port;
     }
 
@@ -79,7 +84,14 @@ public class CLI {
         get_configuration();
         Future<String> otherPartyCurveKey = executor.submit(
                 new PlainSocketNegotiation(other_party_addr, my_port, curveKey.publicKey, zctx));
-        System.out.println(otherPartyCurveKey.get());
+        try {
+            otherPartyPublicZmqKey = otherPartyCurveKey.get(1600, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            LOGGER.severe("Unable to communicate with the other party.");
+            return;
+        }
+
+
 
 
     }
