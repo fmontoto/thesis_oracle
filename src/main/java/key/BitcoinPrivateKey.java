@@ -1,9 +1,9 @@
 package key;
 
-import org.omg.CORBA.DynAnyPackage.Invalid;
+import org.bouncycastle.jce.ECNamedCurveTable;
+import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
-import javax.crypto.KeyGenerator;
 import javax.security.auth.DestroyFailedException;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -15,7 +15,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
-import static core.Utils.decodeB58;
 import static core.Utils.hexToByteArray;
 
 /**
@@ -23,6 +22,10 @@ import static core.Utils.hexToByteArray;
  */
 public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
     private static final Logger LOGGER = Logger.getLogger(BitcoinPrivateKey.class.getName());
+
+    public ECPrivateKey getEcPrivateKey() {
+        return ecPrivateKey;
+    }
 
     private ECPrivateKey ecPrivateKey;
     boolean testnet;
@@ -35,15 +38,18 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
     }
 
     public BitcoinPrivateKey(boolean compressed_pk, boolean testnet) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException {
+        KeyPairGenerator keyPairGenerator;
         try {
-            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
+            keyPairGenerator = KeyPairGenerator.getInstance("EC");
             keyPairGenerator.initialize(Secp256k1.spec);
         } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
             LOGGER.throwing("BitcoinPrivateKey", "BitcoinPrivateKey", e);
             throw e;
         }
-        //TODO
-        throw new NotImplementedException();
+        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+        ecPrivateKey = (ECPrivateKey) keyPair.getPrivate();
+        this.compressed_pk = compressed_pk;
+        this.testnet = testnet;
     }
 
     public BitcoinPrivateKey(byte[] privateKeyBytes, boolean compressed_pk, boolean testnet) throws NoSuchAlgorithmException, InvalidKeySpecException {
@@ -82,8 +88,17 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
         this(hexToByteArray(privateKeyHex));
     }
 
-    public BitcoinPublicKey getPublicKey() {
-        throw new NotImplementedException();
+    public BitcoinPrivateKey(String privateKeyHex, boolean compressed_pk, boolean testnet) throws InvalidKeySpecException, NoSuchAlgorithmException {
+        this(hexToByteArray(privateKeyHex), compressed_pk, testnet);
+    }
+
+    public BitcoinPublicKey getPublicKey() throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+        // Currently there are not arithmetic operations in Java for ECPoints, would be nice to get rid of
+        // Bouncy Castle in the future.
+        ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec("secp256k1");
+        org.bouncycastle.math.ec.ECPoint q = spec.getG().multiply(getS()).normalize();
+        return new BitcoinPublicKey(q.getXCoord().toBigInteger(),
+                                    q.getYCoord().toBigInteger(), compressed_pk, testnet);
     }
 
     @Override
@@ -124,6 +139,11 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
     @Override
     public String toWIF() {
         return null;
+    }
+
+    @Override
+    public boolean isTestnet() {
+        return testnet;
     }
 
     static public BitcoinPrivateKey fromWIF(String WIFRepresentation) throws IOException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeySpecException {

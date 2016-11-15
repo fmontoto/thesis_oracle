@@ -12,7 +12,7 @@ import java.util.logging.Logger;
  */
 public class Utils {
     private static final Logger LOGGER = Logger.getLogger(Utils.class.getName());
-    private static final Charset utf8 = Charset.forName("UTF-8");
+    static final Charset utf8 = Charset.forName("UTF-8");
 
     static private byte[]exchangeData(byte[] snd_cmd, byte[] snd_data, byte[] ack_cmd, int expectedDataLength,
                                       ZMQ.Socket incomingSocket, ZMQ.Socket outgoingSocket, String dataName){

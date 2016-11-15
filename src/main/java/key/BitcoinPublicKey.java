@@ -65,27 +65,20 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
         this(hexToByteArray(publicKeyHex), compressed, testnet);
     }
 
-    public String getAddress() throws IOException, NoSuchAlgorithmException {
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        if(!compressed)
-            byteArrayOutputStream.write(0x04);
-        if(compressed) {
-            if(ecPublicKey.getW().getAffineY().testBit(0) == false)
-                byteArrayOutputStream.write(0x02);
-            else
-                byteArrayOutputStream.write(0x03);
-        }
-        byteArrayOutputStream.write(get32ByteRepresentation(ecPublicKey.getW().getAffineX()));
-        if(!compressed)
-            byteArrayOutputStream.write(get32ByteRepresentation(ecPublicKey.getW().getAffineY()));
-        byte[] hashedData = r160SHA256Hash(byteArrayOutputStream.toByteArray());
-        byteArrayOutputStream.reset();
+    public BitcoinPublicKey(byte[] key, boolean testnet) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+        this(key, key[0] != 0x04, testnet);
+    }
+
+    public BitcoinPublicKey(BigInteger x, BigInteger y, boolean compressed, boolean testnet) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+        this(mergeArrays(get32ByteRepresentation(x), get32ByteRepresentation(y)), compressed, testnet);
+    }
+
+    public String getAddress() throws NoSuchAlgorithmException, IOException {
+        byte[] hashedData = r160SHA256Hash(getKey());
         if(testnet)
-            byteArrayOutputStream.write(0x6f); // Testnet prefix
+            return bitcoinB58Encode(mergeArrays(new byte[] {0x6f}, hashedData));
         else
-            byteArrayOutputStream.write(0x00); // Mainnet prefix
-        byteArrayOutputStream.write(hashedData);
-        return bitcoinB58Encode(byteArrayOutputStream.toByteArray());
+            return bitcoinB58Encode(mergeArrays(new byte[] {0x00}, hashedData));
     }
 
 
@@ -129,6 +122,31 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
         return byteArrayOutputStream.toByteArray();
     }
 
+    public byte[] getECDSAKey() {
+        return mergeArrays(get32ByteRepresentation(ecPublicKey.getW().getAffineX()),
+                           get32ByteRepresentation(ecPublicKey.getW().getAffineY()));
+    }
+
+    public byte[] getKey(boolean compressed) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        if(!compressed)
+            byteArrayOutputStream.write(0x04);
+        if(compressed) {
+            if(ecPublicKey.getW().getAffineY().testBit(0) == false)
+                byteArrayOutputStream.write(0x02);
+            else
+                byteArrayOutputStream.write(0x03);
+        }
+        byteArrayOutputStream.write(get32ByteRepresentation(ecPublicKey.getW().getAffineX()));
+        if(!compressed)
+            byteArrayOutputStream.write(get32ByteRepresentation(ecPublicKey.getW().getAffineY()));
+        return byteArrayOutputStream.toByteArray();
+    }
+
+    public byte[] getKey() throws IOException, NoSuchAlgorithmException {
+        return getKey(compressed);
+    }
+
     @Override
     public ECPoint getW() {
         return ecPublicKey.getW();
@@ -152,6 +170,11 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
     @Override
     public String toWIF() throws IOException, NoSuchAlgorithmException {
         return getAddress();
+    }
+
+    @Override
+    public boolean isTestnet() {
+        return testnet;
     }
 
     @Override

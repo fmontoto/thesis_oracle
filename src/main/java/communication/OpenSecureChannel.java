@@ -1,14 +1,21 @@
 package communication;
 
 import key.BitcoinPrivateKey;
+import key.BitcoinPublicKey;
 import org.zeromq.ZAuth;
 import org.zeromq.ZMQ;
-import org.zeromq.ZMQQueue;
 import org.zeromq.ZMsg;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.security.*;
+import java.security.spec.InvalidKeySpecException;
 import java.util.concurrent.Callable;
 import java.util.logging.Logger;
+
+import static communication.Utils.exchangeData;
+import static communication.Utils.utf8;
+import static key.Utils.mergeArrays;
 
 /**
  * Created by fmontoto on 14-11-16.
@@ -91,6 +98,7 @@ public class OpenSecureChannel implements Callable<Boolean> {
     private final String otherPartyBitcoinAddr;
     private final ZMQ.Socket outgoing_socket;
     private final ZMQ.Socket incoming_socket;
+    private final boolean testnet;
 
     public OpenSecureChannel(ZMQ.Context zctx, String myPrivateKey, String myPublicKey, String myURI,
                              BitcoinPrivateKey myBitcoinPrivateKey,
@@ -106,6 +114,7 @@ public class OpenSecureChannel implements Callable<Boolean> {
         this.otherPartyBitcoinAddr = otherPartyBitcoinAddr;
         this.outgoing_socket = outgoing_socket;
         this.incoming_socket = incoming_socket;
+        this.testnet = myBitcoinPrivateKey.isTestnet();
     }
 
     private void startZapSecurity() {
@@ -124,9 +133,44 @@ public class OpenSecureChannel implements Callable<Boolean> {
         //incoming_socket.setZAPDomain();
     }
 
-    private boolean authenticateConnectedPeer() {
+    private boolean privateKeyPossession(BitcoinPublicKey bitcoinPublicKey) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        byte[] generateRandomness = new byte[20];
+        new SecureRandom().nextBytes(generateRandomness);
+        byte[] rcvdRandomness = exchangeData("randomBytes", generateRandomness, 0,
+                                              incoming_socket, outgoing_socket);
+
+        Signature signer = Signature.getInstance("SHA256withECDSA");
+        signer.initSign(myBitcoinPrivateKey);
+        signer.update(mergeArrays(rcvdRandomness, myPublicKey.getBytes(utf8)));
+        byte[] signature= signer.sign();
+
+        byte[] rcvdSignature = exchangeData("authenticationSignature", signature, 0,
+                                            incoming_socket, outgoing_socket);
+        Signature verifier = Signature.getInstance("SHA256withECDSA");
+        verifier.initVerify(bitcoinPublicKey);
+        verifier.update(generateRandomness);
+        verifier.update(otherPartyPublicKey.getBytes(utf8));
+        return verifier.verify(rcvdSignature);
+    }
+
+    private boolean authenticateConnectedPeer() throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, SignatureException, InvalidKeyException {
+        byte[] otherPartyPublicBitcoinKeyBytes = exchangeData("bitcoinPublicKey",
+                                                              myBitcoinPrivateKey.getPublicKey().getKey(), 0,
+                                                              incoming_socket, outgoing_socket);
+        // Check if the public key received matches the address.
+        if(otherPartyPublicBitcoinKeyBytes.length != 33 && otherPartyPublicBitcoinKeyBytes.length != 65) {
+            LOGGER.warning("Unexpected length of key received:" + otherPartyPublicBitcoinKeyBytes.length);
+            return false;
+        }
+        BitcoinPublicKey otherPartyPublicBitcoinKey = new BitcoinPublicKey(otherPartyPublicBitcoinKeyBytes, testnet);
+        if(!otherPartyBitcoinAddr.equals(otherPartyPublicBitcoinKey.getAddress())){
+            LOGGER.warning("The key provided by the other party does not match the address");
+            return false;
+        };
+
+        // Check if the other party has control over the privateKey of its public key.
+        privateKeyPossession(otherPartyPublicBitcoinKey);
         return false;
-//        exchangeData("bitcoinPublicKey", myBitcoinPrivateKey.getPublicKey().toWIF());
 
     }
 

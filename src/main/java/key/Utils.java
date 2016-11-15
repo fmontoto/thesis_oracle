@@ -1,11 +1,6 @@
 package key;
 
-import com.sun.corba.se.impl.protocol.giopmsgheaders.Message;
-import com.sun.net.ssl.internal.ssl.Provider;
-import com.sun.org.apache.xml.internal.security.algorithms.MessageDigestAlgorithm;
-import com.sun.org.apache.xml.internal.security.algorithms.implementations.IntegrityHmac;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.eclipse.jetty.util.ArrayUtil;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayOutputStream;
@@ -154,5 +149,26 @@ public class Utils {
 
     static public String bitcoinB58Decode() {
         throw new NotImplementedException();
+    }
+
+    static public byte[] mergeArrays(byte[]... arrays){
+        int totalLength = 0, dstPos = 0;
+        for(int i = 0; i < arrays.length; i++)
+            totalLength += arrays[i].length;
+        byte[] ret = new byte[totalLength];
+        for(int i = 0; i < arrays.length; i++) {
+            System.arraycopy(arrays[i], 0, ret, dstPos, arrays[i].length);
+            dstPos += arrays[i].length;
+        }
+        return ret;
+    }
+
+    static public boolean isValidPrivateKeyWIF(String val) {
+        try {
+            BitcoinPrivateKey.fromWIF(val);
+            return true;
+        } catch(Exception e) {
+            return false;
+        }
     }
 }

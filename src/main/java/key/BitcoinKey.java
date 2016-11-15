@@ -11,6 +11,7 @@ import java.security.interfaces.ECKey;
  */
 public interface BitcoinKey extends ECKey{
     String toWIF() throws IOException, NoSuchAlgorithmException;
+    boolean isTestnet();
 
     static BitcoinKey fromWIF(String WIFRepresentation) throws IOException, NoSuchAlgorithmException {
         throw new NotImplementedException();
