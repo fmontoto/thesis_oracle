@@ -46,7 +46,7 @@ class ZapThread extends Thread {
             self.address = request.popString();
             self.identity = request.popString();
             self.mechanism = request.popString();
-            self.clientKey = request.popString(); // credentials
+            self.clientKey = ZMQ.Curve.z85Encode(request.pop().getData());
 
             assert self.version.equals("1.0");
             assert self.mechanism.equals("CURVE");
@@ -74,12 +74,14 @@ class ZapThread extends Thread {
 
     public void run() {
         String version, sequence, domain, address, identity, mehcanism;
+        LOGGER.info("Starting ZAP security thread");
         while (!Thread.currentThread().isInterrupted()) {
             ZAuth.ZAPRequest zapRequest = recvRequest(sock);
             if (zapRequest.clientKey.equals(otherPartyKey)) {
                 reply(zapRequest, "200", "OK");
             } else {
                 reply(zapRequest, "400", "Not the expected client");
+                LOGGER.warning("Not expected client:" + zapRequest.address);
             }
         }
         sock.close();
@@ -89,8 +91,7 @@ class ZapThread extends Thread {
 public class OpenSecureChannel implements Callable<Boolean> {
     private static final Logger LOGGER = Logger.getLogger(OpenSecureChannel.class.getName());
     private ZMQ.Context zctx;
-    private final String myPrivateKey;
-    private String myPublicKey;
+    private final ZMQ.Curve.KeyPair myCurveKeyPair;
     private String myURI;
     private BitcoinPrivateKey myBitcoinPrivateKey;
     private final String otherPartyURI;
@@ -100,13 +101,12 @@ public class OpenSecureChannel implements Callable<Boolean> {
     private final ZMQ.Socket incoming_socket;
     private final boolean testnet;
 
-    public OpenSecureChannel(ZMQ.Context zctx, String myPrivateKey, String myPublicKey, String myURI,
+    public OpenSecureChannel(ZMQ.Context zctx, ZMQ.Curve.KeyPair myCurveKeyPair, String myURI,
                              BitcoinPrivateKey myBitcoinPrivateKey,
                              String otherPartyURI, String otherPartyPublicKey, String otherPartyBitcoinAddr,
                              ZMQ.Socket outgoing_socket, ZMQ.Socket incoming_socket) {
         this.zctx = zctx;
-        this.myPrivateKey = myPrivateKey;
-        this.myPublicKey = myPublicKey;
+        this.myCurveKeyPair = myCurveKeyPair;
         this.myURI = myURI;
         this.myBitcoinPrivateKey = myBitcoinPrivateKey;
         this.otherPartyURI = otherPartyURI;
@@ -115,6 +115,16 @@ public class OpenSecureChannel implements Callable<Boolean> {
         this.outgoing_socket = outgoing_socket;
         this.incoming_socket = incoming_socket;
         this.testnet = myBitcoinPrivateKey.isTestnet();
+
+
+//        outgoing_socket.setBacklog(1);
+//        incoming_socket.setBacklog(1);
+        // Only two messages at outbound queue.
+//        outgoing_socket.setSndHWM(2);
+        // Only two messages at inbound queue
+//        incoming_socket.setRcvHWM(2);
+//        incoming_socket.setLinger(1000);
+//        outgoing_socket.setLinger(1000);
     }
 
     private void startZapSecurity() {
@@ -122,15 +132,18 @@ public class OpenSecureChannel implements Callable<Boolean> {
     }
 
     private void setSecurity() {
-        outgoing_socket.setCurvePublicKey(ZMQ.Curve.z85Decode(myPublicKey));
-        outgoing_socket.setCurveSecretKey(ZMQ.Curve.z85Decode(myPrivateKey));
-//        outgoing_socket.setIdentity("otherParty".getBytes());
-
-        incoming_socket.setCurveServer(true);
-        incoming_socket.setCurveSecretKey(ZMQ.Curve.z85Decode(myPrivateKey));
+//        return;
         startZapSecurity();
+        incoming_socket.setIdentity("otherParty".getBytes());
 
-        //incoming_socket.setZAPDomain();
+        incoming_socket.setZAPDomain("otherParty".getBytes(utf8));
+        outgoing_socket.setCurvePublicKey(ZMQ.Curve.z85Decode(myCurveKeyPair.publicKey));
+        outgoing_socket.setCurveSecretKey(ZMQ.Curve.z85Decode(myCurveKeyPair.secretKey));
+        outgoing_socket.setCurveServerKey(ZMQ.Curve.z85Decode(otherPartyPublicKey));
+//
+        incoming_socket.setCurveServer(true);
+        incoming_socket.setCurveSecretKey(ZMQ.Curve.z85Decode(myCurveKeyPair.secretKey));
+
     }
 
     private boolean privateKeyPossession(BitcoinPublicKey bitcoinPublicKey) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
@@ -141,7 +154,7 @@ public class OpenSecureChannel implements Callable<Boolean> {
 
         Signature signer = Signature.getInstance("SHA256withECDSA");
         signer.initSign(myBitcoinPrivateKey);
-        signer.update(mergeArrays(rcvdRandomness, myPublicKey.getBytes(utf8)));
+        signer.update(mergeArrays(rcvdRandomness, myCurveKeyPair.publicKey.getBytes(utf8)));
         byte[] signature= signer.sign();
 
         byte[] rcvdSignature = exchangeData("authenticationSignature", signature, 0,
@@ -169,9 +182,11 @@ public class OpenSecureChannel implements Callable<Boolean> {
         };
 
         // Check if the other party has control over the privateKey of its public key.
-        privateKeyPossession(otherPartyPublicBitcoinKey);
-        return false;
-
+        if(!privateKeyPossession(otherPartyPublicBitcoinKey)) {
+            LOGGER.warning("The other party did not prove the possession of the private key.");
+            return false;
+        };
+        return true;
     }
 
 
@@ -185,9 +200,9 @@ public class OpenSecureChannel implements Callable<Boolean> {
         incoming_socket.bind(myURI);
         outgoing_socket.connect(otherPartyURI);
         if(!authenticateConnectedPeer()) {
-            incoming_socket.unbind(incoming_socket.getLastEndpoint().toString());
-            incoming_socket.disconnect(otherPartyURI);
-            incoming_socket.disconnect(otherPartyURI);
+            System.out.println(new String(incoming_socket.getLastEndpoint(), utf8));
+            incoming_socket.unbind(new String(incoming_socket.getLastEndpoint(), utf8));
+            outgoing_socket.disconnect(otherPartyURI);
             return false;
         }
         return true;

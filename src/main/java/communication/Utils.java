@@ -20,16 +20,15 @@ public class Utils {
         boolean succesfullySent = false, successfullyReceived = false;
         ZMQ.Poller pollItems = new ZMQ.Poller(1);
         pollItems.register(incomingSocket, ZMQ.Poller.POLLIN);
-        ZMsg sndMsg = new ZMsg();
-        sndMsg.add(snd_cmd);
-        sndMsg.addLast(snd_data);
         ZMsg rcvdMsg;
         byte[] rcvdCmd;
         byte[] rcvdData = null;
 
         while (!Thread.currentThread ().isInterrupted () && (!succesfullySent || !successfullyReceived)) {
-            if(!succesfullySent)
-                sndMsg.send(outgoingSocket);
+            if(!succesfullySent) {
+                outgoingSocket.send(snd_cmd, ZMQ.DONTWAIT | ZMQ.SNDMORE);
+                outgoingSocket.send(snd_data, ZMQ.DONTWAIT);
+            }
             pollItems.poll(250);
             if (pollItems.pollin(0)) {
                 rcvdMsg = ZMsg.recvMsg(incomingSocket);

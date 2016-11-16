@@ -1,5 +1,6 @@
 package commandline;
 
+import communication.OpenSecureChannel;
 import communication.PlainSocketNegotiation;
 import core.Constants;
 import key.BitcoinPrivateKey;
@@ -46,8 +47,8 @@ public class CLI {
 
     public CLI() {
         zctx = ZMQ.context(2);
-        auth_sock_rcv = zctx.socket(ZMQ.PAIR);
-        auth_sock_send = zctx.socket(ZMQ.PAIR);
+        auth_sock_rcv = zctx.socket(ZMQ.PULL);
+        auth_sock_send = zctx.socket(ZMQ.PUSH);
 
         in = new Scanner(System.in);
         executor = Executors.newFixedThreadPool(2);
@@ -62,7 +63,7 @@ public class CLI {
         my_private_key = null;
     }
 
-    public CLI(String[] args) throws ParseException, InvalidKeySpecException, NoSuchAlgorithmException {
+    public CLI(String[] args) throws ParseException, InvalidKeySpecException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException {
         this();
         Options options = new Options();
         // Boolean
@@ -81,7 +82,7 @@ public class CLI {
                         .numberOfArgs(1)
                         .build());
         options.addOption(
-                Option.builder("l").longOpt("Location")
+                Option.builder("l").longOpt("location")
                         .desc("Other party's address.")
                         .type(String.class)
                         .numberOfArgs(1)
@@ -115,13 +116,13 @@ public class CLI {
             throw new ExceptionInInitializerError();
         }
         if(cl.hasOption("my-port"))
-            my_port = (int) cl.getParsedOptionValue("my-port");
+            my_port = Integer.parseInt(cl.getOptionValue("my-port"));
         if(cl.hasOption("connect-port"))
-            other_party_port = (int) cl.getParsedOptionValue("connect-port");
+            other_party_port = Integer.parseInt(cl.getOptionValue("connect-port"));
         if(cl.hasOption("location"))
             other_party_location = cl.getOptionValue("location");
         if(cl.hasOption("key"))
-            my_private_key = new BitcoinPrivateKey(cl.getOptionValue("key"));
+            my_private_key = BitcoinPrivateKey.fromWIF(cl.getOptionValue("key"));
         if(cl.hasOption("address"))
             other_party_bitcoin_address = cl.getOptionValue("address");
     }
@@ -200,20 +201,32 @@ public class CLI {
     public void run() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, ExecutionException, InterruptedException, InvalidKeySpecException, IOException {
         Secp256k1 a = new Secp256k1();
         get_configuration();
-        Future<String> otherPartyCurveKey = executor.submit(
-                new PlainSocketNegotiation(other_party_addr, my_port, myKeyPair.publicKey, zctx));
+
         try {
-            otherPartyPublicZmqKey = otherPartyCurveKey.get(1600, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            LOGGER.severe("Unable to communicate with the other party.");
-            return;
-        }
+            Future<String> otherPartyCurveKeyFuture = executor.submit(
+                    new PlainSocketNegotiation(other_party_addr, my_port, myKeyPair.publicKey, zctx));
+            otherPartyPublicZmqKey = otherPartyCurveKeyFuture.get(1600, TimeUnit.SECONDS);
+            System.out.println("Got ZMQ key!");
 
 
+            other_party_addr = "tcp://" + other_party_location + ":" + (other_party_port + 1);
+            my_port = my_port + 1;
 
 
+            Future<Boolean> gotAuthenticatedChannel = executor.submit(
+                    new OpenSecureChannel(zctx, myKeyPair, "tcp://*:" + my_port, my_private_key,
+                            other_party_addr, otherPartyPublicZmqKey,
+                            other_party_bitcoin_address, auth_sock_send, auth_sock_rcv));
+            if(!gotAuthenticatedChannel.get(1600, TimeUnit.SECONDS)) {
+                LOGGER.severe("Unable to authenticate the channel.");
+                return;
+            }
+            } catch (TimeoutException e) {
+                LOGGER.severe("Unable to open the authenticated channel on time");
+                return;
+            }
+            finally{
+                executor.shutdown();
+            }
     }
-
-
-
 }

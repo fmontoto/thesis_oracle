@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 
 import static core.Utils.hexToByteArray;
+import static key.Utils.bytesToBigInteger;
 
 /**
  * Created by fmontoto on 09-11-16.
@@ -59,7 +60,7 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
         try{
             keyFactory = KeyFactory.getInstance("EC");
             ecPrivateKey = (ECPrivateKey) keyFactory.generatePrivate(
-                    new ECPrivateKeySpec(new BigInteger(privateKeyBytes), Secp256k1.spec));
+                    new ECPrivateKeySpec(bytesToBigInteger(privateKeyBytes), Secp256k1.spec));
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             LOGGER.throwing("BitcoinPrivateKey", "BitcoinPrivateKey", e);
             throw e;
@@ -75,7 +76,7 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
         try {
             keyFactory = KeyFactory.getInstance("EC");
             ecPrivateKey = (ECPrivateKey) keyFactory.generatePrivate(
-                    new ECPrivateKeySpec(new BigInteger(privateKeyBytes), Secp256k1.spec));
+                    new ECPrivateKeySpec(bytesToBigInteger(privateKeyBytes), Secp256k1.spec));
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             LOGGER.throwing("Secp256k1", "Secp256k1", e);
             throw e;
@@ -97,8 +98,8 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
         // Bouncy Castle in the future.
         ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec("secp256k1");
         org.bouncycastle.math.ec.ECPoint q = spec.getG().multiply(getS()).normalize();
-        return new BitcoinPublicKey(q.getXCoord().toBigInteger(),
-                                    q.getYCoord().toBigInteger(), compressed_pk, testnet);
+        return new BitcoinPublicKey(q.getAffineXCoord().toBigInteger(),
+                                    q.getAffineYCoord().toBigInteger(), compressed_pk, testnet);
     }
 
     @Override

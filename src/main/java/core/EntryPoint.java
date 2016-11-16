@@ -40,7 +40,8 @@ public class EntryPoint {
             return;
         }
         catch(Exception e) {
-            LOGGER.severe("Exception received:" + e.getMessage() + ". Closing");
+            LOGGER.severe("Exception (" + e.getClass() + ") received:" + e.getMessage() + ".");
+            e.printStackTrace();
             return;
         }
     }

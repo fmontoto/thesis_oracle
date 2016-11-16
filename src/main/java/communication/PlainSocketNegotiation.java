@@ -32,8 +32,19 @@ public class PlainSocketNegotiation implements Callable<String> {
         this.publicZMQKey = publicZMQKey;
         this.ctx = ctx;
 
-        plain_sock_rcv = this.ctx.socket(ZMQ.PAIR);
-        plain_sock_send = this.ctx.socket(ZMQ.PAIR);
+        plain_sock_rcv = this.ctx.socket(ZMQ.PULL);
+        plain_sock_send = this.ctx.socket(ZMQ.PUSH);
+        // Set one outstanding connection
+        plain_sock_send.setBacklog(1);
+        plain_sock_rcv.setBacklog(1);
+        // Only two messages at outbound queue.
+        plain_sock_send.setSndHWM(2);
+        // Only two messages at inbound queue
+        plain_sock_rcv.setRcvHWM(2);
+        plain_sock_rcv.setLinger(1000);
+        plain_sock_send.setLinger(1000);
+
+
 
         plain_sock_rcv.bind("tcp://*:" + this.my_port);
         plain_sock_send.connect(this.otherPartyAddr);
