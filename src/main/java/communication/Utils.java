@@ -47,7 +47,7 @@ public class Utils {
                 }
                 else if(Arrays.equals(ack_cmd, rcvdCmd)) {
                     succesfullySent = true;
-                    LOGGER.info("My " + dataName + "was received.");
+                    LOGGER.info("My " + dataName + " was received.");
 
                 }
                 else {
