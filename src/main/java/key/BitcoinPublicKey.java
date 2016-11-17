@@ -70,15 +70,15 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
     }
 
     public BitcoinPublicKey(BigInteger x, BigInteger y, boolean compressed, boolean testnet) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
-        this(mergeArrays(get32ByteRepresentation(x), get32ByteRepresentation(y)), compressed, testnet);
+        this(core.Utils.mergeArrays(get32ByteRepresentation(x), get32ByteRepresentation(y)), compressed, testnet);
     }
 
     public String getAddress() throws NoSuchAlgorithmException, IOException {
         byte[] hashedData = r160SHA256Hash(getKey());
         if(testnet)
-            return bitcoinB58Encode(mergeArrays(new byte[] {0x6f}, hashedData));
+            return bitcoinB58Encode(core.Utils.mergeArrays(new byte[] {0x6f}, hashedData));
         else
-            return bitcoinB58Encode(mergeArrays(new byte[] {0x00}, hashedData));
+            return bitcoinB58Encode(core.Utils.mergeArrays(new byte[] {0x00}, hashedData));
     }
 
 
@@ -123,7 +123,7 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
     }
 
     public byte[] getECDSAKey() {
-        return mergeArrays(get32ByteRepresentation(ecPublicKey.getW().getAffineX()),
+        return core.Utils.mergeArrays(get32ByteRepresentation(ecPublicKey.getW().getAffineX()),
                            get32ByteRepresentation(ecPublicKey.getW().getAffineY()));
     }
 

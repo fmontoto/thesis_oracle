@@ -15,7 +15,7 @@ import java.util.logging.Logger;
 
 import static communication.Utils.exchangeData;
 import static communication.Utils.utf8;
-import static key.Utils.mergeArrays;
+import static core.Utils.mergeArrays;
 
 /**
  * Created by fmontoto on 14-11-16.

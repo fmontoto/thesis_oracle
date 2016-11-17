@@ -151,18 +151,6 @@ public class Utils {
         throw new NotImplementedException();
     }
 
-    static public byte[] mergeArrays(byte[]... arrays){
-        int totalLength = 0, dstPos = 0;
-        for(int i = 0; i < arrays.length; i++)
-            totalLength += arrays[i].length;
-        byte[] ret = new byte[totalLength];
-        for(int i = 0; i < arrays.length; i++) {
-            System.arraycopy(arrays[i], 0, ret, dstPos, arrays[i].length);
-            dstPos += arrays[i].length;
-        }
-        return ret;
-    }
-
     static public boolean isValidPrivateKeyWIF(String val) {
         try {
             BitcoinPrivateKey.fromWIF(val);
