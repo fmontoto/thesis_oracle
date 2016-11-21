@@ -38,7 +38,7 @@ public class UtilsTest {
                            serializeUint64(Long.MAX_VALUE));
         assertArrayEquals(new byte[]{(byte) 0xAE, (byte) 0x47, (byte) 0xE1, (byte) 0x7A,
                                      (byte) 0x14, (byte) 0xAE, (byte) 0x47, (byte) 0x01},
-                serializeUint64(92233720368547758l));
+                serializeUint64(92233720368547758L));
     }
 
 
@@ -66,9 +66,9 @@ public class UtilsTest {
     }
     @Test
     public void testReadVarInt() throws Exception {
-        assertEquals(1l, readVarInt(new byte[]{0x00, 0x01}, 1));
-        assertNotEquals(1l, readVarInt(new byte[]{0x00, 0x01}, 0));
-        assertEquals(256l, readVarInt(new byte[]{0x00, (byte)0xfd, 0x00, 0x01}, 1));
+        assertEquals(1L, readVarInt(new byte[]{0x00, 0x01}, 1));
+        assertNotEquals(1L, readVarInt(new byte[]{0x00, 0x01}, 0));
+        assertEquals(256L, readVarInt(new byte[]{0x00, (byte)0xfd, 0x00, 0x01}, 1));
         assertEquals((long)Math.pow(2, 17), readVarInt(new byte[]{(byte)0xfe, 0x00, 0x00, 0x02, 0x00}, 0));
         assertEquals((long)Math.pow(2, 33),
                      readVarInt(new byte[]{(byte)0xff, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00}, 0));
@@ -77,8 +77,8 @@ public class UtilsTest {
 
     @Test
     public void testSerializeVarInt() throws Exception {
-        assertArrayEquals(new byte[]{0x01}, serializeVarInt(1l));
-        assertArrayEquals(new byte[]{(byte)0xfd, 0x00, 0x01}, serializeVarInt(256l));
+        assertArrayEquals(new byte[]{0x01}, serializeVarInt(1L));
+        assertArrayEquals(new byte[]{(byte)0xfd, 0x00, 0x01}, serializeVarInt(256L));
         assertArrayEquals(new byte[]{(byte)0xfe, 0x00, 0x00, 0x02, 0x00},
                      serializeVarInt((long)Math.pow(2, 17)));
         assertArrayEquals(new byte[]{(byte)0xff, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00},

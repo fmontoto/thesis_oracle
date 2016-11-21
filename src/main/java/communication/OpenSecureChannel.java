@@ -146,7 +146,7 @@ public class OpenSecureChannel implements Callable<Boolean> {
 
     }
 
-    private boolean privateKeyPossession(BitcoinPublicKey bitcoinPublicKey) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+    private boolean privateKeyPossession(BitcoinPublicKey bitcoinPublicKey) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, IOException, InvalidKeySpecException {
         byte[] generateRandomness = new byte[20];
         new SecureRandom().nextBytes(generateRandomness);
         byte[] rcvdRandomness = exchangeData("randomBytes", generateRandomness, 0,
@@ -154,15 +154,21 @@ public class OpenSecureChannel implements Callable<Boolean> {
 
         Signature signer = Signature.getInstance("SHA256withECDSA");
         signer.initSign(myBitcoinPrivateKey);
-        signer.update(mergeArrays(rcvdRandomness, myCurveKeyPair.publicKey.getBytes(utf8)));
+        signer.update(mergeArrays(rcvdRandomness,
+                                  ZMQ.Curve.z85Decode(myCurveKeyPair.publicKey),
+                                  ZMQ.Curve.z85Decode(otherPartyPublicKey),
+                                  otherPartyBitcoinAddr.getBytes(utf8)));
         byte[] signature= signer.sign();
 
         byte[] rcvdSignature = exchangeData("authenticationSignature", signature, 0,
                                             incoming_socket, outgoing_socket);
+
         Signature verifier = Signature.getInstance("SHA256withECDSA");
         verifier.initVerify(bitcoinPublicKey);
         verifier.update(generateRandomness);
-        verifier.update(otherPartyPublicKey.getBytes(utf8));
+        verifier.update(ZMQ.Curve.z85Decode(otherPartyPublicKey));
+        verifier.update(ZMQ.Curve.z85Decode(myCurveKeyPair.publicKey));
+        verifier.update(myBitcoinPrivateKey.getPublicKey().getAddress().getBytes(utf8));
         return verifier.verify(rcvdSignature);
     }
 
