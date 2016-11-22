@@ -1,5 +1,7 @@
 package transaction;
 
+import static core.Utils.byteArrayToHex;
+
 /**
  * Created by fmontoto on 17-11-16.
  */
@@ -112,4 +114,5 @@ public class Utils {
             ret[i] = val[val.length - 1 - i];
         return ret;
     }
+
 }
