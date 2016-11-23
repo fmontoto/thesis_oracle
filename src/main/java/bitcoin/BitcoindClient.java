@@ -1,10 +1,12 @@
 package bitcoin;
 
 import bitcoin.transaction.Input;
-import org.bitcoinj.core.Transaction;
+import bitcoin.transaction.Transaction;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
+
+import java.util.List;
 
 import static core.Utils.byteArrayToHex;
 
@@ -33,7 +35,22 @@ public class BitcoindClient {
         throw new NotImplementedException();
     }
 
+    public Transaction getTransaction(String txHash){
+        String rawTransactionHex = bitcoindRpcClient.getRawTransactionHex(txHash);
+        return new Transaction(rawTransactionHex);
+    }
+
     public Transaction getTransaction(Input inTx) {
         return getTransaction(inTx.getPrevTxHash());
     }
+
+    public void validateTx(String rawTxHex) {
+        bitcoindRpcClient.signRawTransaction(rawTxHex);
+    }
+
+    public List<String> getAddresses(String account) {
+        return bitcoindRpcClient.getAddressesByAccount(account);
+    }
+
+
 }

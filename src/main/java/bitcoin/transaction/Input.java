@@ -3,22 +3,23 @@ package bitcoin.transaction;
 
 import java.util.*;
 
+import static bitcoin.transaction.Utils.*;
 import static core.Utils.byteArrayToHex;
+import static core.Utils.hexToByteArray;
 import static core.Utils.mergeArrays;
-import static bitcoin.transaction.Utils.arrayReverse;
-import static bitcoin.transaction.Utils.serializeUint32;
-import static bitcoin.transaction.Utils.serializeVarInt;
 
 /**
  * Created by fmontoto on 17-11-16.
  */
 public class Input {
-    byte[] prevTxHash;
-    int prevIdx;
-    byte[] script;
-    int sequenceNo;
+    private byte[] prevTxHash;
+    private long prevIdx;
+    private byte[] script;
+    private long sequenceNo;
+    private int byte_size;
 
     public Input() {
+        byte_size = 0;
         sequenceNo = 0xFFFFFFFF;
         prevIdx = 0;
         script = null;
@@ -26,6 +27,7 @@ public class Input {
     }
 
     public Input(int prevIdx, byte[] prevTxHash, byte[] script) {
+        this();
         this.prevIdx = prevIdx;
         this.prevTxHash = prevTxHash;
         this.script = script;
@@ -36,12 +38,42 @@ public class Input {
         this.sequenceNo = sequenceNo;
     }
 
+
+    public Input(byte[] rawInput, int offset) {
+        int original_offset = offset;
+        prevTxHash = arrayReverse(rawInput, offset, offset + 32);
+        offset += 32;
+        prevIdx = readUint32(rawInput, offset);
+        offset += 4;
+        long script_length = readVarInt(rawInput, offset);
+        offset += varIntByteSize(script_length);
+        script = Arrays.copyOfRange(rawInput, offset, offset + (int)script_length);
+        offset += script_length;
+        sequenceNo = readUint32(rawInput, offset);
+        offset += 4;
+        byte_size = offset - original_offset;
+    }
+
+    public Input(byte[] rawInput) {
+        this(rawInput, 0);
+    }
+
+    public Input(String rawInputHex) {
+        this(hexToByteArray(rawInputHex));
+    }
+
     public byte[] getPrevTxHash() {
         return Arrays.copyOf(prevTxHash, prevTxHash.length);
     }
 
-    public int getPrevIdx() {
+    public long getPrevIdx() {
         return prevIdx;
+    }
+
+    public int getByteSize() {
+        if(byte_size == 0)
+            byte_size = serialize().length;
+        return byte_size;
     }
 
     public byte[] serialize() {
@@ -60,10 +92,10 @@ public class Input {
         // Linked hashmaps keep the insertion order.
         Map<String, String> ret = new LinkedHashMap<String, String>();
         ret.put("prev_tx_hash", byteArrayToHex(prevTxHash != null ? prevTxHash: new byte[32]));
-        ret.put("prev_idx", String.valueOf(prevIdx));
+        ret.put("prev_idx", Long.toUnsignedString(prevIdx));
         ret.put("script_length", String.valueOf(script != null ? script.length : 0));
         ret.put("script", byteArrayToHex(script));
-        ret.put("sequence_no", Integer.toUnsignedString(sequenceNo));
+        ret.put("sequence_no", Long.toUnsignedString(sequenceNo));
         return ret;
     }
 }

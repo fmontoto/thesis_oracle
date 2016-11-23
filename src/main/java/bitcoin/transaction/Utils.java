@@ -106,11 +106,26 @@ public class Utils {
                           (byte) (val >> 24)};
     }
 
-    static public byte[] arrayReverse(byte[] val){
-        byte[] ret = new byte[val.length];
-        for(int i = 0; i < val.length; i++)
-            ret[i] = val[val.length - 1 - i];
+    static public int varIntByteSize(long val) {
+        if(val < 0 || val > 0xFFFFFFFFl)
+            return 9;
+        if(val < 253)
+            return 1;
+        if(val < 0xFFFFl)
+            return 3;
+        return 5;
+
+    }
+
+    static public byte[] arrayReverse(byte[] val, int from, int to) {
+        byte[] ret = new byte[to - from];
+        for(int i = from; i < to; i++)
+            ret[i - from] = val[to - 1 - (i - from)];
         return ret;
+    }
+
+    static public byte[] arrayReverse(byte[] val){
+        return arrayReverse(val, 0, val.length);
     }
 
 }
