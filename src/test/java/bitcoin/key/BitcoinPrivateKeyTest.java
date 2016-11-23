@@ -1,4 +1,4 @@
-package key;
+package bitcoin.key;
 
 import org.junit.Test;
 
@@ -7,7 +7,7 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 
 import static core.Utils.byteArrayToHex;
-import static key.Utils.get32ByteRepresentation;
+import static bitcoin.key.Utils.get32ByteRepresentation;
 import static org.junit.Assert.*;
 
 /**

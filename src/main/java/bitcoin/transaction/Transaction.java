@@ -1,6 +1,4 @@
-package transaction;
-
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+package bitcoin.transaction;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -8,9 +6,8 @@ import java.util.ArrayList;
 import java.util.Map;
 
 import static core.Utils.byteArrayToHex;
-import static core.Utils.mergeArrays;
-import static transaction.Utils.serializeUint32;
-import static transaction.Utils.serializeVarInt;
+import static bitcoin.transaction.Utils.serializeUint32;
+import static bitcoin.transaction.Utils.serializeVarInt;
 
 /**
  * Created by fmontoto on 17-11-16.
@@ -22,7 +19,10 @@ public class Transaction {
     private ArrayList<Output> outputs;
     private int lockTime;
 
+    private boolean isSigned;
+
     public Transaction() {
+        isSigned = false;
         version = 1;
         lockTime = 0xFFFFFFFF;
         inputs = new ArrayList<Input>();
@@ -33,6 +33,14 @@ public class Transaction {
         this();
         this.version = version;
         this.lockTime = lockTime;
+    }
+
+    public void appendInput(Input i) {
+        inputs.add(i);
+    }
+
+    public void appendOutput(Output o) {
+        outputs.add(o);
     }
 
     public byte[] serialize() {
@@ -58,10 +66,10 @@ public class Transaction {
         return byteArrayToHex(serialize());
     }
 
-    private String toString(Map<String, String> m, int ident) {
-        throw new NotImplementedException();
-
-
+    static private String toString(Map<String, String> m, int ident) {
+        StringBuilder sb = new StringBuilder();
+        m.forEach((k, v) -> sb.append(String.format("%" + ident + "s%s: %s\n", "\t", k, v)));
+        return sb.toString();
     }
 
     public String toString() {

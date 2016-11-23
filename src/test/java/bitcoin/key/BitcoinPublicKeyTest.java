@@ -1,4 +1,4 @@
-package key;
+package bitcoin.key;
 
 import org.junit.Test;
 
@@ -7,7 +7,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 
 import static core.Utils.hexToByteArray;
-import static key.Utils.bytesToBigInteger;
+import static bitcoin.key.Utils.bytesToBigInteger;
 import static org.junit.Assert.*;
 
 /**

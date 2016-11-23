@@ -53,7 +53,7 @@ public class PlainSocketNegotiation implements Callable<String> {
     /**
      * This function will stablish plain text communication in order to exchange ZMQ Elliptic public keys from both
      * parties to start a secure communication channel.
-     * @return Public key got from the other party.
+     * @return Public bitcoin.key got from the other party.
      * @throws Exception
      */
     @Override

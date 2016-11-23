@@ -1,4 +1,4 @@
-package key;
+package bitcoin.key;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 

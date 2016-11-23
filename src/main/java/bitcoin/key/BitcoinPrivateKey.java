@@ -1,4 +1,4 @@
-package key;
+package bitcoin.key;
 
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
@@ -16,7 +16,7 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 
 import static core.Utils.hexToByteArray;
-import static key.Utils.bytesToBigInteger;
+import static bitcoin.key.Utils.bytesToBigInteger;
 
 /**
  * Created by fmontoto on 09-11-16.
@@ -56,7 +56,7 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
     public BitcoinPrivateKey(byte[] privateKeyBytes, boolean compressed_pk, boolean testnet) throws NoSuchAlgorithmException, InvalidKeySpecException {
         KeyFactory keyFactory;
         if(privateKeyBytes.length != 32)
-            throw new InvalidParameterException("private key must be 32 bytes long, not " + privateKeyBytes.length);
+            throw new InvalidParameterException("private bitcoin.key must be 32 bytes long, not " + privateKeyBytes.length);
         try{
             keyFactory = KeyFactory.getInstance("EC");
             ecPrivateKey = (ECPrivateKey) keyFactory.generatePrivate(
@@ -72,7 +72,7 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
     public BitcoinPrivateKey(byte[] privateKeyBytes) throws InvalidKeySpecException, NoSuchAlgorithmException {
         KeyFactory keyFactory;
         if (privateKeyBytes.length != 32)
-            throw new InvalidParameterException("private key must be 32 bytes long");
+            throw new InvalidParameterException("private bitcoin.key must be 32 bytes long");
         try {
             keyFactory = KeyFactory.getInstance("EC");
             ecPrivateKey = (ECPrivateKey) keyFactory.generatePrivate(

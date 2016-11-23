@@ -1,14 +1,12 @@
-package transaction;
-
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+package bitcoin.transaction;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static core.Utils.byteArrayToHex;
 import static core.Utils.mergeArrays;
-import static transaction.Utils.serializeUint64;
-import static transaction.Utils.serializeVarInt;
+import static bitcoin.transaction.Utils.serializeUint64;
+import static bitcoin.transaction.Utils.serializeVarInt;
 
 /**
  * Created by fmontoto on 17-11-16.

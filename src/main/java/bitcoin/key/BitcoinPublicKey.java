@@ -1,4 +1,4 @@
-package key;
+package bitcoin.key;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 
 import static core.Utils.hexToByteArray;
-import static key.Utils.*;
+import static bitcoin.key.Utils.*;
 
 /**
  * Created by fmontoto on 09-11-16.
@@ -35,7 +35,7 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
 
     /**
      *
-     * @param publicKeyBytes byte representation of the elliptic curve public key.
+     * @param publicKeyBytes byte representation of the elliptic curve public bitcoin.key.
      */
     public BitcoinPublicKey(byte[] publicKeyBytes, boolean compressed, boolean testnet) throws NoSuchAlgorithmException, InvalidKeySpecException, IOException {
         KeyFactory keyFactory;
@@ -86,8 +86,8 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
      * Based in the implementation at:
      * https://bitcointalk.org/index.php?topic=644919.msg7205689#msg7205689
      *
-     * @param compressedKey A bitcoin 33bytes compressed public key
-     * @return A 64bytes representation of the key. (to make it a bitcoin key you
+     * @param compressedKey A bitcoin 33bytes compressed public bitcoin.key
+     * @return A 64bytes representation of the bitcoin.key. (to make it a bitcoin bitcoin.key you
      * need to prepend a 0x04
      * @throws IOException
      */

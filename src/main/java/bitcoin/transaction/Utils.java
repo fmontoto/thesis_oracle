@@ -1,6 +1,4 @@
-package transaction;
-
-import static core.Utils.byteArrayToHex;
+package bitcoin.transaction;
 
 /**
  * Created by fmontoto on 17-11-16.

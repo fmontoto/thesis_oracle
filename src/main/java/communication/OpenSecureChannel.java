@@ -1,7 +1,7 @@
 package communication;
 
-import key.BitcoinPrivateKey;
-import key.BitcoinPublicKey;
+import bitcoin.key.BitcoinPrivateKey;
+import bitcoin.key.BitcoinPublicKey;
 import org.zeromq.ZAuth;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMsg;
@@ -176,20 +176,20 @@ public class OpenSecureChannel implements Callable<Boolean> {
         byte[] otherPartyPublicBitcoinKeyBytes = exchangeData("bitcoinPublicKey",
                                                               myBitcoinPrivateKey.getPublicKey().getKey(), 0,
                                                               incoming_socket, outgoing_socket);
-        // Check if the public key received matches the address.
+        // Check if the public bitcoin.key received matches the address.
         if(otherPartyPublicBitcoinKeyBytes.length != 33 && otherPartyPublicBitcoinKeyBytes.length != 65) {
-            LOGGER.warning("Unexpected length of key received:" + otherPartyPublicBitcoinKeyBytes.length);
+            LOGGER.warning("Unexpected length of bitcoin.key received:" + otherPartyPublicBitcoinKeyBytes.length);
             return false;
         }
         BitcoinPublicKey otherPartyPublicBitcoinKey = new BitcoinPublicKey(otherPartyPublicBitcoinKeyBytes, testnet);
         if(!otherPartyBitcoinAddr.equals(otherPartyPublicBitcoinKey.getAddress())){
-            LOGGER.warning("The key provided by the other party does not match the address");
+            LOGGER.warning("The bitcoin.key provided by the other party does not match the address");
             return false;
         };
 
-        // Check if the other party has control over the privateKey of its public key.
+        // Check if the other party has control over the privateKey of its public bitcoin.key.
         if(!privateKeyPossession(otherPartyPublicBitcoinKey)) {
-            LOGGER.warning("The other party did not prove the possession of the private key.");
+            LOGGER.warning("The other party did not prove the possession of the private bitcoin.key.");
             return false;
         };
         return true;

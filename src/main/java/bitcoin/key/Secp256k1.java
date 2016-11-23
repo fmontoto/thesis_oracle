@@ -1,4 +1,4 @@
-package key;
+package bitcoin.key;
 
 import java.math.BigInteger;
 import java.security.*;

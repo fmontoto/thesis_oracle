@@ -3,8 +3,8 @@ package commandline;
 import communication.OpenSecureChannel;
 import communication.PlainSocketNegotiation;
 import core.Constants;
-import key.BitcoinPrivateKey;
-import key.Secp256k1;
+import bitcoin.key.BitcoinPrivateKey;
+import bitcoin.key.Secp256k1;
 import org.apache.commons.cli.*;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
@@ -88,8 +88,8 @@ public class CLI {
                         .numberOfArgs(1)
                         .build());
         options.addOption(
-                Option.builder("k").longOpt("key")
-                        .desc("My bitcoin private key (WIF).")
+                Option.builder("k").longOpt("bitcoin/key")
+                        .desc("My bitcoin private bitcoin.key (WIF).")
                         .type(String.class)
                         .numberOfArgs(1)
                         .build());
@@ -121,8 +121,8 @@ public class CLI {
             other_party_port = Integer.parseInt(cl.getOptionValue("connect-port"));
         if(cl.hasOption("location"))
             other_party_location = cl.getOptionValue("location");
-        if(cl.hasOption("key"))
-            my_private_key = BitcoinPrivateKey.fromWIF(cl.getOptionValue("key"));
+        if(cl.hasOption("bitcoin/key"))
+            my_private_key = BitcoinPrivateKey.fromWIF(cl.getOptionValue("bitcoin/key"));
         if(cl.hasOption("address"))
             other_party_bitcoin_address = cl.getOptionValue("address");
     }
@@ -184,8 +184,8 @@ public class CLI {
                                                 (input) -> true, 3);
         if(my_private_key == null) {
             String defaultStr = "<one will be generated(testnet)>";
-            String usrInput = getUserInput("Insert your private key (WIF format)", defaultStr,
-                                           key.Utils::isValidPrivateKeyWIF, 3);
+            String usrInput = getUserInput("Insert your private bitcoin.key (WIF format)", defaultStr,
+                                           bitcoin.key.Utils::isValidPrivateKeyWIF, 3);
             if(usrInput.isEmpty() || usrInput.equals(defaultStr))
                 my_private_key = new BitcoinPrivateKey(false, true);
             else
@@ -206,7 +206,7 @@ public class CLI {
             Future<String> otherPartyCurveKeyFuture = executor.submit(
                     new PlainSocketNegotiation(other_party_addr, my_port, myKeyPair.publicKey, zctx));
             otherPartyPublicZmqKey = otherPartyCurveKeyFuture.get(1600, TimeUnit.SECONDS);
-            System.out.println("Got ZMQ key!");
+            System.out.println("Got ZMQ bitcoin.key!");
 
 
             other_party_addr = "tcp://" + other_party_location + ":" + (other_party_port + 1);

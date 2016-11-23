@@ -1,9 +1,9 @@
-package transaction;
+package bitcoin.transaction;
 
 import org.junit.Test;
 
 import static org.junit.Assert.*;
-import static transaction.Utils.*;
+import static bitcoin.transaction.Utils.*;
 
 
 /**
