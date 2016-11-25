@@ -13,16 +13,18 @@ public class Constants {
     private Map<String, Byte> hashTypes;
     private Map<String, Byte> opcodes;
     private Map<Byte, String> reversedOpcodes;
+    private Map<Byte, String> reversedHashTypes;
 
     private Constants() {
         hashTypes = new HashMap<String, Byte>();
         opcodes = new HashMap<String, Byte>();
         reversedOpcodes = new HashMap<Byte, String>();
+        reversedHashTypes = new HashMap<Byte, String>();
 
-        hashTypes.put("ALL",            (byte) 0x01);
-        hashTypes.put("NONE",           (byte) 0x01);
-        hashTypes.put("SINGLE",         (byte) 0x01);
-        hashTypes.put("ANYONECANPAY",   (byte) 0x01);
+        addHashType("ALL",            (byte) 0x01);
+        addHashType("NONE",           (byte) 0x02);
+        addHashType("SINGLE",         (byte) 0x03);
+        addHashType("ANYONECANPAY",   (byte) 0x80);
 
 // Data Control
         addOpcode("OP_0",           (byte) 0x00);
@@ -163,24 +165,41 @@ public class Constants {
         addOpcode("OP_INVALIDOPCODE", (byte) 0xff);
     }
 
+    static public byte getOpcode(String name) {
+        return getInstance().opcodes.get(name);
+    }
+
+    static public String getOpcodeName(byte b) {
+        return getInstance().reversedOpcodes.get(b);
+    }
+
+    static public Boolean isHashType(Byte b) {
+        return getInstance().reversedHashTypes.containsKey(b);
+    }
+
+    static public Boolean isOpcode(Byte b) {
+        return getInstance().reversedOpcodes.containsKey(b);
+    }
+
     static public Constants getInstance() {
         if(instance == null)
             instance = new Constants();
         return instance;
     }
 
+    static private void add(String name, Byte b, Map<String, Byte> map, Map<Byte, String> reverseMap) {
+        map.put(name, b);
+        reverseMap.put(b, name);
+    }
+
     private void addOpcode(String name, Byte code) {
-        opcodes.put(name, code);
-        reversedOpcodes.put(code, name);
+        add(name, code, opcodes, reversedOpcodes);
     }
 
-    public byte getOpcode(String name) {
-        return opcodes.get(name);
+    private void addHashType(String name, Byte code) {
+        add(name, code, hashTypes, reversedHashTypes);
     }
 
-    public String getOpcodeName(byte b) {
-        return reversedOpcodes.get(b);
-    }
 }
 
 

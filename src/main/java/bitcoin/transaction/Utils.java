@@ -1,5 +1,12 @@
 package bitcoin.transaction;
 
+import java.util.LinkedList;
+import java.util.List;
+
+import static bitcoin.Constants.getOpcodeName;
+import static bitcoin.Constants.isHashType;
+import static core.Utils.byteArrayToHex;
+
 /**
  * Created by fmontoto on 17-11-16.
  */
@@ -48,6 +55,11 @@ public class Utils {
 
     static public long readUint32(byte[] val) {
         return readUint32(val, 0);
+    }
+
+    static public int readUint16(byte[] val, int offset) {
+        return (val[offset] & 0xFF)
+                | ((val[offset + 1] & 0xFF) << 8);
     }
 
     static public byte[] serializeUint32(long val) {
@@ -128,4 +140,50 @@ public class Utils {
         return arrayReverse(val, 0, val.length);
     }
 
+    public static List<String> parseScript(byte[] script, boolean isScriptSig) {
+        List<String> ret = new LinkedList<String>();
+        int idx = 0;
+
+        while(idx < script.length) {
+            byte b = script[idx];
+            if(b > 0 && b < 79) { // Push data operation
+                if(b < 76) {
+                    ret.add("OP_PUSH_" + b + "_bytes");
+                    // Looks like pay to pubkey hash
+                    if(b == 71 && isScriptSig && idx == 0 && isHashType(script[71])) {
+                        ret.add(byteArrayToHex(script, 1, 71)); // 1 = idx + 1, 71 = idx + b - 1
+                        ret.add(getOpcodeName(script[71]));
+
+                    }
+                    else {
+                        ret.add(byteArrayToHex(script, idx + 1, idx + 1 + b));
+                    }
+                    idx += (1 + b);
+                }
+                else {
+                    int bytes_to_push = 0;
+                    if(b == 76) {
+                        bytes_to_push = script[idx + 1];
+                        idx += 2;
+                    }
+                    else if(b == 77) {
+                        bytes_to_push = readUint16(script, idx + 1);
+                        idx += 3;
+                    }
+                    else if(b == 78) {
+                        bytes_to_push = (int) readUint32(script, idx + 1);
+                        idx += 5;
+                    }
+                    ret.add("OP_PUSH_" + bytes_to_push + "_bytes");
+                    ret.add(byteArrayToHex(script, idx, idx + bytes_to_push));
+                    idx += bytes_to_push;
+                }
+            }
+            else{
+                ret.add(getOpcodeName(b));
+                idx += 1;
+            }
+        }
+        return ret;
+    }
 }

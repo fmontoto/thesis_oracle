@@ -29,12 +29,16 @@ public class Utils {
         return data;
     }
 
-    public static String byteArrayToHex(byte[] bytes) {
+    public static String byteArrayToHex(byte[] bytes, int from, int to) {
         StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02X", b));
+        for(int i = from; i < to; i++) {
+            sb.append(String.format("%02X", bytes[i]));
         }
         return sb.toString();
+    }
+
+    public static String byteArrayToHex(byte[] bytes) {
+        return byteArrayToHex(bytes, 0, bytes.length);
     }
 
     public static String encodeB58(BigInteger value) {

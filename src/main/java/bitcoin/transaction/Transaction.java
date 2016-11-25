@@ -2,9 +2,11 @@ package bitcoin.transaction;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Map;
 
+import static bitcoin.Utils.doubleSHA256;
 import static bitcoin.transaction.Utils.*;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
@@ -69,6 +71,10 @@ public class Transaction {
         outputs.add(o);
     }
 
+    public ArrayList<Output> getOutputs() {
+        return outputs;
+    }
+
     public byte[] serialize() {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         try {
@@ -90,6 +96,16 @@ public class Transaction {
 
     public String hexlify() {
         return byteArrayToHex(serialize());
+    }
+
+    public String txid() throws NoSuchAlgorithmException {
+        return txid(true);
+    }
+
+    public String txid(boolean rpc_order) throws NoSuchAlgorithmException {
+        if(rpc_order)
+            return byteArrayToHex(arrayReverse(doubleSHA256(serialize())));
+        return byteArrayToHex(doubleSHA256(serialize()));
     }
 
     static private String toString(Map<String, String> m, int ident) {

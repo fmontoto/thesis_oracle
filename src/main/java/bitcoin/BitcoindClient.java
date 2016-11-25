@@ -6,6 +6,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static core.Utils.byteArrayToHex;
@@ -50,6 +51,18 @@ public class BitcoindClient {
 
     public List<String> getAddresses(String account) {
         return bitcoindRpcClient.getAddressesByAccount(account);
+    }
+
+    public double getAddressBalance(String account) {
+        double balance = bitcoindRpcClient.getBalance(account);
+        return balance;
+    }
+
+    public List<Transaction> getTransactions(String account) {
+        List<BitcoindRpcClient.Transaction> transactions = bitcoindRpcClient.listTransactions(account);
+        List<Transaction> parsedTx = new ArrayList<Transaction>();
+        transactions.forEach(transaction -> parsedTx.add(new Transaction(transaction.raw().hex())));
+        return parsedTx;
     }
 
 

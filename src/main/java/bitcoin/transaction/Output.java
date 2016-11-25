@@ -1,8 +1,9 @@
 package bitcoin.transaction;
 
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import org.omg.CORBA.DynAnyPackage.Invalid;
+
+import java.security.InvalidParameterException;
+import java.util.*;
 
 import static bitcoin.transaction.Utils.*;
 import static core.Utils.byteArrayToHex;
@@ -17,9 +18,14 @@ public class Output {
     private byte[] script;
 
     private int byte_size;
+    private boolean isPayToKey;
+    private boolean isPayToScript;
+    List<String> parsedScript;
 
     public Output() {
         byte_size = 0;
+        isPayToKey = false;
+
         value = 0;
         script = null;
     }
@@ -27,6 +33,7 @@ public class Output {
     public Output(long value, byte[] script){
         this.value = value;
         this.script = script;
+        parseScript();
     }
 
     public Output(byte[] rawOutput, int offset) {
@@ -38,6 +45,24 @@ public class Output {
         script = Arrays.copyOfRange(rawOutput, offset, offset + (int)script_length);
         offset += script_length;
         byte_size = offset - original_offset;
+        parseScript();
+    }
+
+    private void parseScript() {
+        parsedScript = Utils.parseScript(script, false);
+        if(parsedScript.size() == 6 && parsedScript.get(0).equals("OP_DUP")
+                                    && parsedScript.get(1).equals("OP_HASH160")
+                                    && parsedScript.get(2).equals("OP_PUSH_20_bytes")
+                                    && parsedScript.get(4).equals("OP_EQUALVERIFY")
+                                    && parsedScript.get(5).equals("OP_CHECKSIG"))
+            isPayToKey = true;
+        else
+            isPayToKey = false;
+        if(parsedScript.size() == 3 && parsedScript.get(0).equals("OP_HASH160")
+                                    && parsedScript.get(2).equals("OP_EQUAL"))
+            isPayToScript = true;
+        else
+            isPayToScript = false;
     }
 
     public Output(byte[] rawOutput) {
@@ -80,5 +105,19 @@ public class Output {
         ret.put("script_length", String.valueOf(script != null ? script.length : 0));
         ret.put("script", byteArrayToHex(script != null ? script : new byte[0]));
         return ret;
+    }
+
+    public boolean isPayToKey() {
+        return isPayToKey;
+    }
+
+    public boolean isPayToScript() {
+        return isPayToScript;
+    }
+
+    public String getPayAddress() {
+        if(!isPayToKey())
+            throw new InvalidParameterException("It must be a pay to key output to in order to get an address");
+        return parsedScript.get(3);
     }
 }

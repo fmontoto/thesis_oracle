@@ -3,6 +3,8 @@ package bitcoin.transaction;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.security.NoSuchAlgorithmException;
+
 import static core.Utils.byteArrayToHex;
 import static org.junit.Assert.*;
 
@@ -28,10 +30,18 @@ public class TransactionTest {
     public void simpleTest() {
         Transaction tx = new Transaction(rawTransaction);
     }
+
     @Test
     public void serializeTest() {
         Transaction tx = new Transaction(rawTransaction);
         assertEquals(rawTransaction, byteArrayToHex(tx.serialize()));
+    }
+
+    @Test
+    public void txIdTest() throws NoSuchAlgorithmException {
+        Transaction tx = new Transaction(rawTransaction);
+        assertEquals("5F68C1E5F92FA217A7EBF466DDBC87F1C9C6F2EBD758BED3C60198FF5661C598", tx.txid());
+        assertEquals("98C56156FF9801C6D3BE58D7EBF2C6C9F187BCDD66F4EBA717A22FF9E5C1685F", tx.txid(false));
     }
 
 }
