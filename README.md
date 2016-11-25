@@ -21,6 +21,7 @@
   sudo make -j install
   cd ..
   mvn package
+  mvn install -Dgpg.skip=true
   ```
 2. Add mavenLocal() to repositories at build.gradle
 3. Add "compile group: 'org.zeromq', name: 'jzmq', version: '3.1.1-SNAPSHOT'" to dependencies at build.gradle
