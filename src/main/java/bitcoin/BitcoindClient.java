@@ -1,5 +1,6 @@
 package bitcoin;
 
+import bitcoin.transaction.AbsoluteOutput;
 import bitcoin.transaction.Input;
 import bitcoin.transaction.Transaction;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
@@ -53,7 +54,7 @@ public class BitcoindClient {
         return bitcoindRpcClient.getAddressesByAccount(account);
     }
 
-    public double getAddressBalance(String account) {
+    public double getAccountBalance(String account) {
         double balance = bitcoindRpcClient.getBalance(account);
         return balance;
     }
@@ -63,6 +64,21 @@ public class BitcoindClient {
         List<Transaction> parsedTx = new ArrayList<Transaction>();
         transactions.forEach(transaction -> parsedTx.add(new Transaction(transaction.raw().hex())));
         return parsedTx;
+    }
+
+    public char[] getPrivateKey(String addr) {
+        return bitcoindRpcClient.dumpPrivKey(addr).toCharArray();
+    }
+
+    private List<AbsoluteOutput> getUnspent(List<BitcoindRpcClient.Unspent> unspents) {
+        throw new NotImplementedException();
+    }
+    public List<AbsoluteOutput> getUnspent() {
+        return getUnspent(bitcoindRpcClient.listUnspent());
+    }
+
+    public List<AbsoluteOutput> getUnspent(int minconf) {
+        return getUnspent(bitcoindRpcClient.listUnspent(minconf));
     }
 
 

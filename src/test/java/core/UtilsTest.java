@@ -49,10 +49,17 @@ public class UtilsTest {
 
     @Test
     public void decodeB58Test() throws Exception {
+        assertEquals(BigInteger.valueOf(2), decodeB58(new char[]{'3'}));
         assertEquals(BigInteger.valueOf(2), decodeB58("3"));
         assertEquals(BigInteger.valueOf(58), decodeB58("21"));
+        assertEquals(BigInteger.valueOf(58), decodeB58(new char[] {'2', '1'}));
         assertEquals(new BigInteger("800C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D507A5B8D", 16),
-                     decodeB58("5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"));
+                decodeB58("5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"));
+        assertEquals(new BigInteger("800C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D507A5B8D", 16),
+                     decodeB58(new char[]{'5', 'H', 'u', 'e', 'C', 'G', 'U', '8', 'r', 'M', 'j', 'x', 'E', 'X', 'x',
+                                          'i', 'P', 'u', 'D', '5', 'B', 'D', 'k', 'u', '4', 'M', 'k', 'F', 'q', 'e',
+                                          'Z', 'y', 'd', '4', 'd', 'Z', '1', 'j', 'v', 'h', 'T', 'V', 'q', 'v', 'b',
+                                          'T', 'L', 'v', 'y', 'T', 'J'}));
     }
 
     @Test

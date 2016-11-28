@@ -62,6 +62,17 @@ public class Utils {
         }
         return ret;
     }
+
+    private static int count_leading(char[] val, char b) {
+        int ret = 0;
+        for(int i = 0; i < val.length; i++) {
+            if (val[i] != b)
+                break;
+            ret++;
+        }
+        return ret;
+    }
+
     static public String bitcoinB58Encode(byte[] data) throws NoSuchAlgorithmException, IOException {
 
         byte[] hashValue= bitcoin.Utils.doubleSHA256(data);
@@ -93,10 +104,8 @@ public class Utils {
         return bitcoinB58Encode(dataToDigest);
     }
 
-    static public byte[] bitcoinB58Decode(String data) throws IOException, NoSuchAlgorithmException {
-        int leadingOnes = count_leading(data, '1');
-        BigInteger decoded = decodeB58(data);
-        byte[] decoded_bytes = decoded.toByteArray();
+    static private byte[] bitcoinB58Decode(BigInteger data, int leadingOnes) throws IOException, NoSuchAlgorithmException {
+        byte[] decoded_bytes = data.toByteArray();
         // This removes the first byte if it's 0 as it's the sign
         if(decoded_bytes[0] == (byte)0x00)
             decoded_bytes = Arrays.copyOfRange(decoded_bytes, 1, decoded_bytes.length);
@@ -108,10 +117,21 @@ public class Utils {
         byte[] original_bytes = byteStream.toByteArray();
         byte[] doubleHash = bitcoin.Utils.doubleSHA256(original_bytes);
         if(!Arrays.equals(Arrays.copyOfRange(decoded_bytes, decoded_bytes.length - 4, decoded_bytes.length),
-                          Arrays.copyOfRange(doubleHash, 0, 4))) {
+                Arrays.copyOfRange(doubleHash, 0, 4))) {
             throw new InvalidParameterException("Checksum does not match.");
         }
         return original_bytes;
+
+    }
+
+    static public byte[] bitcoinB58Decode(String data) throws IOException, NoSuchAlgorithmException {
+        int leadingOnes = count_leading(data, '1');
+        return bitcoinB58Decode(decodeB58(data), leadingOnes);
+    }
+
+    static public byte[] bitcoinB58Decode(char[] data) throws IOException, NoSuchAlgorithmException {
+        int leadingOnes = count_leading(data, '1');
+        return bitcoinB58Decode(decodeB58(data), leadingOnes);
     }
 
 

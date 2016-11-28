@@ -147,24 +147,33 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
         return testnet;
     }
 
-    static public BitcoinPrivateKey fromWIF(String WIFRepresentation) throws IOException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeySpecException {
-        byte[] decoded_bytes = Utils.bitcoinB58Decode(WIFRepresentation);
+    static private BitcoinPrivateKey fromWIF(byte[] val) throws InvalidKeySpecException, NoSuchAlgorithmException {
         boolean compressed_pk = false;
         boolean testnet;
-        if(decoded_bytes.length == 34) { // Compressed pk
-            if(decoded_bytes[33] != (byte)0x01)
+        if(val.length == 34) { // Compressed pk
+            if(val[33] != (byte)0x01)
                 throw new InvalidParameterException("Not expected byte");
             compressed_pk = true;
-            decoded_bytes = Arrays.copyOf(decoded_bytes, decoded_bytes.length - 1);
+            val = Arrays.copyOf(val, val.length - 1);
         }
 
-        if(decoded_bytes[0] == (byte)0x80)
+        if(val[0] == (byte)0x80)
             testnet = false;
-        else if(decoded_bytes[0] == (byte)0xef)
+        else if(val[0] == (byte)0xef)
             testnet = true;
         else
             throw new InvalidParameterException("Not recognized addr_prefix");
         return new BitcoinPrivateKey(
-                Arrays.copyOfRange(decoded_bytes, 1, decoded_bytes.length), compressed_pk, testnet);
+                Arrays.copyOfRange(val, 1, val.length), compressed_pk, testnet);
+
+    }
+
+
+    static public BitcoinPrivateKey fromWIF(String WIFRepresentation) throws IOException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeySpecException {
+        return BitcoinPrivateKey.fromWIF(Utils.bitcoinB58Decode(WIFRepresentation));
+    }
+
+    static public BitcoinPrivateKey fromWIF(char[] WIFRepresentation) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        return BitcoinPrivateKey.fromWIF(Utils.bitcoinB58Decode(WIFRepresentation));
     }
 }

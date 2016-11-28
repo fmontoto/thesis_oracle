@@ -52,6 +52,14 @@ public class Utils {
         return sb.toString();
     }
 
+    public static BigInteger decodeB58(char[] val) {
+        BigInteger ret = BigInteger.ZERO;
+        BigInteger multiplier = BigInteger.valueOf(58);
+        for(int i = 0; i < val.length; i++)
+            ret = ret.multiply(multiplier).add(BigInteger.valueOf(alphabet.indexOf(val[i])));
+        return ret;
+    }
+
     public static BigInteger decodeB58(String val) {
         BigInteger ret = BigInteger.ZERO;
         BigInteger multiplier = BigInteger.valueOf(58);

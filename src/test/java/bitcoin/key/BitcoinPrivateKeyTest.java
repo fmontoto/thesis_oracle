@@ -21,6 +21,11 @@ public class BitcoinPrivateKeyTest {
         assertEquals("E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262",
                      byteArrayToHex(get32ByteRepresentation(bitcoinPrivateKey.getS())));
 
+        bitcoinPrivateKey =
+                BitcoinPrivateKey.fromWIF("5Kb8kLf9zgWQnogidDA76MzPL6TsZZY36hWXMssSzNydYXYB9KF".toCharArray());
+        assertEquals("E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262",
+                byteArrayToHex(get32ByteRepresentation(bitcoinPrivateKey.getS())));
+
         BitcoinPrivateKey bitcoinPrivateKey2 =
                 BitcoinPrivateKey.fromWIF("5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ");
         assertEquals("0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",

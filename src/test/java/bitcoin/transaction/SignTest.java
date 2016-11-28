@@ -4,11 +4,12 @@ import bitcoin.BitcoindClient;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import static org.junit.Assert.*;
 
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -38,12 +39,12 @@ public class SignTest {
         client = new BitcoindClient(true);
     }
 
-    private String getAccountWithMoney() {
+    private String getAddressWithMoney() {
         List<String> testingAddresses = client.getAddresses("testingMoney");
         String addr = null;
         for(String s: testingAddresses) {
-            System.out.println(client.getAddressBalance(s));
-            if (client.getAddressBalance(s) > 0) {
+            System.out.println(client.getAccountBalance(s));
+            if (client.getAccountBalance(s) > 0) {
                 addr = s;
                 break;
             }
@@ -53,29 +54,34 @@ public class SignTest {
         return addr;
     }
 
-    private String[] getAvailableOutput(String addr) {
+    private List<String> getAvailableOutputs(String addr) throws NoSuchAlgorithmException {
         int i;
         ArrayList<Output>  outputs;
         List<Transaction> transactions = client.getTransactions(addr);
+        List<String> ret = new LinkedList<String>();
         for(Transaction transaction: transactions) {
             outputs = transaction.getOutputs();
             for(Output o: outputs) {
                 if(o.isPayToKey()) {
                     if(o.getPayAddress().equals(addr)) {
-//                        String ret = new String[2]{transaction.txid(), outputs.indexOf(o)}
+                        ret.add(new String(transaction.txid() + ":" + outputs.indexOf(o)));
                     }
                 }
             }
         }
-        throw new NotImplementedException();
+        return ret;
 
     }
 
     @Test
-    public void simpleSendToAddressSign() {
+    public void simpleSendToAddressSign() throws NoSuchAlgorithmException {
         int i;
-        String srcAddr = getAccountWithMoney();
-        String [] output = getAvailableOutput(srcAddr);
+        String srcAddr = getAddressWithMoney();
+        List<String> availableOutputs = getAvailableOutputs(srcAddr);
+        String outputTxId = availableOutputs.get(0).split(":")[0];
+        int outputIdx = Integer.parseInt(availableOutputs.get(0).split(":")[1]);
+//        client.getPrivateKey();
+
 
     }
 
