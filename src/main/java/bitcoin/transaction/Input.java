@@ -76,6 +76,10 @@ public class Input {
         return byte_size;
     }
 
+    public void setScript(byte[] newScript) {
+        script = newScript;
+    }
+
     public byte[] serialize() {
         return mergeArrays(arrayReverse(prevTxHash != null ? prevTxHash: new byte[32]),
                            serializeUint32(prevIdx),

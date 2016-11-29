@@ -1,5 +1,8 @@
 package bitcoin;
 
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
+import java.security.InvalidParameterException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -165,9 +168,17 @@ public class Constants {
         addOpcode("OP_INVALIDOPCODE", (byte) 0xff);
     }
 
+    static public byte[] pushDataOpcode(int dataLength) {
+        if(dataLength < 0)
+            throw new InvalidParameterException("Data must be greater than 0.");
+        if(dataLength < 75)
+            return new byte[]{(byte)dataLength};
+        throw new NotImplementedException();
+    }
     static public byte getOpcode(String name) {
         return getInstance().opcodes.get(name);
     }
+
 
     static public String getOpcodeName(byte b) {
         return getInstance().reversedOpcodes.get(b);

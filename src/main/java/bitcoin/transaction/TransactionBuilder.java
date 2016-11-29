@@ -1,0 +1,87 @@
+package bitcoin.transaction;
+
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.Collection;
+
+import static bitcoin.Constants.getOpcode;
+import static bitcoin.Constants.pushDataOpcode;
+import static bitcoin.key.Utils.bitcoinB58Decode;
+import static core.Utils.hexToByteArray;
+import static core.Utils.mergeArrays;
+
+/**
+ * Created by fmontoto on 29-11-16.
+ */
+public class TransactionBuilder {
+
+    /**
+     *
+     * @param value
+     * @param dstAddr WIF format
+     * @return
+     */
+    static Output createPayToPubKeyOutput(long value, String dstAddr) throws IOException, NoSuchAlgorithmException {
+
+        byte[] addr_with_prefix = bitcoinB58Decode(dstAddr);
+        byte[] addr = Arrays.copyOfRange(addr_with_prefix, 1, addr_with_prefix.length);
+        byte[] script =  mergeArrays(new byte[]{getOpcode("OP_DUP")},
+                                     new byte[] {getOpcode("OP_HASH160")},
+                                     pushDataOpcode(addr.length),
+                                     addr,
+                                     new byte[]{getOpcode("OP_EQUALVERIFY")},
+                                     new byte[]{getOpcode("OP_CHECKSIG")});
+        return new Output(value, script);
+    }
+
+    static private Input payToPublicKeyHashCreateInput(AbsoluteOutput absOutput, int inputSequenceNo) {
+        // The script is the output to be redeem before signing it.
+        return  new Input(inputSequenceNo, absOutput.getVout(),
+                hexToByteArray(absOutput.getTxId()), absOutput.getScript());
+
+    }
+
+    static private Input payToPublicKeyHashCreateInput(AbsoluteOutput absoluteOutput) {
+        return payToPublicKeyHashCreateInput(absoluteOutput, 0xffffffff);
+
+    }
+
+    static private Transaction buildTx(int version, int locktime, Collection<Input> inputs, Collection<Output> outputs) {
+        Transaction ret = new Transaction(version, locktime);
+        for(Input i: inputs)
+            ret.appendInput(i);
+        for(Output o: outputs)
+            ret.appendOutput(o);
+        return ret;
+    }
+
+    static private Transaction buildTx(int version, int locktime, Input input, Output... outputs) {
+        return buildTx(version, locktime, Arrays.asList(input),
+                       Arrays.asList(outputs));
+    }
+
+    static public Transaction payToPublicKeyHash(
+            AbsoluteOutput absOutput, String dstAddr, String changeAddr, long amount, long fee,
+            int version, int locktime, int inputSequenceNo) throws IOException, NoSuchAlgorithmException {
+                long available = absOutput.getValue();
+        Input input = payToPublicKeyHashCreateInput(absOutput, inputSequenceNo);
+        Output o1 = createPayToPubKeyOutput(amount, dstAddr);
+        Output o2 = createPayToPubKeyOutput(available - amount - fee, changeAddr);
+        return buildTx(version, locktime, input, o1, o2);
+    }
+
+    static public Transaction payToPublicKeyHash(AbsoluteOutput absOutput, String dstAddr,
+                                                 String changeAddr, long amount, long fee) throws IOException, NoSuchAlgorithmException {
+        return payToPublicKeyHash(absOutput, dstAddr, changeAddr, amount, fee, 1, 0, 0xffffffff);
+    }
+
+    static public Transaction payToPublicKeyHash(AbsoluteOutput absOutput, String dstAddr,
+                                                 long amount) throws IOException, NoSuchAlgorithmException {
+        final int version = 1;
+        final int locktime = 0;
+        Input input = payToPublicKeyHashCreateInput(absOutput);
+        Output output = createPayToPubKeyOutput(amount, dstAddr);
+        return buildTx(version, locktime, input, output);
+    }
+}

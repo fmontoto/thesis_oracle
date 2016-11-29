@@ -75,6 +75,10 @@ public class Transaction {
         return outputs;
     }
 
+    public ArrayList<Input> getInputs() {
+        return inputs;
+    }
+
     public byte[] serialize() {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         try {

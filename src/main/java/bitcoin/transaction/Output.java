@@ -20,6 +20,7 @@ public class Output {
     private int byte_size;
     private boolean isPayToKey;
     private boolean isPayToScript;
+
     List<String> parsedScript;
 
     public Output() {
@@ -120,4 +121,9 @@ public class Output {
             throw new InvalidParameterException("It must be a pay to key output to in order to get an address");
         return parsedScript.get(3);
     }
+
+    public List<String> getParsedScript() {
+        return parsedScript;
+    }
+
 }

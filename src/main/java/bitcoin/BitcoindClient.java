@@ -2,12 +2,14 @@ package bitcoin;
 
 import bitcoin.transaction.AbsoluteOutput;
 import bitcoin.transaction.Input;
+import bitcoin.transaction.Output;
 import bitcoin.transaction.Transaction;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import static core.Utils.byteArrayToHex;
@@ -71,7 +73,12 @@ public class BitcoindClient {
     }
 
     private List<AbsoluteOutput> getUnspent(List<BitcoindRpcClient.Unspent> unspents) {
-        throw new NotImplementedException();
+        List<AbsoluteOutput> ret = new LinkedList<AbsoluteOutput>();
+        for(BitcoindRpcClient.Unspent unspent: unspents) {
+            Output o = getTransaction(unspent.txid()).getOutputs().get(unspent.vout());
+            ret.add(new AbsoluteOutput(o.getValue(), o.getScript(), unspent.vout(), unspent.txid()));
+        }
+        return ret;
     }
     public List<AbsoluteOutput> getUnspent() {
         return getUnspent(bitcoindRpcClient.listUnspent());
@@ -79,6 +86,14 @@ public class BitcoindClient {
 
     public List<AbsoluteOutput> getUnspent(int minconf) {
         return getUnspent(bitcoindRpcClient.listUnspent(minconf));
+    }
+
+    public List<String> listReceivedByAddr() {
+        List<String> ret = new LinkedList<>();
+        List<BitcoindRpcClient.ReceivedAddress> receivedAddresses = bitcoindRpcClient.listReceivedByAddress();
+        for(BitcoindRpcClient.ReceivedAddress r: receivedAddresses)
+            ret.add(r.address());
+        return ret;
     }
 
 

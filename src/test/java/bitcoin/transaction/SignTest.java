@@ -1,13 +1,16 @@
 package bitcoin.transaction;
 
 import bitcoin.BitcoindClient;
+import bitcoin.key.BitcoinPrivateKey;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
+import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -74,12 +77,35 @@ public class SignTest {
     }
 
     @Test
-    public void simpleSendToAddressSign() throws NoSuchAlgorithmException {
+    public void simpleSendToAddressSign() throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
         int i;
-        String srcAddr = getAddressWithMoney();
-        List<String> availableOutputs = getAvailableOutputs(srcAddr);
-        String outputTxId = availableOutputs.get(0).split(":")[0];
-        int outputIdx = Integer.parseInt(availableOutputs.get(0).split(":")[1]);
+        List<AbsoluteOutput> unspentOutputs = client.getUnspent();
+        AbsoluteOutput absOutput = null;
+        String changeAddr = null;
+        for(AbsoluteOutput ao: unspentOutputs)
+            if(ao.isPayToKey())
+                absOutput = ao;
+        assertNotNull("Couldn't find unspent outputs.", absOutput);
+        for(String addr: client.listReceivedByAddr())
+            changeAddr = addr;
+        if(changeAddr == null)
+            changeAddr = absOutput.getPayAddress();
+        long available = absOutput.getValue();
+        String addr = absOutput.getPayAddress();
+        char [] privKey = client.getPrivateKey(addr);
+        BitcoinPrivateKey pKey = BitcoinPrivateKey.fromWIF(privKey);
+        for(char b: privKey)
+            b = '\0';
+
+
+
+
+
+
+//        String srcAddr = getAddressWithMoney();
+//        List<String> availableOutputs = getAvailableOutputs(srcAddr);
+//        String outputTxId = availableOutputs.get(0).split(":")[0];
+//        int outputIdx = Integer.parseInt(availableOutputs.get(0).split(":")[1]);
 //        client.getPrivateKey();
 
 
