@@ -198,6 +198,10 @@ public class Constants {
         return instance;
     }
 
+    static public Byte getHashType(String name) {
+        return getInstance().hashTypes.get(name);
+    }
+
     static private void add(String name, Byte b, Map<String, Byte> map, Map<Byte, String> reverseMap) {
         map.put(name, b);
         reverseMap.put(b, name);

@@ -34,12 +34,12 @@ public class BitcoinPrivateKeyTest {
         BitcoinPrivateKey bitcoinPrivateKey3 =
                 BitcoinPrivateKey.fromWIF("cMkY7CxQFR1GKnVnauBePfUsumiDiQA3gJV2Lbu7njVbbRsHbM7j");
         assertEquals("n4Ke2X6TSdLP9Q4VpVzW77D43Tc18sfpk1",
-                     bitcoinPrivateKey3.getPublicKey().getAddress());
+                     bitcoinPrivateKey3.getPublicKey().toWIF());
 
         BitcoinPrivateKey bitcoinPrivateKey4 =
                 BitcoinPrivateKey.fromWIF("cW4D2bQbjL76BYfU8V3jYVxq3qXccuNzbNwQCRxKgZHe5qCWZQm1");
         assertEquals("mppjAUikJwPGFk2MR9y4cgjCdSGyFMc8ev",
-                     bitcoinPrivateKey4.getPublicKey().getAddress());
+                     bitcoinPrivateKey4.getPublicKey().toWIF());
     }
 
     @Test
@@ -47,7 +47,7 @@ public class BitcoinPrivateKeyTest {
         BitcoinPrivateKey bitcoinPrivateKey = new BitcoinPrivateKey(
                 "18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725", false, false);
         assertEquals("16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM",
-                     bitcoinPrivateKey.getPublicKey().getAddress());
+                     bitcoinPrivateKey.getPublicKey().toWIF());
     }
 
     @Test
@@ -80,5 +80,20 @@ public class BitcoinPrivateKeyTest {
         verifier2.initVerify(bitcoinPrivateKey.getPublicKey());
         verifier2.update(data);
         assertTrue(verifier2.verify(signature2));
+    }
+
+    @Test
+    public void signTest() throws SignatureException, NoSuchAlgorithmException, IOException, InvalidKeySpecException, InvalidAlgorithmParameterException, InvalidKeyException {
+        BitcoinPrivateKey pKey = new BitcoinPrivateKey(true, true);
+
+        MessageDigest dig = MessageDigest.getInstance("SHA-256");
+        byte[] data = new byte[]{0x02, (byte)0xec, 0x0d, 0x0e, (byte)0xdf};
+        byte[] hashed_data = dig.digest(data);
+        byte[] signature = pKey.sign(data);
+
+        Signature verifier = Signature.getInstance("SHA256withECDSA");
+        verifier.initVerify(pKey.getPublicKey());
+        verifier.update(hashed_data);
+        assertTrue(verifier.verify(signature));
     }
 }

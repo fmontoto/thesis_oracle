@@ -1,8 +1,15 @@
 package bitcoin.transaction;
 
+import bitcoin.Constants;
+import bitcoin.key.BitcoinPrivateKey;
+import bitcoin.key.BitcoinPublicKey;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -10,6 +17,7 @@ import static bitcoin.Utils.doubleSHA256;
 import static bitcoin.transaction.Utils.*;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
+import static core.Utils.mergeArrays;
 
 /**
  * Created by fmontoto on 17-11-16.
@@ -56,6 +64,31 @@ public class Transaction {
             offset += outputs.get(i).getByteSize();
         }
         lockTime = readUint32(rawTransaction, offset);
+
+    }
+
+    private void sign(BitcoinPrivateKey privateKey, byte[] hashtype, int inputNo) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, IOException, InvalidKeySpecException {
+        byte[] toSign = mergeArrays(serialize(), hashtype);
+        byte[] signature = privateKey.sign(toSign);
+        BitcoinPublicKey publicKey = privateKey.getPublicKey();
+        byte[] pubKey = publicKey.getKey();
+
+        byte[] scriptSig = mergeArrays( Constants.pushDataOpcode(signature.length + 1)
+                                      , signature
+                                      , new byte[] {hashtype[0]}
+                                      , Constants.pushDataOpcode(pubKey.length)
+                                      , pubKey
+                                      );
+
+        getInputs().get(inputNo).setScript(scriptSig);
+    }
+
+    public void sign(BitcoinPrivateKey privKey, byte hash, int inputNo) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, IOException, InvalidKeySpecException {
+        this.sign(privKey, new byte[]{hash, 0x00, 0x00, 0x00}, inputNo);
+    }
+
+    public void sign(BitcoinPrivateKey privKey) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, IOException, InvalidKeySpecException {
+        this.sign(privKey, Constants.getHashType("ALL"), 0);
 
     }
 

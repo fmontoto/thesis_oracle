@@ -2,14 +2,21 @@ package bitcoin.transaction;
 
 import bitcoin.BitcoindClient;
 import bitcoin.key.BitcoinPrivateKey;
+import bitcoin.key.BitcoinPublicKey;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import static bitcoin.key.Utils.bitcoinB58Encode;
+import static bitcoin.transaction.TransactionBuilder.payToPublicKeyHash;
+import static core.Utils.byteArrayToHex;
+import static core.Utils.hexToByteArray;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -77,38 +84,34 @@ public class SignTest {
     }
 
     @Test
-    public void simpleSendToAddressSign() throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+    public void simpleSendToAddressSign() throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, SignatureException, InvalidKeyException {
         int i;
         List<AbsoluteOutput> unspentOutputs = client.getUnspent();
-        AbsoluteOutput absOutput = null;
+        AbsoluteOutput srcOutput = null;
         String changeAddr = null;
         for(AbsoluteOutput ao: unspentOutputs)
             if(ao.isPayToKey())
-                absOutput = ao;
-        assertNotNull("Couldn't find unspent outputs.", absOutput);
+                srcOutput = ao;
+        assertNotNull("Couldn't find unspent outputs.", srcOutput);
         for(String addr: client.listReceivedByAddr())
             changeAddr = addr;
         if(changeAddr == null)
-            changeAddr = absOutput.getPayAddress();
-        long available = absOutput.getValue();
-        String addr = absOutput.getPayAddress();
-        char [] privKey = client.getPrivateKey(addr);
+            changeAddr = srcOutput.getPayAddress();
+        long available = srcOutput.getValue();
+
+        byte[] addr = hexToByteArray(srcOutput.getPayAddress());
+        String wifAddr = BitcoinPublicKey.txAddressToWIF(addr, true);
+
+        char [] privKey = client.getPrivateKey(wifAddr);
         BitcoinPrivateKey pKey = BitcoinPrivateKey.fromWIF(privKey);
         for(char b: privKey)
             b = '\0';
 
-
-
-
-
-
-//        String srcAddr = getAddressWithMoney();
-//        List<String> availableOutputs = getAvailableOutputs(srcAddr);
-//        String outputTxId = availableOutputs.get(0).split(":")[0];
-//        int outputIdx = Integer.parseInt(availableOutputs.get(0).split(":")[1]);
-//        client.getPrivateKey();
-
-
+        Transaction t = payToPublicKeyHash(srcOutput, changeAddr, available);
+        t.sign(pKey);
+        // The java client does not provide an interface to check the transaction, you need to do ir manually:
+        // bitcoin-cli -testnet <HEX TRANSACTION> "[]" "[]"
+        System.out.println(byteArrayToHex(t.serialize()));
     }
 
 }

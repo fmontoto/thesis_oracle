@@ -48,10 +48,6 @@ public class BitcoindClient {
         return getTransaction(inTx.getPrevTxHash());
     }
 
-    public void validateTx(String rawTxHex) {
-        bitcoindRpcClient.signRawTransaction(rawTxHex);
-    }
-
     public List<String> getAddresses(String account) {
         return bitcoindRpcClient.getAddressesByAccount(account);
     }

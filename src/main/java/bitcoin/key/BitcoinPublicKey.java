@@ -73,12 +73,16 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
         this(core.Utils.mergeArrays(get32ByteRepresentation(x), get32ByteRepresentation(y)), compressed, testnet);
     }
 
-    public String getAddress() throws NoSuchAlgorithmException, IOException {
-        byte[] hashedData = r160SHA256Hash(getKey());
+    public byte[] getAddress() throws IOException, NoSuchAlgorithmException {
+        return r160SHA256Hash(getKey());
+    }
+
+    public static String txAddressToWIF(byte[] txAddr, boolean testnet) throws IOException, NoSuchAlgorithmException {
         if(testnet)
-            return bitcoinB58Encode(core.Utils.mergeArrays(new byte[] {0x6f}, hashedData));
+            return bitcoinB58Encode(core.Utils.mergeArrays(new byte[] {0x6f}, txAddr));
         else
-            return bitcoinB58Encode(core.Utils.mergeArrays(new byte[] {0x00}, hashedData));
+            return bitcoinB58Encode(core.Utils.mergeArrays(new byte[] {0x00}, txAddr));
+
     }
 
 
@@ -169,7 +173,7 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
 
     @Override
     public String toWIF() throws IOException, NoSuchAlgorithmException {
-        return getAddress();
+        return txAddressToWIF(getAddress(), testnet);
     }
 
     @Override

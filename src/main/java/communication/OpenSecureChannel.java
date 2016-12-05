@@ -168,7 +168,7 @@ public class OpenSecureChannel implements Callable<Boolean> {
         verifier.update(generateRandomness);
         verifier.update(ZMQ.Curve.z85Decode(otherPartyPublicKey));
         verifier.update(ZMQ.Curve.z85Decode(myCurveKeyPair.publicKey));
-        verifier.update(myBitcoinPrivateKey.getPublicKey().getAddress().getBytes(utf8));
+        verifier.update(myBitcoinPrivateKey.getPublicKey().toWIF().getBytes(utf8));
         return verifier.verify(rcvdSignature);
     }
 

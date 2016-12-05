@@ -15,6 +15,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
+import static bitcoin.Utils.doubleSHA256;
 import static core.Utils.hexToByteArray;
 import static bitcoin.key.Utils.bytesToBigInteger;
 
@@ -175,5 +176,14 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
 
     static public BitcoinPrivateKey fromWIF(char[] WIFRepresentation) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         return BitcoinPrivateKey.fromWIF(Utils.bitcoinB58Decode(WIFRepresentation));
+    }
+
+    public byte[] sign(byte[] message) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        byte[] toSign = doubleSHA256(message);
+        Signature dsa = Signature.getInstance("NonewithECDSA");
+
+        dsa.initSign(this);
+        dsa.update(toSign);
+        return dsa.sign();
     }
 }
