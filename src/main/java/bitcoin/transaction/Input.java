@@ -80,6 +80,10 @@ public class Input {
         script = newScript;
     }
 
+    public byte[] getScript() {
+        return script;
+    }
+
     public byte[] serialize() {
         return mergeArrays(arrayReverse(prevTxHash != null ? prevTxHash: new byte[32]),
                            serializeUint32(prevIdx),

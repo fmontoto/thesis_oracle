@@ -102,7 +102,7 @@ public class SignTest {
         byte[] addr = hexToByteArray(srcOutput.getPayAddress());
         String wifAddr = BitcoinPublicKey.txAddressToWIF(addr, true);
 
-        char [] privKey = client.getPrivateKey(wifAddr);
+        char[] privKey = client.getPrivateKey(wifAddr);
         BitcoinPrivateKey pKey = BitcoinPrivateKey.fromWIF(privKey);
         for(char b: privKey)
             b = '\0';
@@ -110,8 +110,66 @@ public class SignTest {
         Transaction t = payToPublicKeyHash(srcOutput, changeAddr, available);
         t.sign(pKey);
         // The java client does not provide an interface to check the transaction, you need to do ir manually:
-        // bitcoin-cli -testnet <HEX TRANSACTION> "[]" "[]"
-        System.out.println(byteArrayToHex(t.serialize()));
+        // bitcoin-cli -testnet signrawtransaction <HEX TRANSACTION> "[]" "[]"
+        System.out.println("./bitcoin-cli -testnet signrawtransaction " + byteArrayToHex(t.serialize()) + " \"[]\" \"[]\"");
+    }
+
+    @Test
+    public void multipleInputsSignTest() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException {
+        List<AbsoluteOutput> unspentOutputs = client.getUnspent();
+        List<AbsoluteOutput> outputs = new ArrayList<>();
+        List<BitcoinPrivateKey> privKeys = new ArrayList<>();
+        String changeAddr = null;
+
+        for(AbsoluteOutput ao: unspentOutputs) {
+            if(ao.isPayToKey())
+                outputs.add(ao);
+        }
+
+        assertTrue("Couldn't find two unspent outputs.", 2 <= outputs.size());
+
+        for(String addr: client.listReceivedByAddr())
+            changeAddr = addr;
+        if(changeAddr == null)
+            changeAddr = outputs.get(0).getPayAddress();
+
+        long available = 0;
+
+        for(AbsoluteOutput ao: outputs) {
+            available += ao.getValue();
+            String wifAddr = BitcoinPublicKey.txAddressToWIF(hexToByteArray(ao.getPayAddress()), true);
+            privKeys.add(BitcoinPrivateKey.fromWIF(client.getPrivateKey(wifAddr)));
+        }
+
+        Transaction t = payToPublicKeyHash(outputs, changeAddr, available);
+        for(int i = 0; i < privKeys.size(); i++) {
+            t.sign(privKeys.get(i), i);
+        }
+
+        System.out.println("./bitcoin-cli -testnet signrawtransaction " + byteArrayToHex(t.serialize()) + " \"[]\" \"[]\"");
+    }
+
+    @Test
+    public void simplePayToScriptHash() throws IOException, NoSuchAlgorithmException {
+        List<AbsoluteOutput> unspentOutputs = client.getUnspent();
+        AbsoluteOutput srcOutput = null;
+        String changeAddr = null;
+        for(AbsoluteOutput ao: unspentOutputs)
+            if(ao.isPayToKey())
+                srcOutput = ao;
+        assertNotNull("Couldn't find unspent outputs.", srcOutput);
+        for(String addr: client.listReceivedByAddr())
+            changeAddr = addr;
+        if(changeAddr == null)
+            changeAddr = srcOutput.getPayAddress();
+        long availble = srcOutput.getValue();
+
+        byte[] addr = hexToByteArray(srcOutput.getPayAddress());
+        String wifAddr = BitcoinPublicKey.txAddressToWIF(addr, true);
+
+
+
+
     }
 
 }
