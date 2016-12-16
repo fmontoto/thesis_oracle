@@ -2,6 +2,8 @@ package commandline;
 
 import communication.OpenSecureChannel;
 import communication.PlainSocketNegotiation;
+import communication.SecureChannel;
+import core.Bet;
 import core.Constants;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.Secp256k1;
@@ -9,6 +11,7 @@ import org.apache.commons.cli.*;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
@@ -22,8 +25,8 @@ import java.util.logging.Logger;
 /**
  * Created by fmontoto on 01-09-16.
  */
-public class CLI {
-    private static final Logger LOGGER = Logger.getLogger(CLI.class.getName());
+public class Player {
+    private static final Logger LOGGER = Logger.getLogger(Player.class.getName());
 
     private final ZMQ.Curve.KeyPair myKeyPair;
     private Scanner in;
@@ -45,7 +48,7 @@ public class CLI {
 
     private ExecutorService executor;
 
-    public CLI() {
+    public Player() {
         zctx = ZMQ.context(2);
         auth_sock_rcv = zctx.socket(ZMQ.PULL);
         auth_sock_send = zctx.socket(ZMQ.PUSH);
@@ -63,7 +66,7 @@ public class CLI {
         my_private_key = null;
     }
 
-    public CLI(String[] args) throws ParseException, InvalidKeySpecException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException {
+    public Player(String[] args) throws ParseException, InvalidKeySpecException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException {
         this();
         Options options = new Options();
         // Boolean
@@ -107,12 +110,12 @@ public class CLI {
         }
         catch(ParseException e) {
             LOGGER.severe("Parsing failed:" + e.getMessage());
-            formatter.printHelp("oracle CLI", options);
+            formatter.printHelp("oracle Player", options);
             throw e;
         }
 
         if(cl.hasOption("help")) {
-            formatter.printHelp("oracle CLI", options);
+            formatter.printHelp("oracle Player", options);
             throw new ExceptionInInitializerError();
         }
         if(cl.hasOption("my-port"))
@@ -198,7 +201,7 @@ public class CLI {
         other_party_addr = "tcp://" + other_party_location + ":" + other_party_port;
     }
 
-    public void run() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, ExecutionException, InterruptedException, InvalidKeySpecException, IOException {
+    public SecureChannel openSecureChannel() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, ExecutionException, InterruptedException, InvalidKeySpecException, IOException {
         Secp256k1 a = new Secp256k1();
         get_configuration();
 
@@ -206,27 +209,34 @@ public class CLI {
             Future<String> otherPartyCurveKeyFuture = executor.submit(
                     new PlainSocketNegotiation(other_party_addr, my_port, myKeyPair.publicKey, zctx));
             otherPartyPublicZmqKey = otherPartyCurveKeyFuture.get(1600, TimeUnit.SECONDS);
-            System.out.println("Got ZMQ bitcoin.key!");
-
 
             other_party_addr = "tcp://" + other_party_location + ":" + (other_party_port + 1);
             my_port = my_port + 1;
 
-
-            Future<Boolean> gotAuthenticatedChannel = executor.submit(
+            Future<SecureChannel> gotAuthenticatedChannel = executor.submit(
                     new OpenSecureChannel(zctx, myKeyPair, "tcp://*:" + my_port, my_private_key,
                             other_party_addr, otherPartyPublicZmqKey,
                             other_party_bitcoin_address, auth_sock_send, auth_sock_rcv));
-            if(!gotAuthenticatedChannel.get(1600, TimeUnit.SECONDS)) {
-                LOGGER.severe("Unable to authenticate the channel.");
-                return;
-            }
+            return gotAuthenticatedChannel.get(1600, TimeUnit.SECONDS);
+
             } catch (TimeoutException e) {
                 LOGGER.severe("Unable to open the authenticated channel on time");
-                return;
+                return null;
             }
             finally{
                 executor.shutdown();
             }
     }
+
+    private Bet negotiateBet(SecureChannel channel) {
+        throw new NotImplementedException();
+
+    }
+
+    public void run() throws InterruptedException, ExecutionException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException, InvalidKeySpecException {
+        SecureChannel channel = openSecureChannel();
+        negotiateBet(channel);
+
+    }
+
 }

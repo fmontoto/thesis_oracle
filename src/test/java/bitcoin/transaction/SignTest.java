@@ -7,10 +7,16 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import static bitcoin.Constants.getHashType;
+import static bitcoin.Constants.getOpcode;
+import static bitcoin.Constants.pushDataOpcode;
 import static bitcoin.key.Utils.bitcoinB58Encode;
+import static bitcoin.key.Utils.r160SHA256Hash;
 import static bitcoin.transaction.TransactionBuilder.payToPublicKeyHash;
+import static bitcoin.transaction.TransactionBuilder.payToScriptHash;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
+import static core.Utils.mergeArrays;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
@@ -145,14 +151,13 @@ public class SignTest {
         for(int i = 0; i < privKeys.size(); i++) {
             t.sign(privKeys.get(i), i);
         }
-
         System.out.println("./bitcoin-cli -testnet signrawtransaction " + byteArrayToHex(t.serialize()) + " \"[]\" \"[]\"");
     }
 
     @Test
-    public void simplePayToScriptHash() throws IOException, NoSuchAlgorithmException {
-        List<AbsoluteOutput> unspentOutputs = client.getUnspent();
+    public void simplePayToScriptHash() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException {
         AbsoluteOutput srcOutput = null;
+        List<AbsoluteOutput> unspentOutputs = client.getUnspent();
         String changeAddr = null;
         for(AbsoluteOutput ao: unspentOutputs)
             if(ao.isPayToKey())
@@ -162,14 +167,42 @@ public class SignTest {
             changeAddr = addr;
         if(changeAddr == null)
             changeAddr = srcOutput.getPayAddress();
-        long availble = srcOutput.getValue();
+        long available = srcOutput.getValue();
+
+
+        byte[] scriptRedeem = mergeArrays( new byte[]{getOpcode("OP_1")}
+                                         , BitcoinPublicKey.WIFToTxAddress(changeAddr)
+                                         , new byte[]{getOpcode("OP_1")}
+                                         , new byte[]{getOpcode("OP_CHECKMULTISIGVERIFY")});
+
+
+        byte[] scriptRedeemHash = r160SHA256Hash(scriptRedeem);
 
         byte[] addr = hexToByteArray(srcOutput.getPayAddress());
         String wifAddr = BitcoinPublicKey.txAddressToWIF(addr, true);
+        BitcoinPrivateKey privKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(wifAddr));
+
+        BitcoinPrivateKey changePrivKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(changeAddr));
+        Transaction t0 = payToScriptHash(srcOutput, scriptRedeemHash, available);
+        t0.sign(privKey);
+        System.out.println("./bitcoin-cli -testnet signrawtransaction " + byteArrayToHex(t0.serialize()) + " \"[]\" \"[]\"");
+
+        AbsoluteOutput scriptHashOutput = new AbsoluteOutput( t0.getOutputs().get(0).getValue()
+                                                            , t0.getOutputs().get(0).getScript()
+                                                            , 0
+                                                            , t0.txid());
+
+        Transaction t1 = payToPublicKeyHash(scriptHashOutput, changeAddr, available);
+        byte[] t1_signature = t1.getPayToScriptSignature(changePrivKey, getHashType("ALL"), 0);
+
+        t1.getInputs().get(0).setScript(mergeArrays( new byte[]{getOpcode("OP_0")}
+                                                   , pushDataOpcode(t1_signature.length)
+                                                   , t1_signature
+                                                   , pushDataOpcode(scriptRedeem.length)
+                                                   , scriptRedeem));
 
 
-
-
+        System.out.println("aa ./bitcoin-cli -testnet signrawtransaction " + byteArrayToHex(t1.serialize()) + " \"[" + byteArrayToHex(t0.serialize()) + "]\" \"[]\"");
     }
 
 }

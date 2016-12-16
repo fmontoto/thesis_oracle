@@ -55,117 +55,117 @@ public class Constants {
 
 
 // Flow Control
-        addOpcode("OP_NOP", (byte) 0x61);
-        addOpcode("OP_VER", (byte) 0x62);
-        addOpcode("OP_IF", (byte) 0x63);
-        addOpcode("OP_NOTIF", (byte) 0x64);
-        addOpcode("OP_VERIF", (byte) 0x65);
-        addOpcode("OP_VERNOTIF", (byte) 0x66);
-        addOpcode("OP_ELSE", (byte) 0x67);
-        addOpcode("OP_ENDIF", (byte) 0x68);
-        addOpcode("OP_VERIFY", (byte) 0x69);
-        addOpcode("OP_RETURN", (byte) 0x6a);
+        addOpcode("OP_NOP",         (byte) 0x61);
+        addOpcode("OP_VER",         (byte) 0x62);
+        addOpcode("OP_IF",          (byte) 0x63);
+        addOpcode("OP_NOTIF",       (byte) 0x64);
+        addOpcode("OP_VERIF",       (byte) 0x65);
+        addOpcode("OP_VERNOTIF",    (byte) 0x66);
+        addOpcode("OP_ELSE",        (byte) 0x67);
+        addOpcode("OP_ENDIF",       (byte) 0x68);
+        addOpcode("OP_VERIFY",      (byte) 0x69);
+        addOpcode("OP_RETURN",      (byte) 0x6a);
 
 // Stack
-        addOpcode("OP_TOALTSTACK", (byte) 0x6b);
-        addOpcode("OP_FROMALTSTACK", (byte) 0x6c);
-        addOpcode("OP_2DROP", (byte) 0x6d);
-        addOpcode("OP_2DUP", (byte) 0x6e);
-        addOpcode("OP_3DUP", (byte) 0x6f);
-        addOpcode("OP_2OVER", (byte) 0x70);
-        addOpcode("OP_2ROT", (byte) 0x71);
-        addOpcode("OP_2SWAP", (byte) 0x72);
-        addOpcode("OP_IFDUP", (byte) 0x73);
-        addOpcode("OP_DEPTH", (byte) 0x74);
-        addOpcode("OP_DROP", (byte) 0x75);
-        addOpcode("OP_DUP", (byte) 0x76);
-        addOpcode("OP_NIP", (byte) 0x77);
-        addOpcode("OP_OVER", (byte) 0x78);
-        addOpcode("OP_PICK", (byte) 0x79);
-        addOpcode("OP_ROLL", (byte) 0x7a);
-        addOpcode("OP_ROT", (byte) 0x7b);
-        addOpcode("OP_SWAP", (byte) 0x7c);
-        addOpcode("OP_TUCK", (byte) 0x7d);
+        addOpcode("OP_TOALTSTACK",  (byte) 0x6b);
+        addOpcode("OP_FROMALTSTACK",(byte) 0x6c);
+        addOpcode("OP_2DROP",       (byte) 0x6d);
+        addOpcode("OP_2DUP",        (byte) 0x6e);
+        addOpcode("OP_3DUP",        (byte) 0x6f);
+        addOpcode("OP_2OVER",       (byte) 0x70);
+        addOpcode("OP_2ROT",        (byte) 0x71);
+        addOpcode("OP_2SWAP",       (byte) 0x72);
+        addOpcode("OP_IFDUP",       (byte) 0x73);
+        addOpcode("OP_DEPTH",       (byte) 0x74);
+        addOpcode("OP_DROP",        (byte) 0x75);
+        addOpcode("OP_DUP",         (byte) 0x76);
+        addOpcode("OP_NIP",         (byte) 0x77);
+        addOpcode("OP_OVER",        (byte) 0x78);
+        addOpcode("OP_PICK",        (byte) 0x79);
+        addOpcode("OP_ROLL",        (byte) 0x7a);
+        addOpcode("OP_ROT",         (byte) 0x7b);
+        addOpcode("OP_SWAP",        (byte) 0x7c);
+        addOpcode("OP_TUCK",        (byte) 0x7d);
 
 // Splice
-        addOpcode("OP_CAT", (byte) 0x7e);
-        addOpcode("OP_SUBSTR", (byte) 0x7f);
-        addOpcode("OP_LEFT", (byte) 0x80);
-        addOpcode("OP_RIGHT", (byte) 0x81);
-        addOpcode("OP_SIZE", (byte) 0x82);
+        addOpcode("OP_CAT",         (byte) 0x7e);
+        addOpcode("OP_SUBSTR",      (byte) 0x7f);
+        addOpcode("OP_LEFT",        (byte) 0x80);
+        addOpcode("OP_RIGHT",       (byte) 0x81);
+        addOpcode("OP_SIZE",        (byte) 0x82);
 
 // BitLogic
-        addOpcode("OP_INVERT", (byte) 0x83);
-        addOpcode("OP_AND", (byte) 0x84);
-        addOpcode("OP_OR", (byte) 0x85);
-        addOpcode("OP_XOR", (byte) 0x86);
-        addOpcode("OP_EQUAL", (byte) 0x87);
+        addOpcode("OP_INVERT",      (byte) 0x83);
+        addOpcode("OP_AND",         (byte) 0x84);
+        addOpcode("OP_OR",          (byte) 0x85);
+        addOpcode("OP_XOR",         (byte) 0x86);
+        addOpcode("OP_EQUAL",       (byte) 0x87);
         addOpcode("OP_EQUALVERIFY", (byte) 0x88);
-        addOpcode("OP_RESERVED1", (byte) 0x89);
-        addOpcode("OP_RESERVED2", (byte) 0x8a);
+        addOpcode("OP_RESERVED1",   (byte) 0x89);
+        addOpcode("OP_RESERVED2",   (byte) 0x8a);
 
 
 // Arithmetic
-        addOpcode("OP_1ADD", (byte) 0x8b);
-        addOpcode("OP_1SUB", (byte) 0x8c);
-        addOpcode("OP_2MUL", (byte) 0x8d);
-        addOpcode("OP_2DIV", (byte) 0x8e);
-        addOpcode("OP_NEGATE", (byte) 0x8f);
-        addOpcode("OP_ABS", (byte) 0x90);
-        addOpcode("OP_NOT", (byte) 0x91);
-        addOpcode("OP_0NOTEQUAL", (byte) 0x92);
+        addOpcode("OP_1ADD",        (byte) 0x8b);
+        addOpcode("OP_1SUB",        (byte) 0x8c);
+        addOpcode("OP_2MUL",        (byte) 0x8d);
+        addOpcode("OP_2DIV",        (byte) 0x8e);
+        addOpcode("OP_NEGATE",      (byte) 0x8f);
+        addOpcode("OP_ABS",         (byte) 0x90);
+        addOpcode("OP_NOT",         (byte) 0x91);
+        addOpcode("OP_0NOTEQUAL",   (byte) 0x92);
 
-        addOpcode("OP_ADD", (byte) 0x93);
-        addOpcode("OP_SUB", (byte) 0x94);
-        addOpcode("OP_MUL", (byte) 0x95);
-        addOpcode("OP_DIV", (byte) 0x96);
-        addOpcode("OP_MOD", (byte) 0x97);
-        addOpcode("OP_LSHIFT", (byte) 0x98);
-        addOpcode("OP_RSHIFT", (byte) 0x99);
+        addOpcode("OP_ADD",         (byte) 0x93);
+        addOpcode("OP_SUB",         (byte) 0x94);
+        addOpcode("OP_MUL",         (byte) 0x95);
+        addOpcode("OP_DIV",         (byte) 0x96);
+        addOpcode("OP_MOD",         (byte) 0x97);
+        addOpcode("OP_LSHIFT",      (byte) 0x98);
+        addOpcode("OP_RSHIFT",      (byte) 0x99);
 
-        addOpcode("OP_BOOLAND", (byte) 0x9a);
-        addOpcode("OP_BOOLOR", (byte) 0x9b);
-        addOpcode("OP_NUMEQUAL", (byte) 0x9c);
-        addOpcode("OP_NUMEQUALVERIFY", (byte) 0x9d);
-        addOpcode("OP_NUMNOTEQUAL", (byte) 0x9e);
-        addOpcode("OP_LESSTHAN", (byte) 0x9f);
-        addOpcode("OP_GREATERTHAN", (byte) 0xa0);
-        addOpcode("OP_LESSTHANOREQUAL", (byte) 0xa1);
-        addOpcode("OP_GREATERTHANOREQUAL", (byte) 0xa2);
-        addOpcode("OP_MIN", (byte) 0xa3);
-        addOpcode("OP_MAX", (byte) 0xa4);
-        addOpcode("OP_WITHIN", (byte) 0xa5);
+        addOpcode("OP_BOOLAND",             (byte) 0x9a);
+        addOpcode("OP_BOOLOR",              (byte) 0x9b);
+        addOpcode("OP_NUMEQUAL",            (byte) 0x9c);
+        addOpcode("OP_NUMEQUALVERIFY",      (byte) 0x9d);
+        addOpcode("OP_NUMNOTEQUAL",         (byte) 0x9e);
+        addOpcode("OP_LESSTHAN",            (byte) 0x9f);
+        addOpcode("OP_GREATERTHAN",         (byte) 0xa0);
+        addOpcode("OP_LESSTHANOREQUAL",     (byte) 0xa1);
+        addOpcode("OP_GREATERTHANOREQUAL",  (byte) 0xa2);
+        addOpcode("OP_MIN",                 (byte) 0xa3);
+        addOpcode("OP_MAX",                 (byte) 0xa4);
+        addOpcode("OP_WITHIN",              (byte) 0xa5);
 
 // Crypto
-        addOpcode("OP_RIPEMD160", (byte) 0xa6);
-        addOpcode("OP_SHA1", (byte) 0xa7);
-        addOpcode("OP_SHA256", (byte) 0xa8);
-        addOpcode("OP_HASH160", (byte) 0xa9);
-        addOpcode("OP_HASH256", (byte) 0xaa);
-        addOpcode("OP_CODESEPARATOR", (byte) 0xab);
-        addOpcode("OP_CHECKSIG", (byte) 0xac);
-        addOpcode("OP_CHECKSIGVERIFY", (byte) 0xad);
-        addOpcode("OP_CHECKMULTISIG", (byte) 0xae);
+        addOpcode("OP_RIPEMD160",           (byte) 0xa6);
+        addOpcode("OP_SHA1",                (byte) 0xa7);
+        addOpcode("OP_SHA256",              (byte) 0xa8);
+        addOpcode("OP_HASH160",             (byte) 0xa9);
+        addOpcode("OP_HASH256",             (byte) 0xaa);
+        addOpcode("OP_CODESEPARATOR",       (byte) 0xab);
+        addOpcode("OP_CHECKSIG",            (byte) 0xac);
+        addOpcode("OP_CHECKSIGVERIFY",      (byte) 0xad);
+        addOpcode("OP_CHECKMULTISIG",       (byte) 0xae);
         addOpcode("OP_CHECKMULTISIGVERIFY", (byte) 0xaf);
 
 // Expansion
-        addOpcode("OP_NOP1", (byte) 0xb0);
+        addOpcode("OP_NOP1",                (byte) 0xb0);
         addOpcode("OP_CHECKLOCKTIMEVERIFY", (byte) 0xb1);
-        addOpcode("OP_CHECKSEQUENCE_VERIFY", (byte) 0xb2);
-        addOpcode("OP_NOP4", (byte) 0xb3);
-        addOpcode("OP_NOP5", (byte) 0xb4);
-        addOpcode("OP_NOP6", (byte) 0xb5);
-        addOpcode("OP_NOP7", (byte) 0xb6);
-        addOpcode("OP_NOP8", (byte) 0xb7);
-        addOpcode("OP_NOP9", (byte) 0xb8);
-        addOpcode("OP_NOP10", (byte) 0xb9);
+        addOpcode("OP_CHECKSEQUENCE_VERIFY",(byte) 0xb2);
+        addOpcode("OP_NOP4",                (byte) 0xb3);
+        addOpcode("OP_NOP5",                (byte) 0xb4);
+        addOpcode("OP_NOP6",                (byte) 0xb5);
+        addOpcode("OP_NOP7",                (byte) 0xb6);
+        addOpcode("OP_NOP8",                (byte) 0xb7);
+        addOpcode("OP_NOP9",                (byte) 0xb8);
+        addOpcode("OP_NOP10",               (byte) 0xb9);
 
 // PseudoWords
-        addOpcode("OP_SMALLINTEGER", (byte) 0xfa);
-        addOpcode("OP_PUBKEYS", (byte) 0xfb);
-        addOpcode("OP_PUBKEYHASH", (byte) 0xfd);
-        addOpcode("OP_PUBKEY", (byte) 0xfe);
-        addOpcode("OP_INVALIDOPCODE", (byte) 0xff);
+        addOpcode("OP_SMALLINTEGER",        (byte) 0xfa);
+        addOpcode("OP_PUBKEYS",             (byte) 0xfb);
+        addOpcode("OP_PUBKEYHASH",          (byte) 0xfd);
+        addOpcode("OP_PUBKEY",              (byte) 0xfe);
+        addOpcode("OP_INVALIDOPCODE",       (byte) 0xff);
     }
 
     static public byte[] pushDataOpcode(int dataLength) {

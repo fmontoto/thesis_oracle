@@ -88,7 +88,7 @@ class ZapThread extends Thread {
     }
 }
 
-public class OpenSecureChannel implements Callable<Boolean> {
+public class OpenSecureChannel implements Callable<SecureChannel> {
     private static final Logger LOGGER = Logger.getLogger(OpenSecureChannel.class.getName());
     private ZMQ.Context zctx;
     private final ZMQ.Curve.KeyPair myCurveKeyPair;
@@ -182,8 +182,8 @@ public class OpenSecureChannel implements Callable<Boolean> {
             return false;
         }
         BitcoinPublicKey otherPartyPublicBitcoinKey = new BitcoinPublicKey(otherPartyPublicBitcoinKeyBytes, testnet);
-        if(!otherPartyBitcoinAddr.equals(otherPartyPublicBitcoinKey.getAddress())){
-            LOGGER.warning("The bitcoin.key provided by the other party does not match the address");
+        if(!otherPartyBitcoinAddr.equals(otherPartyPublicBitcoinKey.toWIF())){
+            LOGGER.warning("The bitcoin key provided by the other party does not match the address");
             return false;
         };
 
@@ -201,7 +201,7 @@ public class OpenSecureChannel implements Callable<Boolean> {
 //    }
 
     @Override
-    public Boolean call() throws Exception {
+    public SecureChannel call() throws Exception {
         setSecurity();
         incoming_socket.bind(myURI);
         outgoing_socket.connect(otherPartyURI);
@@ -209,8 +209,9 @@ public class OpenSecureChannel implements Callable<Boolean> {
             System.out.println(new String(incoming_socket.getLastEndpoint(), utf8));
             incoming_socket.unbind(new String(incoming_socket.getLastEndpoint(), utf8));
             outgoing_socket.disconnect(otherPartyURI);
-            return false;
+            return null;
         }
-        return true;
+
+        return new SecureChannel(incoming_socket, outgoing_socket);
     }
 }

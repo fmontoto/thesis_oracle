@@ -77,6 +77,11 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
         return r160SHA256Hash(getKey());
     }
 
+    public static byte[] WIFToTxAddress(String WIFAddress) throws IOException, NoSuchAlgorithmException {
+        byte[] addr_with_prefix = bitcoinB58Decode(WIFAddress);
+        return Arrays.copyOfRange(addr_with_prefix, 1, addr_with_prefix.length);
+    }
+
     public static String txAddressToWIF(byte[] txAddr, boolean testnet) throws IOException, NoSuchAlgorithmException {
         if(testnet)
             return bitcoinB58Encode(core.Utils.mergeArrays(new byte[] {0x6f}, txAddr));

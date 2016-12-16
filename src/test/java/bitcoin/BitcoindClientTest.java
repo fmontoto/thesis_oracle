@@ -38,7 +38,7 @@ public class BitcoindClientTest {
 
     @Test(expected=wf.bitcoin.javabitcoindrpcclient.BitcoinRpcException.class)
     public void getTransaction() throws Exception {
-        Transaction tx = client.getTransaction("57cc385b9918ec124155b56321ddcbe927a100c9f4c6d18e5b04efa8e9b602c1");
+        Transaction tx = client.getTransaction("57cc385b9918ec124155b56321ddcbe927a100c9f4c6d18e5b04efa8e9b602c");
     }
 
 }

@@ -23,7 +23,7 @@ import static core.Utils.hexToByteArray;
 public class Utils {
     private static final Logger LOGGER = Logger.getLogger(Utils.class.getName() );
 
-    private static int count_leading(byte[] val, byte b) {
+    static private int count_leading(byte[] val, byte b) {
         int ret = 0;
         for(byte e: val) {
             if(e != b)
@@ -33,17 +33,11 @@ public class Utils {
         return ret;
     }
 
-    static byte[] r160SHA256Hash(byte[] val) throws NoSuchAlgorithmException {
+    static public byte[] r160SHA256Hash(byte[] val) throws NoSuchAlgorithmException {
         Security.addProvider(new BouncyCastleProvider());
         MessageDigest r160dig = null;
         MessageDigest sha256dig = null;
         try{
-
-//            MessageDigestAlgorithm.getInstance(MessageDigestAlgorithm.ALGO_ID_DIGEST_RIPEMD160);
-//            MessageDigestAlgorithm.ALGO_ID_DIGEST_RIPEMD160
-//                    MessageDigestAlgorithm.getInstance()
-//import com.sun.org.apache.xml.internal.security.algorithms.implementations.IntegrityHmac;
-//            Provider.S
             r160dig = MessageDigest.getInstance("RIPEMD160");
             sha256dig = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
@@ -53,7 +47,7 @@ public class Utils {
         return r160dig.digest(sha256dig.digest(val));
     }
 
-    private static int count_leading(String val, char b) {
+    static private int count_leading(String val, char b) {
         int ret = 0;
         for(int i = 0; i < val.length(); i++) {
             if(val.charAt(i) != b)
@@ -63,7 +57,7 @@ public class Utils {
         return ret;
     }
 
-    private static int count_leading(char[] val, char b) {
+    static private int count_leading(char[] val, char b) {
         int ret = 0;
         for(int i = 0; i < val.length; i++) {
             if (val[i] != b)

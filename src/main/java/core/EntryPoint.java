@@ -1,6 +1,6 @@
 package core;
 
-import commandline.CLI;
+import commandline.Player;
 import org.apache.commons.cli.ParseException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 
@@ -21,9 +21,9 @@ public class EntryPoint {
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
         try {
             if (args.length < 1) {
-                new CLI().run();
-            } else if (args[0].equals("CLI")) {
-                new CLI(Arrays.copyOfRange(args, 1, args.length)).run();
+                new Player().run();
+            } else if (args[0].equals("Player")) {
+                new Player(Arrays.copyOfRange(args, 1, args.length)).run();
             } else {
                 get("/hello", (req, res) -> "Hello World");
                 System.out.println("Hello World!");

@@ -1,5 +1,6 @@
 package bitcoin.transaction;
 
+import bitcoin.key.BitcoinPublicKey;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
@@ -28,8 +29,7 @@ public class TransactionBuilder {
      */
     static Output createPayToPubKeyOutput(long value, String dstAddr) throws IOException, NoSuchAlgorithmException {
 
-        byte[] addr_with_prefix = bitcoinB58Decode(dstAddr);
-        byte[] addr = Arrays.copyOfRange(addr_with_prefix, 1, addr_with_prefix.length);
+        byte[] addr = BitcoinPublicKey.WIFToTxAddress(dstAddr);
         byte[] script =  mergeArrays(new byte[]{getOpcode("OP_DUP")},
                                      new byte[] {getOpcode("OP_HASH160")},
                                      pushDataOpcode(addr.length),
