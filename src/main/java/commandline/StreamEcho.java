@@ -27,12 +27,14 @@ public class StreamEcho extends Thread{
         scanner = new Scanner(in);
         this.out = out;
         this.finishEcho = finishEcho;
+        keepRunning = true;
     }
 
     public StreamEcho(ReadableByteChannel in, WritableByteChannel out, String finishEcho) {
         scanner = new Scanner(in, charset);
         this.out = out;
         this.finishEcho = finishEcho;
+        keepRunning = true;
     }
 
     public synchronized boolean keepRunning() {

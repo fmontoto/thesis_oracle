@@ -60,8 +60,8 @@ public class Utils {
 
     static byte[] exchangeData(String dataName, byte[]myData, int expectedDataLength,
                                ZMQ.Socket incomingSocket, ZMQ.Socket outgoingSocket) {
-        byte[] sendPreamble = ("Hi!, this is my " + dataName + ":").getBytes(utf8);
-        byte[] rcvdPreamble = ("I got your " + dataName + "!").getBytes(utf8);
+        byte[] sendPreamble = ("[ExchangeData]Hi!, this is my " + dataName + ":").getBytes(utf8);
+        byte[] rcvdPreamble = ("[ExchangeData]I got your " + dataName + "!").getBytes(utf8);
         return exchangeData(sendPreamble, myData, rcvdPreamble, expectedDataLength,
                             incomingSocket, outgoingSocket, dataName);
     }

@@ -5,6 +5,7 @@ import bitcoin.key.BitcoinPublicKey;
 import org.zeromq.ZAuth;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMsg;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -211,7 +212,7 @@ public class OpenSecureChannel implements Callable<SecureChannel> {
             outgoing_socket.disconnect(otherPartyURI);
             return null;
         }
-
-        return new SecureChannel(incoming_socket, outgoing_socket);
+        throw new NotImplementedException();
+//        return new SecureChannel(incoming_socket, outgoing_socket, null);
     }
 }
