@@ -20,6 +20,7 @@ import static core.Utils.hexToByteArray;
 import static bitcoin.key.Utils.bytesToBigInteger;
 
 /**
+ * Representation of a bitcoin Private Key.
  * Created by fmontoto on 09-11-16.
  */
 public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
@@ -30,8 +31,8 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
     }
 
     private ECPrivateKey ecPrivateKey;
-    boolean testnet;
-    boolean compressed_pk;
+    private boolean testnet;
+    private boolean compressed_pk;
 
     public BitcoinPrivateKey(ECPrivateKey pk, boolean compressed_pk, boolean testnet) {
         ecPrivateKey = pk;
@@ -168,7 +169,6 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
                 Arrays.copyOfRange(val, 1, val.length), compressed_pk, testnet);
 
     }
-
 
     static public BitcoinPrivateKey fromWIF(String WIFRepresentation) throws IOException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeySpecException {
         return BitcoinPrivateKey.fromWIF(Utils.bitcoinB58Decode(WIFRepresentation));

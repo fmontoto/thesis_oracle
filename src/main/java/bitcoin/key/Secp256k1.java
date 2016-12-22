@@ -32,8 +32,7 @@ public class Secp256k1 {
         KeyPairGenerator keyPairGenerator = null;
         try {
             keyPairGenerator = KeyPairGenerator.getInstance("EC");
-            KeyPair keyPair = keyPairGenerator.generateKeyPair();
-            return keyPair;
+            return keyPairGenerator.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
             LOGGER.throwing("Secp256k1", "generatePair", e);
             throw e;

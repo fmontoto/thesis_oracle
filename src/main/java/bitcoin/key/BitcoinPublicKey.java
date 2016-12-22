@@ -98,7 +98,7 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
      * @param compressedKey A bitcoin 33bytes compressed public bitcoin.key
      * @return A 64bytes representation of the bitcoin.key. (to make it a bitcoin bitcoin.key you
      * need to prepend a 0x04
-     * @throws IOException
+     * @throws IOException Included because using ByteArrayOutputStream, however this should never happen.
      */
     static public byte[] decompressPubKey(byte[] compressedKey) throws IOException {
         if(compressedKey.length != 33)

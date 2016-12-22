@@ -14,19 +14,19 @@ public class Utils {
     /**
      * Be careful, the long is a signed type, it could look like a negative number,
      * use the unsigned operations included at Integer class.
-     * @param val
-     * @param offset
-     * @return
+     * @param val Bytes to be interpreted as uint64.
+     * @param offset Start reading val from this position.
+     * @return An uint64 parsed from the provided bytes.
      */
     static public long readUint64(byte[] val, int offset) {
         return (val[offset] & 0xFFl)
-                | ((val[offset + 1] & 0xFFl) << 8)
-                | ((val[offset + 2] & 0xFFl) << 16)
-                | ((val[offset + 3] & 0xFFl) << 24)
-                | ((val[offset + 4] & 0xFFl) << 32)
-                | ((val[offset + 5] & 0xFFl) << 40)
-                | ((val[offset + 6] & 0xFFl) << 48)
-                | ((val[offset + 7] & 0xFFl) << 56);
+                | ((val[offset + 1] & 0XFFL) << 8)
+                | ((val[offset + 2] & 0xFFL) << 16)
+                | ((val[offset + 3] & 0xFFL) << 24)
+                | ((val[offset + 4] & 0xFFL) << 32)
+                | ((val[offset + 5] & 0xFFL) << 40)
+                | ((val[offset + 6] & 0xFFL) << 48)
+                | ((val[offset + 7] & 0xFFL) << 56);
     }
 
     static public long readUint64(byte[] val) {
@@ -48,9 +48,9 @@ public class Utils {
 
     static public long readUint32(byte[] val, int offset) {
         return (0xFFl & val[offset])
-                | ((0xFFl & val[offset + 1]) << 8)
-                | ((0xFFl & val[offset + 2]) << 16)
-                | ((0xFFl & val[offset + 3]) << 24);
+                | ((0xFFL & val[offset + 1]) << 8)
+                | ((0xFFL & val[offset + 2]) << 16)
+                | ((0xFFL & val[offset + 3]) << 24);
     }
 
     static public long readUint32(byte[] val) {
@@ -81,22 +81,22 @@ public class Utils {
             return (0xFF & val[offset + 1]) | ((0xFF & val[offset + 2]) << 8);
         if(first == 254) {
             return (0xFF & val[offset + 1])
-                    | ((0xFFl & val[offset + 2]) << 8)
-                    | ((0xFFl & val[offset + 3]) << 16)
-                    | ((0xFFl & val[offset + 4]) << 24);
+                    | ((0xFFL & val[offset + 2]) << 8)
+                    | ((0xFFL & val[offset + 3]) << 16)
+                    | ((0xFFL & val[offset + 4]) << 24);
         }
         return (0xFF & val[offset + 1])
-                | ((0xFFl & val[offset + 2]) << 8)
-                | ((0xFFl & val[offset + 3]) << 16)
-                | ((0xFFl & val[offset + 4]) << 24)
-                | ((0xFFl & val[offset + 5]) << 32)
-                | ((0xFFl & val[offset + 6]) << 40)
-                | ((0xFFl & val[offset + 7]) << 48)
-                | ((0xFFl & val[offset + 8]) << 56);
+                | ((0xFFL & val[offset + 2]) << 8)
+                | ((0xFFL & val[offset + 3]) << 16)
+                | ((0xFFL & val[offset + 4]) << 24)
+                | ((0xFFL & val[offset + 5]) << 32)
+                | ((0xFFL & val[offset + 6]) << 40)
+                | ((0xFFL & val[offset + 7]) << 48)
+                | ((0xFFL & val[offset + 8]) << 56);
     }
 
     static public byte[] serializeVarInt(long val) {
-        if(val < 0 || val > 0xFFFFFFFFl)
+        if(val < 0 || val > 0xFFFFFFFFL)
             return new byte[]{(byte) 255,
                               (byte) val,
                               (byte) (val >> 8),
@@ -108,7 +108,7 @@ public class Utils {
                               (byte) (val >> 56)};
         if(val < 253)
             return new byte[]{(byte) val};
-        if(val <= 0xFFFFl)
+        if(val <= 0xFFFFL)
             return new byte[]{(byte) 253, (byte) val, (byte) (val >> 8)};
 
         return new byte[]{(byte) 254,
@@ -119,11 +119,11 @@ public class Utils {
     }
 
     static public int varIntByteSize(long val) {
-        if(val < 0 || val > 0xFFFFFFFFl)
+        if(val < 0 || val > 0xFFFFFFFFL)
             return 9;
         if(val < 253)
             return 1;
-        if(val < 0xFFFFl)
+        if(val < 0xFFFFL)
             return 3;
         return 5;
 

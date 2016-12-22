@@ -18,6 +18,7 @@ import static core.Utils.encodeB58;
 import static core.Utils.hexToByteArray;
 
 /**
+ * Set of utilities for the key package.
  * Created by fmontoto on 09-11-16.
  */
 public class Utils {
@@ -59,8 +60,8 @@ public class Utils {
 
     static private int count_leading(char[] val, char b) {
         int ret = 0;
-        for(int i = 0; i < val.length; i++) {
-            if (val[i] != b)
+        for(char v : val) {
+            if (v != b)
                 break;
             ret++;
         }

@@ -23,9 +23,9 @@ public class TransactionBuilder {
 
     /**
      *
-     * @param value
-     * @param dstAddr WIF format
-     * @return
+     * @param value Output's value
+     * @param dstAddr Destination address in WIF format
+     * @return Output with the specified parameters.
      */
     static Output createPayToPubKeyOutput(long value, String dstAddr) throws IOException, NoSuchAlgorithmException {
 
