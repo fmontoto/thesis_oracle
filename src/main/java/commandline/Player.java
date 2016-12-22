@@ -1,5 +1,6 @@
 package commandline;
 
+import communication.CommunicationException;
 import communication.OpenSecureChannel;
 import communication.PlainSocketNegotiation;
 import communication.SecureChannel;
@@ -14,6 +15,7 @@ import org.zeromq.ZMQ.Socket;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
@@ -228,14 +230,29 @@ public class Player {
             }
     }
 
-    private Bet negotiateBet(SecureChannel channel) {
+    private Bet negotiateBet(SecureChannel channel) throws CommunicationException, ClosedChannelException, InterruptedException {
+        final String finish = "--";
+        String aux;
+        StreamEcho streamEcho = new StreamEcho(System.in, channel, finish);
+        streamEcho.start();
+        System.out.println("When you're finished talking, send " + finish);
+        while(streamEcho.isAlive()) {
+            while((aux = channel.rcv_no_wait()) != null)
+                System.out.println(aux);
+            TimeUnit.MILLISECONDS.sleep(100);
+        }
+
         throw new NotImplementedException();
 
     }
 
     public void run() throws InterruptedException, ExecutionException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException, InvalidKeySpecException {
         SecureChannel channel = openSecureChannel();
-        negotiateBet(channel);
+        try {
+            negotiateBet(channel);
+        } catch (CommunicationException e) {
+            e.printStackTrace();
+        }
 
     }
 
