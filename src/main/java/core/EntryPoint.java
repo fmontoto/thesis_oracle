@@ -1,6 +1,7 @@
 package core;
 
 import commandline.Player;
+import commandline.Oracle;
 import org.apache.commons.cli.ParseException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 
@@ -24,6 +25,9 @@ public class EntryPoint {
                 new Player().run();
             } else if (args[0].equals("Player")) {
                 new Player(Arrays.copyOfRange(args, 1, args.length)).run();
+            }
+            else if(args[0].equals("Oracle")) {
+                new Oracle(Arrays.copyOfRange(args, 1, args.length)).run();
             } else {
                 get("/hello", (req, res) -> "Hello World");
                 System.out.println("Hello World!");

@@ -8,6 +8,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
+import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -93,4 +94,17 @@ public class BitcoindClient {
     }
 
 
+    public List<String> getOracleList(int first_block, int last_block) {
+        List<String> oracleList = new ArrayList<>();
+        BitcoindRpcClient.Block block;
+        if(first_block > last_block)
+            throw new InvalidParameterException("first block (" + first_block +
+                    ") must be smaller than last block (" + last_block + ")");
+        for(int height = first_block; height <= last_block; height++) {
+
+            block = this.bitcoindRpcClient.getBlock(height);
+            throw new NotImplementedException();
+        }
+        throw new NotImplementedException();
+    }
 }

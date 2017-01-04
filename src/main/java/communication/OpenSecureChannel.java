@@ -5,7 +5,6 @@ import bitcoin.key.BitcoinPublicKey;
 import org.zeromq.ZAuth;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMsg;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -86,10 +85,11 @@ class ZapThread extends Thread {
             }
         }
         sock.close();
+        LOGGER.warning("Closing ZAP thread");
     }
 }
 
-public class OpenSecureChannel implements Callable<SecureChannel> {
+public class OpenSecureChannel implements Callable<SecureChannelManager> {
     private static final Logger LOGGER = Logger.getLogger(OpenSecureChannel.class.getName());
     private ZMQ.Context zctx;
     private final ZMQ.Curve.KeyPair myCurveKeyPair;
@@ -129,7 +129,9 @@ public class OpenSecureChannel implements Callable<SecureChannel> {
     }
 
     private void startZapSecurity() {
-        new ZapThread(zctx, otherPartyPublicKey).start();
+        ZapThread zapThread = new ZapThread(zctx, otherPartyPublicKey);
+        zapThread.setDaemon(true);
+        zapThread.start();
     }
 
     private void setSecurity() {
@@ -202,8 +204,9 @@ public class OpenSecureChannel implements Callable<SecureChannel> {
 //    }
 
     @Override
-    public SecureChannel call() throws Exception {
+    public SecureChannelManager call() throws Exception {
         setSecurity();
+        LOGGER.severe("myURi:" + myURI);
         incoming_socket.bind(myURI);
         outgoing_socket.connect(otherPartyURI);
         if(!authenticateConnectedPeer()) {
@@ -212,7 +215,6 @@ public class OpenSecureChannel implements Callable<SecureChannel> {
             outgoing_socket.disconnect(otherPartyURI);
             return null;
         }
-        throw new NotImplementedException();
-//        return new SecureChannel(incoming_socket, outgoing_socket, null);
+        return new SecureChannelManager(incoming_socket, outgoing_socket, zctx);
     }
 }

@@ -1,9 +1,9 @@
 package bitcoin.transaction;
 
 import bitcoin.key.BitcoinPublicKey;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,14 +12,16 @@ import java.util.List;
 
 import static bitcoin.Constants.getOpcode;
 import static bitcoin.Constants.pushDataOpcode;
-import static bitcoin.key.Utils.bitcoinB58Decode;
+import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 import static core.Utils.mergeArrays;
 
 /**
+ * Builds some useful transactions used in the protocol.
  * Created by fmontoto on 29-11-16.
  */
 public class TransactionBuilder {
+    static private final Charset utf8 = Charset.forName("utf-8");
 
     /**
      *
@@ -58,7 +60,7 @@ public class TransactionBuilder {
 
     }
 
-    static public Transaction buildTx(int version, int locktime, Collection<Input> inputs, Collection<Output> outputs) {
+    static private Transaction buildTx(int version, int locktime, Collection<Input> inputs, Collection<Output> outputs) {
         Transaction ret = new Transaction(version, locktime);
         for(Input i: inputs)
             ret.appendInput(i);
@@ -126,5 +128,47 @@ public class TransactionBuilder {
                 hexToByteArray(absOutput.getTxId()), absOutput.getScript());
     }
 
+    // Oracle
 
+    static Output createOpReturnOutput(byte[] data) {
+        long value = 0;
+        System.out.println(byteArrayToHex(data));
+        byte[] script =  mergeArrays(
+                new byte[]{getOpcode("OP_RETURN")},
+                pushDataOpcode(data.length),
+                data);
+        return new Output(value, script);
+    }
+
+    static Transaction opReturnOpTx(AbsoluteOutput absOutput, long fee, int version,
+                                  int locktime, byte[] data) throws IOException, NoSuchAlgorithmException {
+        Input input = payToPublicKeyHashCreateInput(absOutput);
+        long value = absOutput.getValue() - fee;
+
+        Output payToPubKeyOutput = createPayToPubKeyOutput(
+                value, BitcoinPublicKey.txAddressToWIF(hexToByteArray(absOutput.getPayAddress()),
+                        false));
+        Output dataOutput = createOpReturnOutput(data);
+
+        return buildTx(version, locktime, input, dataOutput, payToPubKeyOutput);
+    }
+
+    static public Transaction inscribeAsOracle(AbsoluteOutput absOutput,
+                                               long fee,
+                                               int version, int locktime)
+                                                    throws IOException, NoSuchAlgorithmException {
+        final byte[] data = "I'm an oracle! Ready to provide data".getBytes(utf8);
+        return opReturnOpTx(absOutput, fee, version, locktime, data);
+    }
+
+    static public Transaction inscribeAsOracle(AbsoluteOutput absOutput,
+                                               long fee) throws IOException, NoSuchAlgorithmException {
+        final int version = 1;
+        final int locktime = 0;
+        return inscribeAsOracle(absOutput, 0l, version, locktime);
+    }
+
+    static public Transaction inscribeAsOracle(AbsoluteOutput absOutput) throws IOException, NoSuchAlgorithmException {
+        return inscribeAsOracle(absOutput, 0l);
+    }
 }

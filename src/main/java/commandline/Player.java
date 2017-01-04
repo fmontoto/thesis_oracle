@@ -1,9 +1,6 @@
 package commandline;
 
-import communication.CommunicationException;
-import communication.OpenSecureChannel;
-import communication.PlainSocketNegotiation;
-import communication.SecureChannel;
+import communication.*;
 import core.Bet;
 import core.Constants;
 import bitcoin.key.BitcoinPrivateKey;
@@ -203,7 +200,7 @@ public class Player {
         other_party_addr = "tcp://" + other_party_location + ":" + other_party_port;
     }
 
-    public SecureChannel openSecureChannel() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, ExecutionException, InterruptedException, InvalidKeySpecException, IOException {
+    public SecureChannelManager openSecureChannel() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, ExecutionException, InterruptedException, InvalidKeySpecException, IOException {
         Secp256k1 a = new Secp256k1();
         get_configuration();
 
@@ -215,7 +212,7 @@ public class Player {
             other_party_addr = "tcp://" + other_party_location + ":" + (other_party_port + 1);
             my_port = my_port + 1;
 
-            Future<SecureChannel> gotAuthenticatedChannel = executor.submit(
+            Future<SecureChannelManager> gotAuthenticatedChannel = executor.submit(
                     new OpenSecureChannel(zctx, myKeyPair, "tcp://*:" + my_port, my_private_key,
                             other_party_addr, otherPartyPublicZmqKey,
                             other_party_bitcoin_address, auth_sock_send, auth_sock_rcv));
@@ -230,11 +227,29 @@ public class Player {
             }
     }
 
-    private Bet negotiateBet(SecureChannel channel) throws CommunicationException, ClosedChannelException, InterruptedException {
+    private void chat(SecureChannel channel) throws ClosedChannelException, InterruptedException {
         final String finish = "--";
         String aux;
         StreamEcho streamEcho = new StreamEcho(System.in, channel, finish);
         streamEcho.start();
+        System.out.println("This is a chat to negotiate the bet.");
+        System.out.println("Remember, you need to reach an agreement on the following parameters:");
+        Bet.listParameters(System.out);
+        System.out.println("When you're done, send " + finish);
+        while(streamEcho.isAlive()) {
+            while((aux = channel.rcv_no_wait()) != null)
+                System.out.println(aux);
+            TimeUnit.MILLISECONDS.sleep(100);
+        }
+    }
+
+    private Bet negotiateBet(SecureChannel channel) throws CommunicationException, ClosedChannelException, InterruptedException, NoSuchAlgorithmException {
+        final String finish = "--";
+        String aux;
+        StreamEcho streamEcho = new StreamEcho(System.in, channel, finish);
+        streamEcho.start();
+        System.out.println("You need to negotiate the following parameters to start the bet");
+        Bet.listParameters(System.out);
         System.out.println("When you're finished talking, send " + finish);
         while(streamEcho.isAlive()) {
             while((aux = channel.rcv_no_wait()) != null)
@@ -242,16 +257,30 @@ public class Player {
             TimeUnit.MILLISECONDS.sleep(100);
         }
 
+        Bet bet = Bet.buildBet(System.in, System.out);
+        bet.getHash();
+
         throw new NotImplementedException();
 
     }
 
     public void run() throws InterruptedException, ExecutionException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException, InvalidKeySpecException {
-        SecureChannel channel = openSecureChannel();
+        SecureChannelManager channelManager = openSecureChannel();
+        channelManager.setDaemon(true);
+        channelManager.start();
+        SecureChannel negotiateBetChannel = channelManager.subscribe("negotiation");
+        SecureChannel chatChannel = channelManager.subscribe("chat");
         try {
-            negotiateBet(channel);
+            chat(chatChannel);
+            negotiateBet(negotiateBetChannel);
         } catch (CommunicationException e) {
             e.printStackTrace();
+        }
+        finally {
+            channelManager.unsubscribe(negotiateBetChannel);
+            negotiateBetChannel.close();
+            channelManager.unsubscribe(chatChannel);
+            chatChannel.close();
         }
 
     }

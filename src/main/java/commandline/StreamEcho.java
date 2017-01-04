@@ -46,13 +46,15 @@ public class StreamEcho extends Thread{
     }
 
     public void run() {
+        LOGGER.info("Stream echo running");
         String line;
         while(keepRunning()) {
             line = scanner.nextLine();
             if(line.equals(finishEcho))
                 break;
             try {
-                out.write(ByteBuffer.wrap(line.getBytes(utf8)));
+                if(out.write(ByteBuffer.wrap(line.getBytes(utf8))) <= 0)
+                    LOGGER.severe("Error sending msg");
             } catch (IOException e) {
                 LOGGER.log(Level.SEVERE, "Exception was thrown:", e);
             }

@@ -96,7 +96,12 @@ public class SecureChannel implements ReadableByteChannel, WritableByteChannel{
     public int write(ByteBuffer byteBuffer) throws IOException {
         if(!open)
             throw new ClosedChannelException();
-        return out.sendByteBuffer(byteBuffer, 0);
+        if(!out.send(filter, ZMQ.SNDMORE))
+            return 0;
+        if(out.send(byteBuffer.array(), 0))
+            return 1;
+        else
+            return 0;
     }
 
     public String getFilter() {

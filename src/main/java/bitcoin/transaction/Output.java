@@ -116,6 +116,10 @@ public class Output {
         return isPayToScript;
     }
 
+    /**
+     *
+     * @return Return hex representation of the pay address as it appears in the transaction.
+     */
     public String getPayAddress() {
         if(!isPayToKey())
             throw new InvalidParameterException("It must be a pay to key output to in order to get an address");

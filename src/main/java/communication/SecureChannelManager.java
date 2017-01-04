@@ -6,6 +6,7 @@ import org.zeromq.ZMsg;
 import java.security.InvalidParameterException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /**
  * This manager handle and distribute the messages received by the sockets
@@ -13,7 +14,8 @@ import java.util.Map;
  *
  * Created by fmontoto on 22-12-16.
  */
-class SecureChannelManager extends Thread{
+public class SecureChannelManager extends Thread {
+    private static final Logger LOGGER = Logger.getLogger(SecureChannelManager.class.getName());
     private static int instanceCounter = 0;
     private final String inprocAddress;
     private final ZMQ.Context zctx;
@@ -48,7 +50,7 @@ class SecureChannelManager extends Thread{
         fin.bind(inprocAddress + "in");
     }
 
-    SecureChannel subscribe(String filter) {
+    public SecureChannel subscribe(String filter) {
         ZMQ.Socket in = zctx.socket(ZMQ.SUB);
         ZMQ.Socket out = zctx.socket(ZMQ.PUB);
         int count = subscriber.containsKey(filter) ? subscriber.get(filter) : 0;
@@ -63,7 +65,7 @@ class SecureChannelManager extends Thread{
         return new SecureChannel(in, out, filter);
     }
 
-    void unsubscribe(SecureChannel sc) {
+    public void unsubscribe(SecureChannel sc) {
         String filter = sc.getFilter();
         int count = subscriber.containsKey(filter) ? subscriber.get(filter) : 0;
         if(count == 0)
@@ -107,7 +109,7 @@ class SecureChannelManager extends Thread{
         closeSocket.close();
     }
 
-    void closeManager() throws InterruptedException {
+    public void closeManager() throws InterruptedException {
         signalTocloseSocket.send("Close!");
         signalTocloseSocket.recv();
         signalTocloseSocket.close();

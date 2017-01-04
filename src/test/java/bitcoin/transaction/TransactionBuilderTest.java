@@ -2,13 +2,13 @@ package bitcoin.transaction;
 
 import org.junit.Before;
 import org.junit.Test;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.security.NoSuchAlgorithmException;
 
-import static bitcoin.transaction.TransactionBuilder.createPayToPubKeyOutput;
-import static bitcoin.transaction.TransactionBuilder.payToPublicKeyHash;
+import static bitcoin.transaction.TransactionBuilder.*;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 import static org.junit.Assert.*;
@@ -95,4 +95,22 @@ public class TransactionBuilderTest {
         assertArrayEquals(expected, transaction.serialize());
     }
 
+    @Test
+    public void testReturnOpTx() throws Exception {
+        // From Tx 678a7c3ca82c1591828a035bf7b7d0b0515344ed475efc02153a29638395ae9a
+        String originalTx = "010000000128c0eff6d775c632bfb2c1394e640024f68ec5d2dec583f0439b2cb9fc29a503010000006a473044022050aede226dd257ba1f61b7417513cd22169d15a55c0bb2f34d49d9c5496a73d60220517abdb4c6627144c05f5b43d61f93b9ac1c27219e31419638483b54105eeb0c0121033973aecf7992fa84486dc2422b592eb0479933a39abd7af94af6c68bafb3681fffffffff0200000000000000002a6a28444f4350524f4f46ebb8f3b9828e2dc82b180958e0f1e6f8ecbc2f948d2ee16740ad2f0e0c6874f3107a0700000000001976a91460e533e1aae7fe238cda3683619fc5d22d85716c88ac00000000";
+        long value = 500000;
+        long fee = 10000;
+        byte[] script = hexToByteArray("76a91460e533e1aae7fe238cda3683619fc5d22d85716c88ac");
+        String txId = "03a529fcb92c9b43f083c5ded2c58ef62400644e39c1b2bf32c675d7f6efc028";
+        byte[] data = hexToByteArray("444f4350524f4f46ebb8f3b9828e2dc82b180958e0f1e6f8ecbc2f948d2ee16740ad2f0e0c6874f3");
+        int vout = 1;
+        AbsoluteOutput srcOutput = new AbsoluteOutput(value, script, vout, txId);
+        Transaction tx = opReturnOpTx(srcOutput, fee, 1, 0, data);
+        byte[] inputScript = hexToByteArray("473044022050aede226dd257ba1f61b7417513cd22169d15a55c0bb2f34d49d9c5496a73d60220517abdb4c6627144c05f5b43d61f93b9ac1c27219e31419638483b54105eeb0c0121033973aecf7992fa84486dc2422b592eb0479933a39abd7af94af6c68bafb3681f");
+        // We don't have the private key, so copy the signature
+        tx.getInputs().get(0).setScript(inputScript);
+        assertEquals(originalTx, tx.hexlify().toLowerCase());
+
+    }
 }
