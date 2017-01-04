@@ -1,6 +1,7 @@
 package bitcoin.transaction;
 
 import bitcoin.key.BitcoinPublicKey;
+import core.Constants;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -157,8 +158,7 @@ public class TransactionBuilder {
                                                long fee,
                                                int version, int locktime)
                                                     throws IOException, NoSuchAlgorithmException {
-        final byte[] data = "I'm an oracle! Ready to provide data".getBytes(utf8);
-        return opReturnOpTx(absOutput, fee, version, locktime, data);
+        return opReturnOpTx(absOutput, fee, version, locktime, Constants.ORACLE_INSCRIPTION);
     }
 
     static public Transaction inscribeAsOracle(AbsoluteOutput absOutput,
