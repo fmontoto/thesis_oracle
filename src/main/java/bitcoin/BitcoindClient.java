@@ -23,9 +23,11 @@ import static wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.*;
 public class BitcoindClient {
 
     private BitcoindRpcClient bitcoindRpcClient;
+    private boolean testnet;
 
     public BitcoindClient(boolean testnet) {
-        bitcoindRpcClient = new BitcoinJSONRPCClient(testnet);
+        this.testnet = testnet;
+        bitcoindRpcClient = new BitcoinJSONRPCClient(this.testnet);
     }
 
     public BitcoindClient() {
@@ -35,6 +37,10 @@ public class BitcoindClient {
     static public void checkConnectivity(boolean testnet) {
         BitcoindRpcClient client = new BitcoinJSONRPCClient(testnet);
         client.getInfo();
+    }
+
+    public boolean isTestnet() {
+        return testnet;
     }
 
 //    public Transaction getTransaction(byte[] txHash) {
@@ -74,7 +80,7 @@ public class BitcoindClient {
         List<Transaction> transactions = new LinkedList<>();
         List<BitcoindRpcClient.Transaction> clientTx = null;
 
-        while(clientTx == null || clientTx.size() != delta) {
+        while(clientTx == null || clientTx.size() == delta) {
             clientTx = bitcoindRpcClient.listTransactions(account, delta, from);
             if(category.equals("*")) {
                 clientTx.forEach(tx -> transactions.add(new Transaction(tx.raw().hex())));
@@ -143,7 +149,7 @@ public class BitcoindClient {
 
     public List<String> getOracleList(int first_block, int last_block) {
         List<String> oracleList = new ArrayList<>();
-        Block block;
+        wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.Block block;
         if(first_block > last_block)
             throw new InvalidParameterException("first block (" + first_block +
                     ") must be smaller than last block (" + last_block + ")");
@@ -154,4 +160,35 @@ public class BitcoindClient {
         }
         throw new NotImplementedException();
     }
+
+    public String sendTransaction(String signedHexTx) {
+        return bitcoindRpcClient.sendRawTransaction(signedHexTx);
+    }
+
+    public String sendTransaction(Transaction signedTx) {
+        return sendTransaction(byteArrayToHex(signedTx.serialize()));
+    }
+
+    public int getBlockCount() {
+        return bitcoindRpcClient.getBlockCount();
+    }
+
+    public String getBlockHash(int height) {
+        return bitcoindRpcClient.getBlockHash(height);
+    }
+
+    private Block castBlock(BitcoindRpcClient.Block block) {
+        if(block == null)
+            return null;
+        return new Block(block.hash(), block.tx(), block.nextHash(), block.height());
+    }
+
+    public Block getBlock(String blockHash) {
+        return castBlock(bitcoindRpcClient.getBlock(blockHash));
+    }
+
+    public Block getBlock(int blockHeight) {
+        return castBlock(bitcoindRpcClient.getBlock(blockHeight));
+    }
+
 }

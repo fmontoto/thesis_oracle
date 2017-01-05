@@ -133,7 +133,6 @@ public class TransactionBuilder {
 
     static Output createOpReturnOutput(byte[] data) {
         long value = 0;
-        System.out.println(byteArrayToHex(data));
         byte[] script =  mergeArrays(
                 new byte[]{getOpcode("OP_RETURN")},
                 pushDataOpcode(data.length),
@@ -165,10 +164,10 @@ public class TransactionBuilder {
                                                long fee) throws IOException, NoSuchAlgorithmException {
         final int version = 1;
         final int locktime = 0;
-        return inscribeAsOracle(absOutput, 0l, version, locktime);
+        return inscribeAsOracle(absOutput, fee, version, locktime);
     }
 
     static public Transaction inscribeAsOracle(AbsoluteOutput absOutput) throws IOException, NoSuchAlgorithmException {
-        return inscribeAsOracle(absOutput, 0l);
+        return inscribeAsOracle(absOutput, 2000);
     }
 }

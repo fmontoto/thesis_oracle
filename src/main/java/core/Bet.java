@@ -3,16 +3,23 @@ package core;
 import bitcoin.BitcoindClient;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.PrintStream;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.security.InvalidParameterException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import java.util.logging.Logger;
+
+import static bitcoin.transaction.Utils.readVarInt;
+import static bitcoin.transaction.Utils.serializeVarInt;
+import static bitcoin.transaction.Utils.varIntByteSize;
+import static core.Utils.byteArrayToHex;
+import static core.Utils.hexToByteArray;
+import static core.Utils.mergeArrays;
 
 /**
  * Created by fmontoto on 16-12-16.
@@ -122,4 +129,79 @@ public class Bet {
         throw new NotImplementedException();
 
     }
+}
+
+class BetTxForm {
+    private List<Oracle> oracles;
+    private String descriptionHash;
+    private byte channelType;
+    private String channel;
+
+    public BetTxForm(List<Oracle> oracles, String descriptionHash, byte channelType, String channel) {
+        this.oracles = oracles;
+        this.descriptionHash = descriptionHash;
+        this.channel = channel;
+        this.channelType = channelType;
+        if(descriptionHash.length() != 40)
+            throw new InvalidParameterException("Description hash must be 20 bytes long");
+    }
+
+    public byte[] serialize() throws IOException, NoSuchAlgorithmException {
+        ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+        byteStream.write(serializeVarInt(oracles.size()));
+        for(Oracle o : oracles) {
+            byte[] addr = o.getTxFormAddress();
+            assert addr.length < 256;
+            byteStream.write((byte)addr.length);
+            byteStream.write(addr);
+        }
+
+        byteStream.write(hexToByteArray(descriptionHash));
+        byteStream.write(channelType);
+        byteStream.write(hexToByteArray(channel));
+        return byteStream.toByteArray();
+    }
+
+    static public BetTxForm fromSerialized(byte[] bet, boolean testnet) throws IOException, NoSuchAlgorithmException {
+        try {
+            int offset = 0, addrSize;
+            long oraclesNum = readVarInt(bet);
+            offset += varIntByteSize(oraclesNum);
+            List<Oracle> oracles = new ArrayList<>();
+            for (int i = 0; i < oraclesNum; i++) {
+                addrSize = bet[offset] & 0xff;
+                offset += 1;
+                byte[] addrTxForm = Arrays.copyOfRange(bet, offset, offset + addrSize);
+                offset += addrSize;
+
+                oracles.add(new Oracle(addrTxForm, testnet));
+            }
+            // 20 bytes is the size of the Hash
+            String descriptionHash = byteArrayToHex(bet, offset, offset + 20);
+            offset += 20;
+            byte channelType = bet[offset++];
+            String channel = byteArrayToHex(bet, offset, bet.length);
+            return new BetTxForm(oracles, descriptionHash, channelType, channel);
+        }
+        catch (IndexOutOfBoundsException e){
+            throw new InvalidParameterException("Provided bytes are not a valid bet");
+        }
+    }
+
+    public List<Oracle> getOracles() {
+        return oracles;
+    }
+
+    public String getDescriptionHash() {
+        return descriptionHash;
+    }
+
+    public byte getChannelType() {
+        return channelType;
+    }
+
+    public String getChannel() {
+        return channel;
+    }
+
 }

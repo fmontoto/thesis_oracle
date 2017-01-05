@@ -1,17 +1,28 @@
 package commandline;
 
 import bitcoin.BitcoindClient;
+import bitcoin.Block;
+import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.AbsoluteOutput;
 import bitcoin.transaction.Output;
 import bitcoin.transaction.Transaction;
+import bitcoin.transaction.TransactionBuilder;
 import core.Constants;
 import org.apache.commons.cli.*;
+import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
 import java.io.IOException;
+import java.security.InvalidKeyException;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -81,7 +92,7 @@ public class Oracle {
         bitcoindClient = new BitcoindClient(this.testnet);
     }
 
-    private void startConfiguration() throws IOException, NoSuchAlgorithmException{
+    private void startConfiguration() throws IOException, NoSuchAlgorithmException {
         System.out.println("Starting, please wait...");
         double accountBalance = bitcoindClient.getAccountBalance(account);
         if(accountBalance < 0) {
@@ -102,9 +113,9 @@ public class Oracle {
         }
 
         if(address.isEmpty()) {
-            System.out.println("You didn't chose an address, select one from the followings");
+            System.out.println("You didn't chose an address, select one from the followings:");
             for(i = 0; i < addrList.length; i++) {
-                System.out.println(i + ": " + addrList[i]);
+                System.out.println("\t" + i + ": " + addrList[i]);
             }
 
             System.out.println("Enter the number of the address you would like to use:");
@@ -130,14 +141,100 @@ public class Oracle {
                 u -> u.getPayAddress().equals(addrTxForm)).collect(Collectors.toList());
     }
 
-    public void run() throws IOException, NoSuchAlgorithmException {
+    String inscribeOracle() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException {
+        Transaction inscriptionTx = TransactionBuilder.inscribeAsOracle(unspentOutputs.get(0));
+        inscriptionTx.sign(BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(address)));
+        return bitcoindClient.sendTransaction(inscriptionTx);
+    }
+
+
+    public void run() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException {
         startConfiguration();
         List<Transaction> incomingTxs = bitcoindClient.getAllIncomingTransactions(account, address);
         int confirmations = Utils.isInscribed(bitcoindClient, incomingTxs, addrTxForm);
+        BlockingQueue<String> commQueue = new ArrayBlockingQueue<String>(10);
         if(confirmations < 0) {
-            System.out.println("The address " + address + "is not inscribed as oracle.");
+            System.out.println("The address " + address + " is not inscribed as oracle.");
+            System.out.println("Inscribe it as oracle? y/N");
+            if(new Scanner(System.in).nextLine().equals("y")) {
+                inscribeOracle();
+            }
         }
 
+    }
+}
+
+class Notifier extends Thread{
+    private static final Logger LOGGER = Logger.getLogger(Notifier.class.getName());
+
+    private final BitcoindClient client;
+    private final String fromBlock;
+    private final BlockingQueue<String> commQueue;;
+
+    private Notifier(BitcoindClient client, BlockingQueue<String> commQueue, String readFromBlock) {
+        this.client = client;
+        fromBlock = readFromBlock;
+        this.commQueue = commQueue;
+    }
+
+    public Notifier(BitcoindClient client, BlockingQueue<String> commQueue, int readBlocksAgo) {
+        this(client, commQueue, client.getBlockHash(client.getBlockCount() - readBlocksAgo));
+
+    }
+
+    public Notifier(BitcoindClient client, BlockingQueue<String> commQueue) {
+        this(client, commQueue, 100);
+    }
+
+    synchronized private void sendNotification(String []strList) {
+        for(String s: strList) {
+            try {
+                commQueue.put(s);
+            } catch (InterruptedException e) {
+                LOGGER.throwing("Notifier", "run", e);
+            }
+        }
+    }
+
+    private void notifyIfNeeded(String txId) {
+        Transaction transaction = client.getTransaction(txId);
+        ArrayList<Output> outputs = transaction.getOutputs();
+        String expectedDescription = byteArrayToHex(Constants.BET_DESCRIPTION);
+        for(Output o: outputs) {
+            if(o.isPayToKey() || o.isPayToScript())
+                continue;
+            List<String> parsedScript = o.getParsedScript();
+            if(parsedScript.size() == 3 && parsedScript.get(0).equals("OP_RETURN")) {
+                if(parsedScript.get(2).equals(expectedDescription)) {
+                    ;
+                }
+            }
+        }
+    }
+
+    private Block getBlockOrWait(int height) {
+        while(true) {
+            try {
+                return client.getBlock(height);
+            }
+            catch (BitcoinRPCException e){
+                if(e.getResponseCode() != 500)
+                    throw e;
+                try {
+                    TimeUnit.MINUTES.sleep(2);
+                } catch (InterruptedException e1) {
+                    LOGGER.throwing("Notifier", "getBlockOrWait", e);
+                }
+            }
+        }
+    }
+
+    public void run() {
+        Block nextBlock = client.getBlock(fromBlock);
+        while(true) {
+            nextBlock.getTxs().parallelStream().forEach(this::notifyIfNeeded);
+            nextBlock = client.getBlock(nextBlock.getHeight() + 1);
+        }
     }
 }
 
@@ -162,7 +259,7 @@ class Utils {
                     continue;
                 List<String> parsedScript = out.getParsedScript();
                 if(parsedScript.size() == 3 && parsedScript.get(0).equals("OP_RETURN")) {
-                    if(parsedScript.get(0).equals(byteArrayToHex(Constants.ORACLE_INSCRIPTION))) {
+                    if(parsedScript.get(2).equals(byteArrayToHex(Constants.ORACLE_INSCRIPTION))) {
                         if(i + 1 < outputs.size()
                                     && outputs.get(i + 1).isPayToKey()
                                     && outputs.get(i + 1).getPayAddress().equals(addrTxForm)) {

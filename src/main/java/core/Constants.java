@@ -9,4 +9,5 @@ public class Constants {
     public static final Charset utf8 = Charset.forName("utf-8");
     public static final int DEFAULT_PORT = 7654;
     public static final byte[] ORACLE_INSCRIPTION = "I'm an oracle! Ready to provide data".getBytes(utf8);
+    public static final byte[] BET_DESCRIPTION = "Bet looking for oracles".getBytes(utf8);
 }

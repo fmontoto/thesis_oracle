@@ -41,4 +41,8 @@ public class BitcoindClientTest {
         Transaction tx = client.getTransaction("57cc385b9918ec124155b56321ddcbe927a100c9f4c6d18e5b04efa8e9b602c");
     }
 
+    @Test
+    public void test() throws Exception {
+        assertEquals(255, (int)(((byte)255) & 0xFF));
+    }
 }
