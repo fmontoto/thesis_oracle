@@ -1,10 +1,13 @@
 package communication;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.zeromq.ZMQ;
 
 import java.security.InvalidParameterException;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 import static org.junit.Assert.*;
 
@@ -28,10 +31,23 @@ public class SecureChannelManagerTest {
         out = zctx.socket(ZMQ.PAIR);
         in_endpoint = zctx.socket(ZMQ.PAIR);
         out_endpoint = zctx.socket(ZMQ.PAIR);
+        in.setLinger(0);
+        in_endpoint.setLinger(0);
+        out.setLinger(0);
+        out_endpoint.setLinger(0);
         in.bind(in_add);
         in_endpoint.connect(in_add);
         out.bind(out_add);
         out_endpoint.connect(out_add);
+    }
+
+    @After
+    public void tearDown() {
+        in.close();
+        out.close();
+        in_endpoint.close();
+        out_endpoint.close();
+        zctx.term();
     }
 
     @Test
@@ -58,7 +74,9 @@ public class SecureChannelManagerTest {
     public void subscriptionRcv() throws Exception {
         SecureChannelManager secureChannelManager = new SecureChannelManager(in, out, zctx);
         secureChannelManager.start();
+        TimeUnit.MILLISECONDS.sleep(50);
         SecureChannel subscriber = secureChannelManager.subscribe("[A]");
+        TimeUnit.MILLISECONDS.sleep(50);
         in_endpoint.send("msg!");
         assertNull(subscriber.rcv_no_wait());
         in_endpoint.send("[A]", ZMQ.SNDMORE);
@@ -68,6 +86,7 @@ public class SecureChannelManagerTest {
         in_endpoint.send("[A]", ZMQ.SNDMORE);
         in_endpoint.send("msg2");
         assertNull(subscriber.rcv_no_wait());
+        subscriber.close();
         secureChannelManager.closeManager();
         assertFalse(secureChannelManager.isAlive());
     }
@@ -77,9 +96,11 @@ public class SecureChannelManagerTest {
         SecureChannelManager secureChannelManager = new SecureChannelManager(in, out, zctx);
         secureChannelManager.start();
         SecureChannel subscriber = secureChannelManager.subscribe("[A]");
+        TimeUnit.MILLISECONDS.sleep(50);
         subscriber.snd("message");
         assertEquals("[A]", new String(out_endpoint.recv()));
         assertEquals("message", new String(out_endpoint.recv()));
+        subscriber.close();
         secureChannelManager.closeManager();
         assertFalse(secureChannelManager.isAlive());
     }

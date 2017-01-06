@@ -14,9 +14,8 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.logging.Logger;
 
-import static bitcoin.transaction.Utils.readVarInt;
-import static bitcoin.transaction.Utils.serializeVarInt;
-import static bitcoin.transaction.Utils.varIntByteSize;
+import static bitcoin.key.Utils.r160SHA256Hash;
+import static bitcoin.transaction.Utils.*;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 import static core.Utils.mergeArrays;
@@ -49,14 +48,31 @@ public class Bet {
         this(description, num_oracles, num_oracles, oracles, backupOracles);
     }
 
+    public byte[] getHash() throws NoSuchAlgorithmException {
+        StringBuilder sb = new StringBuilder();
+        oracles.forEach(oracle -> sb.append(oracle.getAddress()));
+        backupOracles.forEach(oracle -> sb.append(oracle.getAddress()));
+
+        return r160SHA256Hash(
+                mergeArrays(hexToByteArray(this.description),
+                            serializeUint32(min_oracles),
+                            serializeUint32(max_oracles),
+                            sb.toString().getBytes(utf8))); // TODO add oracles and backup oracles somehow...
+    }
+
     public String getDescription(){
         return description;
     }
 
-    public byte[] getHash() throws NoSuchAlgorithmException {
+    public byte[] getDescriptionHash() throws NoSuchAlgorithmException {
         MessageDigest sha256dig = MessageDigest.getInstance("SHA-256");
         sha256dig.update(description.getBytes(utf8));
         return sha256dig.digest();
+    }
+
+    public byte[] getWireRepresentation() throws NoSuchAlgorithmException, IOException {
+        throw new NotImplementedException();
+//        return new BetTxForm(oracles, byteArrayToHex(getHash()), (byte) 0x00, "NO SE").serialize();
     }
 
     static public void listParameters(PrintStream out) {
@@ -127,7 +143,6 @@ public class Bet {
         BitcoindClient bitcoindClient = new BitcoindClient(false);
         bitcoindClient.getOracleList(first_block, last_block);
         throw new NotImplementedException();
-
     }
 }
 

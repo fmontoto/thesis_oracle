@@ -3,9 +3,11 @@ package communication;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMsg;
 
+import java.io.InvalidClassException;
 import java.security.InvalidParameterException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 /**
@@ -19,6 +21,7 @@ public class SecureChannelManager extends Thread {
     private static int instanceCounter = 0;
     private final String inprocAddress;
     private final ZMQ.Context zctx;
+    private boolean socketsOpen;
     private ZMQ.Socket in;
     private ZMQ.Socket out;
 
@@ -29,6 +32,7 @@ public class SecureChannelManager extends Thread {
     private ZMQ.Socket signalTocloseSocket;
 
     private Map<String, Integer> subscriber = new HashMap<>();
+    private boolean closed;
 
 
     SecureChannelManager(ZMQ.Socket in, ZMQ.Socket out, ZMQ.Context zctx) {
@@ -38,16 +42,29 @@ public class SecureChannelManager extends Thread {
 
         instanceCounter++;
         inprocAddress = "inproc://scm" + instanceCounter;
+        closed = false;
+        socketsOpen = false;
+    }
+
+    // This function must be called with the object's lock held.
+    private boolean openAndBindSockets() {
+        if(socketsOpen)
+            throw new IllegalStateException("Sockets can not be opened twice");
+        if(closed)
+            return false;
+
         fout = zctx.socket(ZMQ.PUB);
         fin = zctx.socket(ZMQ.SUB);
+        fout.setLinger(100);
+        fin.setLinger(100);
 
         closeSocket = zctx.socket(ZMQ.PAIR);
-        signalTocloseSocket = zctx.socket(ZMQ.PAIR);
         closeSocket.bind("inproc://closeSocket" + instanceCounter);
-        signalTocloseSocket.connect("inproc://closeSocket" + instanceCounter);
 
         fout.bind(inprocAddress + "out");
         fin.bind(inprocAddress + "in");
+        this.socketsOpen = true;
+        return true;
     }
 
     public SecureChannel subscribe(String filter) {
@@ -56,10 +73,22 @@ public class SecureChannelManager extends Thread {
         int count = subscriber.containsKey(filter) ? subscriber.get(filter) : 0;
         subscriber.put(filter, count + 1);
         in.subscribe(filter.getBytes());
+        // The run test might still be opening the sockets, so we wait. It would be better
+        // to use notify and wait, but Thread documentation recommend no to do so.
+        while(!this.isInterrupted()) {
+            synchronized (this) {
+                if(socketsOpen)
+                    break;
+            }
+            try {
+                TimeUnit.MILLISECONDS.sleep(50);
+            } catch (InterruptedException e) {
+                LOGGER.throwing("SecureChannelManager", "subscribe", e);
+            }
+        }
+
         if(count == 0)
             this.fin.subscribe(filter.getBytes());
-
-        subscriber.containsKey("s");
         in.connect(inprocAddress + "out");
         out.connect(inprocAddress + "in");
         return new SecureChannel(in, out, filter);
@@ -76,7 +105,7 @@ public class SecureChannelManager extends Thread {
         sc.in.unsubscribe(filter.getBytes());
     }
 
-    public void run() {
+    private void runLoop() {
         ZMQ.Poller items = new ZMQ.Poller(3);
         items.register(fin, ZMQ.Poller.POLLIN);
         items.register(in, ZMQ.Poller.POLLIN);
@@ -101,18 +130,44 @@ public class SecureChannelManager extends Thread {
                 break;
             }
         }
-        in.close();
-        out.close();
-        fin.close();
-        fout.close();
-        closeSocket.send("Ok!");
-        closeSocket.close();
     }
 
-    public void closeManager() throws InterruptedException {
-        signalTocloseSocket.send("Close!");
-        signalTocloseSocket.recv();
-        signalTocloseSocket.close();
-        this.join(100);
+    public void run() {
+        synchronized (this) {
+            if (!openAndBindSockets())
+                return;
+        }
+        try{
+            runLoop();
+        }catch (Exception e) {
+            LOGGER.throwing("Secure Channel Manager", "run", e);
+            throw e;
+        }finally {
+            in.close();
+            out.close();
+            fin.close();
+            fout.close();
+            closeSocket.send("Ok!");
+            closeSocket.close();
+            LOGGER.info("Finishing Secure Channel Manager execution");
+        }
+    }
+
+    synchronized public void closeManager() throws InterruptedException {
+        if(closed)
+            return;
+        if(socketsOpen) {
+            signalTocloseSocket = zctx.socket(ZMQ.PAIR);
+            signalTocloseSocket.connect("inproc://closeSocket" + instanceCounter);
+            signalTocloseSocket.send("Close!");
+            signalTocloseSocket.recv();
+            signalTocloseSocket.close();
+            this.join(100);
+            closed = true;
+        }
+        else{
+            closed = true;
+            this.join();
+        }
     }
 }

@@ -45,20 +45,29 @@ public class StreamEcho extends Thread{
         keepRunning = false;
     }
 
+    protected int send(String val) throws IOException {
+        return out.write(ByteBuffer.wrap(val.getBytes(utf8)));
+    }
+
+    protected boolean shouldBreak(String val) {
+        return !keepRunning() || (val != null && val.equals(finishEcho));
+    }
+
     public void run() {
         LOGGER.info("Stream echo running");
         String line;
         while(keepRunning()) {
             line = scanner.nextLine();
-            if(line.equals(finishEcho))
+            if(shouldBreak(line))
                 break;
             try {
-                if(out.write(ByteBuffer.wrap(line.getBytes(utf8))) <= 0)
+                if(send(line) <= 0)
                     LOGGER.severe("Error sending msg");
             } catch (IOException e) {
                 LOGGER.log(Level.SEVERE, "Exception was thrown:", e);
+                break;
             }
-
         }
+        stopRunning();
     }
 }
