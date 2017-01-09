@@ -22,8 +22,20 @@
   cd ..
   mvn package
   mvn install -Dgpg.skip=true
+  
+  cd ..
+  git clone git://github.com/cryptobiu/scapi.git
+  cd scapi
+  git submodule init
+  git submodule update
+  # The current master of the library is broken, changes at https://github.com/cryptobiu/scapi/pull/86/files
+  # must be applied and the src/java/edu/biu/SCProtocols/MaliciousYao folder must be removed in order to compile.
+  mvn package
+  mvn install -Dgpg.skip=true
+  
   ```
 2. Add mavenLocal() to repositories at build.gradle
 3. Add "compile group: 'org.zeromq', name: 'jzmq', version: '3.1.1-SNAPSHOT'" to dependencies at build.gradle
-4. Add the path to the native library to the run configuration, probably: /usr/local/lib.
+4. Add "compile group: 'edu.biu.scapi', name: 'scapi', version: '2.3.0'" to dependencies at build.gradle 
+5. Add the path to the native library to the run configuration, probably: /usr/local/lib.
 
