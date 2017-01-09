@@ -170,13 +170,16 @@ public class SignTest {
         long available = srcOutput.getValue();
 
 
+        byte[] changeAddrBytes = BitcoinPublicKey.WIFToTxAddress(changeAddr);
         byte[] scriptRedeem = mergeArrays( new byte[]{getOpcode("OP_1")}
-                                         , BitcoinPublicKey.WIFToTxAddress(changeAddr)
+                                         , pushDataOpcode(changeAddrBytes.length)
+                                         , changeAddrBytes
                                          , new byte[]{getOpcode("OP_1")}
                                          , new byte[]{getOpcode("OP_CHECKMULTISIGVERIFY")});
 
 
         byte[] scriptRedeemHash = r160SHA256Hash(scriptRedeem);
+        System.out.println("red" + byteArrayToHex(scriptRedeem));
 
         byte[] addr = hexToByteArray(srcOutput.getPayAddress());
         String wifAddr = BitcoinPublicKey.txAddressToWIF(addr, true);
@@ -196,13 +199,14 @@ public class SignTest {
         byte[] t1_signature = t1.getPayToScriptSignature(changePrivKey, getHashType("ALL"), 0);
 
         t1.getInputs().get(0).setScript(mergeArrays( new byte[]{getOpcode("OP_0")}
-                                                   , pushDataOpcode(t1_signature.length)
                                                    , t1_signature
                                                    , pushDataOpcode(scriptRedeem.length)
                                                    , scriptRedeem));
 
 
+        System.out.println(t0);
         System.out.println("aa ./bitcoin-cli -testnet signrawtransaction " + byteArrayToHex(t1.serialize()) + " \"[" + byteArrayToHex(t0.serialize()) + "]\" \"[]\"");
+
     }
 
 }

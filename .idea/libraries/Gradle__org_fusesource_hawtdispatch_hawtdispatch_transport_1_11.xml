@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="Gradle: org.fusesource.hawtdispatch:hawtdispatch-transport:1.11">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/fusesource/hawtdispatch/hawtdispatch-transport/1.11/hawtdispatch-transport-1.11.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

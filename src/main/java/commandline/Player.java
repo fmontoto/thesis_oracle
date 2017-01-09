@@ -5,6 +5,8 @@ import core.Bet;
 import core.Constants;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.Secp256k1;
+import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTOutput;
+import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTStringPartyOne;
 import org.apache.commons.cli.*;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
@@ -14,6 +16,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.InterruptedByTimeoutException;
 import java.nio.channels.WritableByteChannel;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
@@ -309,6 +312,7 @@ public class Player {
         List<String> parameters = new ArrayList<>(Arrays.asList("Description",
                                                                 "Min oracles",
                                                                 "Max oracles"));
+        List<String> oracles = new ArrayList<>();
         Map<String, String> results = new HashMap<>();
         for(String parameter : parameters) {
             SecureChannel channel = null;
@@ -316,13 +320,64 @@ public class Player {
                 channel = channelManager.subscribe(parameter);
                 results.put(parameter, negotiateParameter(channel, parameter));
             } finally {
-                if(channel != null)
+                if(channel != null) {
+                    channelManager.unsubscribe(channel);
                     channel.close();
+                }
             }
+        }
+
+        int minOracles = Integer.parseInt(results.get("Min oracles"));
+        int maxOracles = Integer.parseInt(results.get("Max oracles"));
+
+        // In the future this number might be bigger in order to have backup oracles.
+        int oraclesToSet = maxOracles;
+
+        System.out.println("There are " + maxOracles + "to be chosen. You can negotiate them with the other party" +
+                            "or let them to be chosen randomly among you both.");
+
+        for(int i = oraclesToSet; i > 0; i--) {
+            System.out.println("If you want to select the remaining oracles randomly, enter an empty address.");
+            SecureChannel channel = null;
+            String oracleAddress = "";
+            String parameter = "Oracle " + (oraclesToSet - i) + " address.";
+            try {
+                channel = channelManager.subscribe(parameter);
+                oracleAddress = negotiateParameter(channel, parameter);
+            } finally {
+                if(channel != null) {
+                    channelManager.unsubscribe(channel);
+                    channel.close();
+                }
+            }
+            if(oracleAddress.isEmpty())
+                break;
+            else
+                oracles.add(oracleAddress);
+        }
+
+        if(oracles.size() < oraclesToSet) {
+            List<String> randomlyChosenOracles = choseOraclesRandomly(oraclesToSet - oracles.size(), channelManager);
         }
 
         throw new NotImplementedException();
 
+    }
+
+    private List<String> choseOraclesRandomly(int i, SecureChannelManager channelManager) {
+        List<String> oracles = new ArrayList<>();
+        try{
+            SecureChannel oracleNegotiationChannel = channelManager.subscribe("randomOracleNegotiation");
+//            CTStringPartyOne()
+//            toss();
+//            CTOutput
+//            edu.biu.scapi.
+//            toss();
+//
+        } finally {
+
+        }
+        return oracles;
     }
 
     public void run() throws InterruptedException, ExecutionException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException, InvalidKeySpecException, CommunicationException {

@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: edu.biu.scapi:scapi:2.3.0">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/edu/biu/scapi/scapi/2.3.0/scapi-2.3.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/edu/biu/scapi/scapi/2.3.0/scapi-2.3.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

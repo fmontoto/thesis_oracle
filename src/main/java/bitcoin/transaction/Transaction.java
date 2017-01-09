@@ -221,7 +221,8 @@ public class Transaction {
         for(Output o: outputs)
             sb.append(toString(o.toDict(), 2));
         sb.append("\t}\n");
-        sb.append("\tlock_time: " + lockTime);
+        sb.append("\tlock_time: " + lockTime + "\n");
+        sb.append("}\n");
         return sb.toString();
     }
 
