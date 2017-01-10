@@ -68,26 +68,51 @@ public class Transaction {
 
     }
 
-    // TODO Remove other inputs' scripts in a dedicated function... duplicated code
-    private byte[] getPayToScriptSignature(BitcoinPrivateKey privateKey, byte[] hashType, int inputNo) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+    private Queue<byte []> removeOtherInputsScript(int leftInput) {
         Queue<byte[]> removedScripts = new LinkedList<>();
-        for(int i = 0; i < inputs.size() ; i++) {
-            if(i != inputNo) {
+        for(int i = 0; i < inputs.size(); i++) {
+            if(i != leftInput) {
                 removedScripts.add(inputs.get(i).getScript());
                 inputs.get(i).setScript(new byte[]{});
             }
         }
+        return removedScripts;
+    }
 
-        byte[] toSign = mergeArrays(serialize(), hashType);
-        byte[] signature = privateKey.sign(toSign);
-        signature = ECKey.ECDSASignature.decodeFromDER(signature).toCanonicalised().encodeToDER();
+    private void retrieveRemovedInputs(int leftInput, Queue<byte[]> removedScripts) {
         for(int i = 0; i < inputs.size(); i++) {
-            if(i != inputNo)
+            if(i != leftInput)
                 inputs.get(i).setScript(removedScripts.remove());
         }
+    }
+
+    //For a P2PKH, this temporary scriptSig is the scriptPubKey of the input transaction.
+    // For a P2SH, the temporary scriptSig is the redeemScript itself.
+    // Thanks a lot to this log. There is no much documentation about this.
+    // http://www.soroushjp.com/2014/12/20/bitcoin-multisig-the-hard-way-understanding-raw-multisignature-bitcoin-transactions/
+    public void setTempScriptSigForSigning(int inputNo, byte[] script) {
+        getInputs().get(inputNo).setScript(script);
+    }
+
+    private byte[] signTransaction(BitcoinPrivateKey privateKey, byte[] hashTypeCode) throws NoSuchAlgorithmException,
+                                                                                             InvalidKeyException,
+                                                                                             SignatureException {
+        byte[] toSign = mergeArrays(serialize(), hashTypeCode);
+        byte[] nonCanonicalisedSig = privateKey.sign(toSign);
+        // Nodes will not accept non canonical signatures (since BIP66).
+        return ECKey.ECDSASignature.decodeFromDER(nonCanonicalisedSig).toCanonicalised().encodeToDER();
+    }
+
+    private byte[] getPayToScriptSignature(BitcoinPrivateKey privateKey, byte[] hashTypeCode, int inputNo) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        Queue<byte[]> removedScripts = removeOtherInputsScript(inputNo);
+
+        byte[] signature = signTransaction(privateKey, hashTypeCode);
+
+        retrieveRemovedInputs(inputNo, removedScripts);
+
         return mergeArrays( Constants.pushDataOpcode(signature.length + 1)
                           , signature
-                          , new byte[] {hashType[0]}
+                          , new byte[] {hashTypeCode[0]}
                           );
     }
 
@@ -97,34 +122,22 @@ public class Transaction {
         return this.getPayToScriptSignature(privKey, new byte[]{hashType, 0x00, 0x00, 0x00}, inputNo);
     }
 
-    private void sign(BitcoinPrivateKey privateKey, byte[] hashtype, int inputNo) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, IOException, InvalidKeySpecException {
-        Queue<byte[]> removedScripts = new LinkedList<>();
-        for(int i = 0; i < inputs.size() ; i++) {
-            if(i != inputNo) {
-                removedScripts.add(inputs.get(i).getScript());
-                inputs.get(i).setScript(new byte[]{});
-            }
-        }
+    private void sign(BitcoinPrivateKey privateKey, byte[] hashtypeCode, int inputNo) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, IOException, InvalidKeySpecException {
+        Queue<byte[]> removedScripts = removeOtherInputsScript(inputNo);
 
-        byte[] toSign = mergeArrays(serialize(), hashtype);
-        byte[] signature = privateKey.sign(toSign);
-        // Nodes will not accept non canonical signatures (since BIP66).
-        signature = ECKey.ECDSASignature.decodeFromDER(signature).toCanonicalised().encodeToDER();
+        byte[] signature = signTransaction(privateKey, hashtypeCode);
         BitcoinPublicKey publicKey = privateKey.getPublicKey();
         byte[] pubKey = publicKey.getKey();
 
         byte[] scriptSig = mergeArrays( Constants.pushDataOpcode(signature.length + 1)
                                       , signature
-                                      , new byte[] {hashtype[0]}
+                                      , new byte[] {hashtypeCode[0]}
                                       , Constants.pushDataOpcode(pubKey.length)
                                       , pubKey
                                       );
 
         getInputs().get(inputNo).setScript(scriptSig);
-        for(int i = 0; i < inputs.size(); i++) {
-            if(i != inputNo)
-                inputs.get(i).setScript(removedScripts.remove());
-        }
+        retrieveRemovedInputs(inputNo, removedScripts);
     }
 
     public void sign(BitcoinPrivateKey privKey, byte hash, int inputNo) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, IOException, InvalidKeySpecException {

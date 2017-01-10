@@ -90,6 +90,14 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
 
     }
 
+    public static String txAddressToWIF(byte[] txAddr, boolean testnet, boolean scriptHashAddr) throws IOException, NoSuchAlgorithmException {
+        if(!scriptHashAddr)
+            return txAddressToWIF(txAddr, testnet);
+        if(testnet)
+            return bitcoinB58Encode(core.Utils.mergeArrays(new byte[] {(byte) 0xc4}, txAddr));
+        else return bitcoinB58Encode(core.Utils.mergeArrays(new byte[] {0x05}, txAddr));
+    }
+
 
     /**
      * Based in the implementation at:
