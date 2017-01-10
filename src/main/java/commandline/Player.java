@@ -5,8 +5,10 @@ import core.Bet;
 import core.Constants;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.Secp256k1;
+import edu.biu.scapi.exceptions.CommitValueException;
 import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTOutput;
 import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTStringPartyOne;
+import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTStringPartyTwo;
 import org.apache.commons.cli.*;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
@@ -16,9 +18,9 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ClosedChannelException;
-import java.nio.channels.InterruptedByTimeoutException;
 import java.nio.channels.WritableByteChannel;
 import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.*;
@@ -36,17 +38,17 @@ public class Player {
     private Scanner in;
     // Communication
     private Context zctx;
-    private int my_port;
-    private String other_party_addr;
-    private Socket auth_sock_rcv;
-    private Socket auth_sock_send;
-    private int other_party_port;
-    private String other_party_location;
+    private int myPort;
+    private String otherPartyAddr;
+    private Socket authSockRcv;
+    private Socket authSockSend;
+    private int otherPartyPort;
+    private String otherPartyLocation;
     private String otherPartyPublicZmqKey;
     // Bitcoin
-    private String other_party_bitcoin_address;
-    private BitcoinPrivateKey my_private_key;
-    private String my_bitcoin_address;
+    private String otherPartyBitcoinAddress;
+    private BitcoinPrivateKey myPrivateKey;
+    private String myBitcoinAddress;
 
 
 
@@ -54,20 +56,20 @@ public class Player {
 
     public Player() {
         zctx = ZMQ.context(2);
-        auth_sock_rcv = zctx.socket(ZMQ.PULL);
-        auth_sock_send = zctx.socket(ZMQ.PUSH);
+        authSockRcv = zctx.socket(ZMQ.PULL);
+        authSockSend = zctx.socket(ZMQ.PUSH);
 
         in = new Scanner(System.in);
         executor = Executors.newFixedThreadPool(2);
         myKeyPair = ZMQ.Curve.generateKeyPair();
 
-        my_port = 0;
+        myPort = 0;
         otherPartyPublicZmqKey = null;
-        other_party_bitcoin_address = null;
-        other_party_location = null;
-        other_party_port = 0;
-        my_bitcoin_address = null;
-        my_private_key = null;
+        otherPartyBitcoinAddress = null;
+        otherPartyLocation = null;
+        otherPartyPort = 0;
+        myBitcoinAddress = null;
+        myPrivateKey = null;
     }
 
     public Player(String[] args) throws ParseException, InvalidKeySpecException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException {
@@ -123,15 +125,17 @@ public class Player {
             throw new ExceptionInInitializerError();
         }
         if(cl.hasOption("my-port"))
-            my_port = Integer.parseInt(cl.getOptionValue("my-port"));
+            myPort = Integer.parseInt(cl.getOptionValue("my-port"));
         if(cl.hasOption("connect-port"))
-            other_party_port = Integer.parseInt(cl.getOptionValue("connect-port"));
+            otherPartyPort = Integer.parseInt(cl.getOptionValue("connect-port"));
         if(cl.hasOption("location"))
-            other_party_location = cl.getOptionValue("location");
+            otherPartyLocation = cl.getOptionValue("location");
         if(cl.hasOption("bitcoin/key"))
-            my_private_key = BitcoinPrivateKey.fromWIF(cl.getOptionValue("bitcoin/key"));
+            myPrivateKey = BitcoinPrivateKey.fromWIF(cl.getOptionValue("bitcoin/key"));
         if(cl.hasOption("address"))
-            other_party_bitcoin_address = cl.getOptionValue("address");
+            otherPartyBitcoinAddress = cl.getOptionValue("address");
+
+        myBitcoinAddress = myPrivateKey.getPublicKey().toWIF();
     }
 
     //TODO remove this function and use getUserInput instead
@@ -182,27 +186,27 @@ public class Player {
     }
 
     private void get_configuration() throws InvalidKeySpecException, InvalidAlgorithmParameterException, NoSuchAlgorithmException, IOException {
-        if(my_port == 0)
-            my_port = getPort("local", Constants.DEFAULT_PORT);
-        if(other_party_port == 0)
-            other_party_port = getPort("other party", Constants.DEFAULT_PORT);
-        if(other_party_location == null)
-            other_party_location = getUserInput("Insert other party address", "localhost",
+        if(myPort == 0)
+            myPort = getPort("local", Constants.DEFAULT_PORT);
+        if(otherPartyPort == 0)
+            otherPartyPort = getPort("other party", Constants.DEFAULT_PORT);
+        if(otherPartyLocation == null)
+            otherPartyLocation = getUserInput("Insert other party address", "localhost",
                                                 (input) -> true, 3);
-        if(my_private_key == null) {
+        if(myPrivateKey == null) {
             String defaultStr = "<one will be generated(testnet)>";
             String usrInput = getUserInput("Insert your private bitcoin.key (WIF format)", defaultStr,
                                            bitcoin.key.Utils::isValidPrivateKeyWIF, 3);
             if(usrInput.isEmpty() || usrInput.equals(defaultStr))
-                my_private_key = new BitcoinPrivateKey(false, true);
+                myPrivateKey = new BitcoinPrivateKey(false, true);
             else
-                my_private_key = BitcoinPrivateKey.fromWIF(usrInput);
+                myPrivateKey = BitcoinPrivateKey.fromWIF(usrInput);
         }
-        if(other_party_bitcoin_address == null)
-            other_party_bitcoin_address =
+        if(otherPartyBitcoinAddress == null)
+            otherPartyBitcoinAddress =
                     getUserInput("Insert other party bitcoin b58 encoded address",
                                  (String input) -> input.length() > 26 && input.length() < 35, 3);
-        other_party_addr = "tcp://" + other_party_location + ":" + other_party_port;
+        otherPartyAddr = "tcp://" + otherPartyLocation + ":" + otherPartyPort;
     }
 
     public SecureChannelManager openSecureChannel() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, ExecutionException, InterruptedException, InvalidKeySpecException, IOException {
@@ -211,16 +215,16 @@ public class Player {
 
         try {
             Future<String> otherPartyCurveKeyFuture = executor.submit(
-                    new PlainSocketNegotiation(other_party_addr, my_port, myKeyPair.publicKey, zctx));
+                    new PlainSocketNegotiation(otherPartyAddr, myPort, myKeyPair.publicKey, zctx));
             otherPartyPublicZmqKey = otherPartyCurveKeyFuture.get(1600, TimeUnit.SECONDS);
 
-            other_party_addr = "tcp://" + other_party_location + ":" + (other_party_port + 1);
-            my_port = my_port + 1;
+            otherPartyAddr = "tcp://" + otherPartyLocation + ":" + (otherPartyPort + 1);
+            myPort = myPort + 1;
 
             Future<SecureChannelManager> gotAuthenticatedChannel = executor.submit(
-                    new OpenSecureChannel(zctx, myKeyPair, "tcp://*:" + my_port, my_private_key,
-                            other_party_addr, otherPartyPublicZmqKey,
-                            other_party_bitcoin_address, auth_sock_send, auth_sock_rcv));
+                    new OpenSecureChannel(zctx, myKeyPair, "tcp://*:" + myPort, myPrivateKey,
+                            otherPartyAddr, otherPartyPublicZmqKey,
+                            otherPartyBitcoinAddress, authSockSend, authSockRcv));
             return gotAuthenticatedChannel.get(1600, TimeUnit.SECONDS);
 
             } catch (TimeoutException e) {
@@ -255,7 +259,7 @@ public class Player {
         String my_choice = "";
         NegotiateEcho negotiateEcho = new NegotiateEcho(System.in, channel, finish, selectionPrefix);
         negotiateEcho.start();
-        System.out.println("Insert " + parameter + " using \""+ selectionPrefix + "<parameter>\"");
+        System.out.println("Insert " + parameter + " using \""+ selectionPrefix + "<" + parameter + ">\"");
         while(match == null && negotiateEcho.isAlive() && negotiateEcho.keepRunning()) {
             while((aux = channel.rcv_no_wait()) == null){
                 if(!negotiateEcho.isAlive() || !negotiateEcho.keepRunning())
@@ -308,12 +312,19 @@ public class Player {
         return match;
     }
 
-    private Bet negotiateBet(SecureChannelManager channelManager) throws CommunicationException, ClosedChannelException, InterruptedException, NoSuchAlgorithmException {
-        List<String> parameters = new ArrayList<>(Arrays.asList("Description",
-                                                                "Min oracles",
-                                                                "Max oracles"));
+    private Bet negotiateBet(SecureChannelManager channelManager) throws CommunicationException, IOException, InterruptedException, NoSuchAlgorithmException, ClassNotFoundException, CommitValueException, TimeoutException {
         List<String> oracles = new ArrayList<>();
         Map<String, String> results = new HashMap<>();
+//        List<String> parameters = new ArrayList<>(Arrays.asList("Description",
+//                                                                "Min oracles",
+//                                                                "Max oracles"));
+
+        List<String> parameters = new ArrayList<>(Arrays.asList());
+        results.put("Description", "nada");
+        results.put("Min oracles", "3");
+        results.put("Max oracles", "9");
+
+
         for(String parameter : parameters) {
             SecureChannel channel = null;
             try {
@@ -333,14 +344,14 @@ public class Player {
         // In the future this number might be bigger in order to have backup oracles.
         int oraclesToSet = maxOracles;
 
-        System.out.println("There are " + maxOracles + "to be chosen. You can negotiate them with the other party" +
-                            "or let them to be chosen randomly among you both.");
+        System.out.println("There are " + maxOracles + " oracles to be chosen. You can negotiate them with the other " +
+                            "party or let the software to chose them randomly.");
 
         for(int i = oraclesToSet; i > 0; i--) {
             System.out.println("If you want to select the remaining oracles randomly, enter an empty address.");
             SecureChannel channel = null;
             String oracleAddress = "";
-            String parameter = "Oracle " + (oraclesToSet - i) + " address.";
+            String parameter = "Oracle-" + (oraclesToSet - i) + " address.";
             try {
                 channel = channelManager.subscribe(parameter);
                 oracleAddress = negotiateParameter(channel, parameter);
@@ -361,22 +372,27 @@ public class Player {
         }
 
         throw new NotImplementedException();
-
     }
 
-    private List<String> choseOraclesRandomly(int i, SecureChannelManager channelManager) {
+    private List<String> choseOraclesRandomly(int i, SecureChannelManager channelManager) throws IOException, ClassNotFoundException, CommitValueException, InterruptedException, TimeoutException, CommunicationException {
         List<String> oracles = new ArrayList<>();
+        SecureChannel oracleNegotiationChannel = null;
+        CTOutput result;
         try{
-            SecureChannel oracleNegotiationChannel = channelManager.subscribe("randomOracleNegotiation");
-//            CTStringPartyOne()
-//            toss();
-//            CTOutput
-//            edu.biu.scapi.
-//            toss();
-//
+            oracleNegotiationChannel = channelManager.subscribe("randomOracleNegotiation");
+            oracleNegotiationChannel.waitUntilConnected(15, TimeUnit.SECONDS);
+            if(amIPartyOne()) {
+                CTStringPartyOne ctStringPartyOne = new CTStringPartyOne(oracleNegotiationChannel, i);
+                result = ctStringPartyOne.toss();
+            } else {
+                CTStringPartyTwo ctStringPartyTwo = new CTStringPartyTwo(oracleNegotiationChannel, i);
+                result = ctStringPartyTwo.toss();
+            }
         } finally {
-
+            if(oracleNegotiationChannel != null)
+                oracleNegotiationChannel.close();
         }
+        System.out.println(result.getOutput());
         return oracles;
     }
 
@@ -389,15 +405,22 @@ public class Player {
         try {
             chat(chatChannel);
             negotiateBet(channelManager);
-        } catch (CommunicationException e) {
-            throw e;
-        }
-        finally {
+        } catch (CommunicationException | ClassNotFoundException | CommitValueException | TimeoutException e) {
+            LOGGER.throwing("Player", "run", e);
+            throw new CommunicationException(e.getMessage());
+        } finally {
             channelManager.unsubscribe(negotiateBetChannel);
             negotiateBetChannel.close();
             channelManager.unsubscribe(chatChannel);
             chatChannel.close();
         }
+    }
+
+    private  boolean amIPartyOne() {
+        int cmp = myBitcoinAddress.compareTo(otherPartyBitcoinAddress);
+        if(cmp == 0)
+            throw new InvalidParameterException("Both address have the same address.");
+        return cmp > 0;
     }
 }
 

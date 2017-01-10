@@ -12,6 +12,8 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 
 /**
@@ -52,10 +54,9 @@ public class SecureChannel implements ReadableByteChannel, WritableByteChannel, 
 
     @Override
     public Serializable receive() throws ClassNotFoundException, IOException {
-        byte[] receive = receive(10000);
-//        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream()
-//        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(rcv(10000))
-        throw new NotImplementedException();
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(receive(10000));
+        ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
+        return (Serializable) objectInputStream.readObject();
     }
 
     public void close() {
@@ -141,4 +142,38 @@ public class SecureChannel implements ReadableByteChannel, WritableByteChannel, 
         return filter;
     }
 
+    // This function will work only if the other party also run it.
+    public void waitUntilConnected(int i, TimeUnit unit) throws CommunicationException, ClosedChannelException, InterruptedException, TimeoutException {
+        System.out.println("Going to wait...");
+        long timeout = unit.toMillis(i);
+        long sleepTimeOut = 500;
+
+        while(timeout > 0) {
+            String s = rcv_no_wait();
+            while(s == null) {
+                snd("ALIVE!");
+                TimeUnit.MILLISECONDS.sleep(sleepTimeOut);
+                timeout -= sleepTimeOut;
+                s = rcv_no_wait();
+                continue;
+            }
+            if(s.equals("ALIVE!")) {
+                System.out.println("ALIvv!!");
+                snd("ACK");
+                break;
+            }
+            if(s.equals("ACK")) {
+                System.out.println("ack!!");
+                System.out.println("Exiting...");
+                return;
+            }
+        }
+        if(timeout <= 0)
+            throw new TimeoutException();
+
+        TimeUnit.MILLISECONDS.sleep(1000);
+        System.out.println(rcv_no_wait());
+
+        System.out.println("Exiting...");
+    }
 }
