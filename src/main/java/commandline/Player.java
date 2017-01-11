@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.Charset;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
@@ -28,10 +29,16 @@ import java.util.concurrent.*;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+import static bitcoin.Utils.doubleSHA256;
+import static bitcoin.Utils.getOracleList;
+import static bitcoin.key.Utils.r160SHA256Hash;
+import static communication.Utils.checkDataConsistencyOtherParty;
+
 /**
  * Created by fmontoto on 01-09-16.
  */
 public class Player {
+    static final Charset utf8 = Charset.forName("UTF-8");
     private static final Logger LOGGER = Logger.getLogger(Player.class.getName());
 
     private final ZMQ.Curve.KeyPair myKeyPair;
@@ -374,10 +381,52 @@ public class Player {
         throw new NotImplementedException();
     }
 
-    private List<String> choseOraclesRandomly(int i, SecureChannelManager channelManager) throws IOException, ClassNotFoundException, CommitValueException, InterruptedException, TimeoutException, CommunicationException {
+    private List<String> buildOracleList(int i, SecureChannelManager channelManager) throws InterruptedException, ClosedChannelException, CommunicationException {
+        SecureChannel channel = null;
+        List<String> oraclesList = new ArrayList<>();
+
+        System.out.println("To chose randomly the oracles, we need a list of them. In order to build this list" +
+                           " you need to chose (with the other party) a block interval.");
+        try {
+            System.out.println("You can specify the bock by its heigh or its hash.");
+            channel = channelManager.subscribe("sinceBlock");
+            String firstBlock = negotiateParameter(channel, "first block of the interval");
+            channelManager.unsubscribe(channel);
+            channel.close();
+            channel = null;
+            channel = channelManager.subscribe("lastBlock");
+            //TODO it would be nice to let the user chose by default the last block in the blockchain as lastBlock.
+            String lastBlock = negotiateParameter(channel, "last block of the interval");
+            oraclesList = getOracleList(myPrivateKey.isTestnet(), firstBlock, lastBlock);
+            if(oraclesList.size() <= i) {
+                throw new InvalidParameterException("There are only " + oraclesList.size() + " in the specified" +
+                                                    "interval. Not enough to chose " + i + " oracles randomly");
+            }
+            if(oraclesList.size() <= 2 * i) {
+                System.out.println("There are only " + oraclesList.size() + " oracles in the list, randomness can not" +
+                                   " be guaranteed, we strongly suggest to try again with more oracles.");
+            }
+        }finally{
+            if(channel != null) {
+                channelManager.unsubscribe(channel);
+                channel.close();
+            }
+
+        }
+        return oraclesList;
+    }
+
+    private List<String> choseOraclesRandomly(int i, SecureChannelManager channelManager) throws IOException, ClassNotFoundException, CommitValueException, InterruptedException, TimeoutException, CommunicationException, NoSuchAlgorithmException {
         List<String> oracles = new ArrayList<>();
-        SecureChannel oracleNegotiationChannel = null;
+        SecureChannel oracleNegotiationChannel = null, channel = null;
         CTOutput result;
+        List<String> oraclesList = buildOracleList(i, channelManager);
+        byte[] reducedList = oraclesList.stream().reduce("", (a, b) -> a + b).getBytes(utf8);
+        channel = channelManager.subscribe("checkListConsistency");
+        if(!checkDataConsistencyOtherParty(channel, r160SHA256Hash(reducedList), 25, TimeUnit.SECONDS))
+            //TODO change the exception type
+            throw new InvalidParameterException("Both parties have different lists of oracles.");
+
         try{
             oracleNegotiationChannel = channelManager.subscribe("randomOracleNegotiation");
             oracleNegotiationChannel.waitUntilConnected(15, TimeUnit.SECONDS);
@@ -389,8 +438,10 @@ public class Player {
                 result = ctStringPartyTwo.toss();
             }
         } finally {
-            if(oracleNegotiationChannel != null)
+            if(oracleNegotiationChannel != null) {
+                channelManager.unsubscribe(oracleNegotiationChannel);
                 oracleNegotiationChannel.close();
+            }
         }
         System.out.println(result.getOutput());
         return oracles;

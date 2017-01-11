@@ -82,7 +82,7 @@ public class SecureChannelTest {
     public void failWaitingConnectionTest() throws InterruptedException, TimeoutException, CommunicationException, ClosedChannelException {
         SecureChannel partyOneChannel = new SecureChannel(in, out, filter);
         SecureChannel partyTwoChannel = new SecureChannel(out_endpoint, in_endpoint, filter);
-        partyTwoChannel.waitUntilConnected(1, TimeUnit.SECONDS);
+        partyTwoChannel.waitUntilConnected(300, TimeUnit.MILLISECONDS);
 
     }
     @Test

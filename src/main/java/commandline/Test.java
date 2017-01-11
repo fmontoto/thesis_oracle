@@ -4,6 +4,7 @@ import bitcoin.BitcoindClient;
 import bitcoin.key.BitcoinPublicKey;
 
 import java.io.IOException;
+import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 
@@ -14,7 +15,12 @@ import static core.Utils.hexToByteArray;
  */
 public class Test {
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        System.loadLibrary("MiraclJavaInterface");
+        try {
+            throw new InvalidParameterException();
+        } catch (InvalidParameterException e) {
+            ;
+        }
+        System.out.println("paso");
     }
 
 }

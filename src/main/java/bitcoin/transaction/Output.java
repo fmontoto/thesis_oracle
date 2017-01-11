@@ -46,7 +46,13 @@ public class Output {
         script = Arrays.copyOfRange(rawOutput, offset, offset + (int)script_length);
         offset += script_length;
         byte_size = offset - original_offset;
-        parseScript();
+        try {
+            parseScript();
+        } catch (NullPointerException e) {
+            parsedScript = new LinkedList<>(Arrays.asList(new String[] {"ERROR. Non standard"}));
+            isPayToKey = false;
+            isPayToScript = false;
+        }
     }
 
     private void parseScript() {

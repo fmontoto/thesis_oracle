@@ -1,12 +1,9 @@
 package communication;
 
 import org.zeromq.ZMQ;
-import org.zeromq.ZMsg;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channel;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -45,7 +42,7 @@ public class SecureChannel implements ReadableByteChannel, WritableByteChannel, 
         out.writeObject(data);
         out.flush();
         try {
-            send(byteArrayOutputStream.toByteArray());
+            snd(byteArrayOutputStream.toByteArray());
         } catch (CommunicationException e) {
             e.printStackTrace();
             throw new IOException(e.getMessage());
@@ -79,7 +76,7 @@ public class SecureChannel implements ReadableByteChannel, WritableByteChannel, 
      * @param timeout timeout for receive operation. In milliseconds. -1 for infinite.
      * @return
      */
-    private byte[] receive(int timeout) {
+    public byte[] receive(int timeout) {
         in.setReceiveTimeOut(timeout);
         byte[] filter = in.recv();
         if(in.hasReceiveMore()) {
@@ -90,15 +87,15 @@ public class SecureChannel implements ReadableByteChannel, WritableByteChannel, 
         return filter;
     }
 
-    private void send(byte[] b) throws CommunicationException {
+    public void snd(byte[] b) throws CommunicationException {
         if(!out.send(filter, ZMQ.SNDMORE) || !out.send(b, 0))
-            throw new CommunicationException("Unable to send the message.");
+            throw new CommunicationException("Unable to snd the message.");
     }
 
     public void snd(String s) throws CommunicationException, ClosedChannelException {
         if(!open)
             throw new ClosedChannelException();
-        send(s.getBytes(utf8));
+        snd(s.getBytes(utf8));
     }
 
     public String rcv() throws CommunicationException, ClosedChannelException {
@@ -143,14 +140,16 @@ public class SecureChannel implements ReadableByteChannel, WritableByteChannel, 
     }
 
     // This function will work only if the other party also run it.
+    // This function needs to be better implemented, it's too fragile
     public void waitUntilConnected(int i, TimeUnit unit) throws CommunicationException, ClosedChannelException, InterruptedException, TimeoutException {
-        System.out.println("Going to wait...");
         long timeout = unit.toMillis(i);
         long sleepTimeOut = 500;
 
         while(timeout > 0) {
             String s = rcv_no_wait();
             while(s == null) {
+                if(timeout < 0)
+                    throw new TimeoutException();
                 snd("ALIVE!");
                 TimeUnit.MILLISECONDS.sleep(sleepTimeOut);
                 timeout -= sleepTimeOut;
@@ -158,22 +157,17 @@ public class SecureChannel implements ReadableByteChannel, WritableByteChannel, 
                 continue;
             }
             if(s.equals("ALIVE!")) {
-                System.out.println("ALIvv!!");
                 snd("ACK");
                 break;
             }
             if(s.equals("ACK")) {
-                System.out.println("ack!!");
-                System.out.println("Exiting...");
                 return;
             }
         }
         if(timeout <= 0)
             throw new TimeoutException();
 
-        TimeUnit.MILLISECONDS.sleep(1000);
-        System.out.println(rcv_no_wait());
-
-        System.out.println("Exiting...");
+        TimeUnit.MILLISECONDS.sleep(450);
+        rcv_no_wait();
     }
 }

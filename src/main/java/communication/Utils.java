@@ -3,8 +3,11 @@ package communication;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMsg;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 
 /**
@@ -70,5 +73,51 @@ public class Utils {
                                ZMQ.Socket incomingSocket, ZMQ.Socket outgoingSocket) {
         return new String(exchangeData(dataName, myData.getBytes(utf8),expectedDataLength,
                                        incomingSocket, outgoingSocket), utf8);
+    }
+
+    static public boolean checkDataConsistencyOtherParty(SecureChannel channel, byte[] data, long timeoutVal, TimeUnit timeUnit) throws TimeoutException {
+        if(data.length == 4) // TODO this should be fixed
+            LOGGER.warning("checkDataConsistency uses control msgs of this length. Be careful");
+        long timeout = timeUnit.toMillis(timeoutVal);
+        byte[] rcvdData, aux;
+        boolean rcvd = false;
+        int delay = 100;
+        try {
+            channel.snd(data);
+            while((rcvdData = channel.receive(delay)) == null) {
+                timeout -= delay;
+                if(timeout < 0)
+                    throw new TimeoutException();
+                channel.snd(data);
+            }
+
+            String s = new String(rcvdData, utf8);
+            if(s.equals("RCVD")) {
+                rcvdData = channel.receive((int)timeout);
+                if(rcvdData == null)
+                    throw new TimeoutException();
+                channel.send("RCVD".getBytes(utf8));
+                return Arrays.equals(data, rcvdData);
+            }
+
+            channel.snd("RCVD".getBytes(utf8));
+            channel.snd(data);
+            while(true) {
+                aux = channel.receive(delay);
+                if(aux != null) {
+                    s = new String(aux, utf8);
+                    if (s.equals("RCVD"))
+                        return Arrays.equals(data, rcvdData);
+                }
+                timeout -= delay;
+                if(timeout < 0)
+                    throw new TimeoutException();
+                channel.snd(data);
+            }
+
+        } catch (CommunicationException | IOException e) {
+            LOGGER.severe("Communication error" + e.getMessage());
+            return false;
+        }
     }
 }
