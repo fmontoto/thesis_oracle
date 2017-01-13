@@ -7,9 +7,11 @@ import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.*;
 import core.Constants;
 import org.apache.commons.cli.*;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
@@ -21,11 +23,14 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import java.util.Scanner;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static bitcoin.key.BitcoinPublicKey.WIFToTxAddress;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
+import static java.util.stream.Collectors.toList;
 
 /**
  * Created by fmontoto on 29-12-16.
@@ -97,11 +102,11 @@ public class Oracle {
         }
         List<AbsoluteOutput> unspent = bitcoindClient.getUnspent(account);
         List<AbsoluteOutput> availableOutputs = unspent.stream().filter(
-                u -> u.isPayToKey()).collect(Collectors.toList());
+                u -> u.isPayToKey()).collect(toList());
 
 
         Set<String> txFormAddresses = new HashSet<String>(availableOutputs.stream().map(
-                o -> o.getPayAddress()).collect(Collectors.toList()));
+                o -> o.getPayAddress()).collect(toList()));
         String []addrList = new String[txFormAddresses.size()];
         int i = 0;
         for(String txFormAddr: txFormAddresses) {
@@ -135,7 +140,7 @@ public class Oracle {
 
 
         unspentOutputs = availableOutputs.stream().filter(
-                u -> u.getPayAddress().equals(addrTxForm)).collect(Collectors.toList());
+                u -> u.getPayAddress().equals(addrTxForm)).collect(toList());
     }
 
     String inscribeOracle() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException {
@@ -144,12 +149,11 @@ public class Oracle {
         return bitcoindClient.sendTransaction(inscriptionTx);
     }
 
-
     public void run() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException, ParseTransactionException {
         startConfiguration();
         List<Transaction> incomingTxs = bitcoindClient.getAllIncomingTransactions(account, address);
         int confirmations = Utils.isInscribed(bitcoindClient, incomingTxs, addrTxForm);
-        BlockingQueue<String> commQueue = new ArrayBlockingQueue<String>(10);
+        BlockingQueue<Map.Entry<String, String>> commQueue = new ArrayBlockingQueue<>(10);
         if(confirmations < 0) {
             System.out.println("The address " + address + " is not inscribed as oracle.");
             System.out.println("Inscribe it as oracle? y/N");
@@ -158,35 +162,61 @@ public class Oracle {
             }
         }
 
+        new UserInputReader(System.in, commQueue).start();
+
     }
 }
 
-class Notifier extends Thread{
-    private static final Logger LOGGER = Logger.getLogger(Notifier.class.getName());
+class UserInputReader extends Thread {
+    private final InputStream in;
+    private final Scanner scanner;
+    private final String commPrefix;
+    Queue<Map.Entry<String, String>> commQueue;
+
+    UserInputReader(InputStream in, Queue<Map.Entry<String, String>> commQueue) {
+        this.in = in;
+        scanner = new Scanner(in);
+        this.commQueue = commQueue;
+        commPrefix = "User";
+        setDaemon(true);
+    }
+
+    public void run() {
+        while(true) {
+            commQueue.add(new AbstractMap.SimpleImmutableEntry<>(commPrefix, scanner.nextLine()));
+        }
+    }
+}
+
+class BlockChainDaemon extends Thread{
+    private static final Logger LOGGER = Logger.getLogger(BlockChainDaemon.class.getName());
 
     private final BitcoindClient client;
-    private final String fromBlock;
-    private final BlockingQueue<String> commQueue;;
+    private int fromBlock;
+    private final BlockingQueue<Map.Entry<String, String>> commQueue;
+    private String commPrefix = "blockchain";
 
-    private Notifier(BitcoindClient client, BlockingQueue<String> commQueue, String readFromBlock) {
+
+    public BlockChainDaemon(BitcoindClient client, BlockingQueue<Map.Entry<String, String>> commQueue) {
+        fromBlock = 0;
+        this.commQueue = commQueue;
         this.client = client;
-        fromBlock = readFromBlock;
+    }
+
+    private BlockChainDaemon(BitcoindClient client, BlockingQueue<Map.Entry<String, String>> commQueue, String readFromBlock) {
+        fromBlock = client.getBlock(readFromBlock).getHeight();
+        this.client = client;
         this.commQueue = commQueue;
     }
 
-    public Notifier(BitcoindClient client, BlockingQueue<String> commQueue, int readBlocksAgo) {
+    public BlockChainDaemon(BitcoindClient client, BlockingQueue<Map.Entry<String, String>> commQueue, int readBlocksAgo) {
         this(client, commQueue, client.getBlockHash(client.getBlockCount() - readBlocksAgo));
-
-    }
-
-    public Notifier(BitcoindClient client, BlockingQueue<String> commQueue) {
-        this(client, commQueue, 100);
     }
 
     synchronized private void sendNotification(String []strList) {
         for(String s: strList) {
             try {
-                commQueue.put(s);
+                commQueue.put(new AbstractMap.SimpleImmutableEntry(commPrefix, s));
             } catch (InterruptedException e) {
                 LOGGER.throwing("Notifier", "run", e);
             }
@@ -232,11 +262,16 @@ class Notifier extends Thread{
     }
 
     public void run() {
-        Block nextBlock = client.getBlock(fromBlock);
-        while(true) {
-            nextBlock.getTxs().parallelStream().forEach(this::notifyIfNeeded);
-            nextBlock = client.getBlock(nextBlock.getHeight() + 1);
-        }
+        LOGGER.info("Starting...");
+        List<int[]> ints = Arrays.asList(IntStream.rangeClosed(3, 6).toArray());
+        List<Integer> toCheck = IntStream.rangeClosed(fromBlock, client.getBlockCount()).boxed().collect(toList());
+        throw new NotImplementedException();
+
+//        Block nextBlock = client.getBlock(fromBlock);
+//        while(true) {
+//            nextBlock.getTxs().parallelStream().forEach(this::notifyIfNeeded);
+//            nextBlock = client.getBlock(nextBlock.getHeight() + 1);
+//        }
     }
 }
 
