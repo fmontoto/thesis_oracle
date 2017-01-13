@@ -48,7 +48,7 @@ public class Output {
         byte_size = offset - original_offset;
         try {
             parseScript();
-        } catch (NullPointerException e) {
+        } catch (IndexOutOfBoundsException e) {
             parsedScript = new LinkedList<>(Arrays.asList(new String[] {"ERROR. Non standard"}));
             isPayToKey = false;
             isPayToScript = false;

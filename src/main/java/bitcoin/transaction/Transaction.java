@@ -56,28 +56,34 @@ public class Transaction {
         this.lockTime = lockTime;
     }
 
-    public Transaction(byte[] rawTransaction) {
+    public Transaction(byte[] rawTransaction) throws ParseTransactionException {
         this();
-        int offset = 0;
-        long inputs_num, outputs_num;
         version = readUint32(rawTransaction, 0);
-        if (version == 2) {
-            if(rawTransaction[4] == 0x00)
-                v2TxParser(rawTransaction);
-            else
+        try {
+            if (version == 2) {
+                if (rawTransaction[4] == 0x00)
+                    v2TxParser(rawTransaction);
+                else
+                    v1TxParser(rawTransaction);
+            } else if (version == 1) {
                 v1TxParser(rawTransaction);
-        } else if(version == 1) {
-            v1TxParser(rawTransaction);
-        } else {
-            LOGGER.warning("unexpected Tx version:" + version);
-            v1TxParser(rawTransaction);
+            } else {
+                LOGGER.warning("unexpected Tx version:" + version);
+                v1TxParser(rawTransaction);
+            }
+        }catch (IndexOutOfBoundsException e) {
+            LOGGER.throwing("Transaction", "constructor", e);
+            try {
+                throw new ParseTransactionException(e.getMessage(), txid(rawTransaction));
+            } catch (NoSuchAlgorithmException e1) {
+                throw new ParseTransactionException(e.getMessage(), "");
+            }
         }
     }
 
-    public Transaction(String rawTransactionHex) {
+    public Transaction(String rawTransactionHex) throws ParseTransactionException {
         this(hexToByteArray(rawTransactionHex));
     }
-
 
     private void v1TxParser (byte[] rawTransaction) {
         long inputs_num, outputs_num;
@@ -258,6 +264,10 @@ public class Transaction {
 
     public String txid() throws NoSuchAlgorithmException {
         return txid(true);
+    }
+
+    static private String txid(byte[] rawTx) throws NoSuchAlgorithmException {
+        return byteArrayToHex(arrayReverse(doubleSHA256(rawTx)));
     }
 
     public String txid(boolean rpc_order) throws NoSuchAlgorithmException {

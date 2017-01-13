@@ -16,6 +16,8 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 
 import static bitcoin.Utils.doubleSHA256;
+import static bitcoin.key.Utils.bitcoinB58Encode;
+import static bitcoin.key.Utils.get32ByteRepresentation;
 import static core.Utils.hexToByteArray;
 import static bitcoin.key.Utils.bytesToBigInteger;
 
@@ -140,8 +142,16 @@ public class BitcoinPrivateKey implements BitcoinKey, ECPrivateKey {
     }
 
     @Override
-    public String toWIF() {
-        return null;
+    public String toWIF() throws IOException, NoSuchAlgorithmException {
+        byte[] byteRepresentation = get32ByteRepresentation(ecPrivateKey.getS());
+        byte prefix = testnet ? (byte) 0xef : (byte) 0x80;
+        byte[] data;
+
+        if(compressed_pk)
+            data = core.Utils.mergeArrays(new byte[]{prefix}, byteRepresentation, new byte[] {0x01});
+        else
+            data = core.Utils.mergeArrays(new byte[]{prefix}, byteRepresentation);
+        return bitcoinB58Encode(data);
     }
 
     @Override

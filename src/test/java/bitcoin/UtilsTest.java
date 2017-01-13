@@ -39,6 +39,6 @@ public class UtilsTest {
 
     @Test
     public void removeThisTest() {
-        getOracleList(true, "1063302", "1064302");
+        getOracleList(true, "1063302", "1063352");
     }
 }

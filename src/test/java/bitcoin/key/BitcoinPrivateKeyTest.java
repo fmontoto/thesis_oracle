@@ -5,6 +5,8 @@ import org.junit.Test;
 import java.io.IOException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
+import java.util.LinkedList;
+import java.util.List;
 
 import static core.Utils.byteArrayToHex;
 import static bitcoin.key.Utils.get32ByteRepresentation;
@@ -95,5 +97,18 @@ public class BitcoinPrivateKeyTest {
         verifier.initVerify(pKey.getPublicKey());
         verifier.update(hashed_data);
         assertTrue(verifier.verify(signature));
+    }
+
+//                BitcoinPrivateKey.fromWIF("5Kb8kLf9zgWQnogidDA76MzPL6TsZZY36hWXMssSzNydYXYB9KF");
+//    assertEquals("E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262",
+    @Test
+    public void toWIF() throws InvalidKeySpecException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException {
+        List<String> WIFs = new LinkedList<String>();
+        WIFs.add("5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ");
+        WIFs.add("5Kb8kLf9zgWQnogidDA76MzPL6TsZZY36hWXMssSzNydYXYB9KF");
+        WIFs.add("cMkY7CxQFR1GKnVnauBePfUsumiDiQA3gJV2Lbu7njVbbRsHbM7j");
+        for(String wif : WIFs){
+            assertEquals(wif, BitcoinPrivateKey.fromWIF(wif).toWIF());
+        }
     }
 }

@@ -1,6 +1,7 @@
 package bitcoin;
 
 import bitcoin.transaction.Output;
+import bitcoin.transaction.ParseTransactionException;
 import bitcoin.transaction.Transaction;
 import core.*;
 import org.omg.CORBA.DynAnyPackage.Invalid;
@@ -51,7 +52,11 @@ public class Utils {
         Collection<Transaction> transactions = new LinkedList<>();
         Set<String> oraclesAddress = new HashSet<>();
         for(String txId: block.getTxs())
-            transactions.add(client.getTransaction(txId));
+            try {
+                transactions.add(client.getTransaction(txId));
+            } catch(ParseTransactionException e) {
+
+            }
         for(Transaction tx : transactions) {
             List<Output> outputs = tx.getOutputs();
             //TODO duplicated at Oracle

@@ -4,10 +4,7 @@ import bitcoin.BitcoindClient;
 import bitcoin.Block;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
-import bitcoin.transaction.AbsoluteOutput;
-import bitcoin.transaction.Output;
-import bitcoin.transaction.Transaction;
-import bitcoin.transaction.TransactionBuilder;
+import bitcoin.transaction.*;
 import core.Constants;
 import org.apache.commons.cli.*;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
@@ -92,7 +89,7 @@ public class Oracle {
         bitcoindClient = new BitcoindClient(this.testnet);
     }
 
-    private void startConfiguration() throws IOException, NoSuchAlgorithmException {
+    private void startConfiguration() throws IOException, NoSuchAlgorithmException, ParseTransactionException {
         System.out.println("Starting, please wait...");
         double accountBalance = bitcoindClient.getAccountBalance(account);
         if(accountBalance < 0) {
@@ -148,7 +145,7 @@ public class Oracle {
     }
 
 
-    public void run() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException {
+    public void run() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException, ParseTransactionException {
         startConfiguration();
         List<Transaction> incomingTxs = bitcoindClient.getAllIncomingTransactions(account, address);
         int confirmations = Utils.isInscribed(bitcoindClient, incomingTxs, addrTxForm);
@@ -197,7 +194,12 @@ class Notifier extends Thread{
     }
 
     private void notifyIfNeeded(String txId) {
-        Transaction transaction = client.getTransaction(txId);
+        Transaction transaction = null;
+        try {
+            transaction = client.getTransaction(txId);
+        } catch (ParseTransactionException e) {
+            return;
+        }
         ArrayList<Output> outputs = transaction.getOutputs();
         String expectedDescription = byteArrayToHex(Constants.BET_DESCRIPTION);
         for(Output o: outputs) {

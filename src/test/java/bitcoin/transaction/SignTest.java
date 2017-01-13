@@ -74,7 +74,7 @@ public class SignTest {
     private List<String> getAvailableOutputs(String addr) throws NoSuchAlgorithmException {
         int i;
         ArrayList<Output>  outputs;
-        List<Transaction> transactions = client.getTransactions(addr);
+        List<Transaction> transactions = client.getTransactionsBestEffort(addr);
         List<String> ret = new LinkedList<String>();
         for(Transaction transaction: transactions) {
             outputs = transaction.getOutputs();
@@ -91,7 +91,7 @@ public class SignTest {
     }
 
     @Test
-    public void simpleSendToAddressSign() throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, SignatureException, InvalidKeyException {
+    public void simpleSendToAddressSign() throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, SignatureException, InvalidKeyException, ParseTransactionException {
         int i;
         List<AbsoluteOutput> unspentOutputs = client.getUnspent();
         AbsoluteOutput srcOutput = null;
@@ -122,7 +122,7 @@ public class SignTest {
     }
 
     @Test
-    public void multipleInputsSignTest() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException {
+    public void multipleInputsSignTest() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException, ParseTransactionException {
         List<AbsoluteOutput> unspentOutputs = client.getUnspent();
         List<AbsoluteOutput> outputs = new ArrayList<>();
         List<BitcoinPrivateKey> privKeys = new ArrayList<>();
@@ -156,7 +156,7 @@ public class SignTest {
     }
 
     @Test
-    public void simplePayToScriptHash() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException {
+    public void simplePayToScriptHash() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException, ParseTransactionException {
         AbsoluteOutput srcOutput = null;
         List<AbsoluteOutput> unspentOutputs = client.getUnspent();
         String changeAddr = null;
@@ -188,7 +188,6 @@ public class SignTest {
 
         Transaction t0 = payToScriptHash(srcOutput, scriptRedeemHash, available);
         t0.sign(privKey);
-        System.out.println("./bitcoin-cli -testnet signrawtransaction " + byteArrayToHex(t0.serialize()) + " \"[]\" \"[]\"");
 
         AbsoluteOutput scriptHashOutput = new AbsoluteOutput( t0.getOutputs().get(0).getValue()
                                                             , t0.getOutputs().get(0).getScript()

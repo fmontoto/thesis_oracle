@@ -1,8 +1,6 @@
 package bitcoin;
 
-import bitcoin.transaction.AbsoluteOutput;
-import bitcoin.transaction.Input;
-import bitcoin.transaction.Output;
+import bitcoin.transaction.*;
 import bitcoin.transaction.Transaction;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
@@ -12,6 +10,7 @@ import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import static core.Utils.byteArrayToHex;
@@ -21,6 +20,7 @@ import static wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.*;
  * Created by fmontoto on 23-11-16.
  */
 public class BitcoindClient {
+    private static final Logger LOGGER = Logger.getLogger(BitcoindClient.class.getName());
 
     private BitcoindRpcClient bitcoindRpcClient;
     private boolean testnet;
@@ -48,7 +48,7 @@ public class BitcoindClient {
 //        throw new NotImplementedException();
 //    }
 
-    public Transaction getTransaction(String txHash){
+    public Transaction getTransaction(String txHash) throws ParseTransactionException {
         String rawTransactionHex = bitcoindRpcClient.getRawTransactionHex(txHash);
         return new Transaction(rawTransactionHex);
     }
@@ -66,14 +66,36 @@ public class BitcoindClient {
         return balance;
     }
 
-    public List<Transaction> getTransactions(String account) {
+    private List<Transaction> getTransactions(String account, boolean bestEffort) throws ParseTransactionException {
         List<BitcoindRpcClient.Transaction> transactions = bitcoindRpcClient.listTransactions(account);
         List<Transaction> parsedTx = new ArrayList<Transaction>();
-        transactions.forEach(transaction -> parsedTx.add(new Transaction(transaction.raw().hex())));
+        for(BitcoindRpcClient.Transaction tx : transactions) {
+            try {
+                parsedTx.add(new Transaction(tx.raw().hex()));
+            } catch(ParseTransactionException e) {
+                if(bestEffort)
+                    continue;
+                throw e;
+            }
+        }
         return parsedTx;
     }
 
-    private List<Transaction> getAllTransactions(String account, String category, String address) {
+    public List<Transaction> getTransactions(String account) throws ParseTransactionException {
+        return getTransactions(account, false);
+    }
+
+    public List<Transaction>getTransactionsBestEffort(String account) {
+        try {
+            return getTransactions(account, true);
+        } catch (ParseTransactionException e) {
+            LOGGER.severe("This isn't suppose to happen, please report;" + e.getMessage() + ";" + e.toString());
+            return null;
+        }
+    }
+
+
+    private List<Transaction> getAllTransactions(String account, String category, String address, boolean bestEffort) throws ParseTransactionException {
         final int delta = 20;
         int from = 0;
 
@@ -83,7 +105,16 @@ public class BitcoindClient {
         while(clientTx == null || clientTx.size() == delta) {
             clientTx = bitcoindRpcClient.listTransactions(account, delta, from);
             if(category.equals("*")) {
-                clientTx.forEach(tx -> transactions.add(new Transaction(tx.raw().hex())));
+                for(BitcoindRpcClient.Transaction tx:clientTx) {
+                    try {
+                        transactions.add(new Transaction(tx.raw().hex()));
+                    } catch (ParseTransactionException e) {
+                        if(bestEffort)
+                            continue;
+                        else
+                            throw e;
+                    }
+                }
             }
             else {
                 for(BitcoindRpcClient.Transaction tx : clientTx) {
@@ -96,12 +127,13 @@ public class BitcoindClient {
         }
         return transactions;
     }
-    public List<Transaction> getAllTransactions(String account, String address) {
-        return getAllTransactions(account, "*", address);
+
+    public List<Transaction> getAllTransactions(String account, String address) throws ParseTransactionException {
+        return getAllTransactions(account, "*", address, false);
     }
 
-    public List<Transaction> getAllIncomingTransactions(String account, String address) {
-        return getAllTransactions(account, "receive", address);
+    public List<Transaction> getAllIncomingTransactions(String account, String address) throws ParseTransactionException {
+        return getAllTransactions(account, "receive", address, false);
     }
 
     private RawTransaction getRawTransaction(String txid) {
@@ -116,7 +148,7 @@ public class BitcoindClient {
         return bitcoindRpcClient.dumpPrivKey(addr).toCharArray();
     }
 
-    private List<AbsoluteOutput> getUnspent(List<BitcoindRpcClient.Unspent> unspents) {
+    private List<AbsoluteOutput> getUnspent(List<BitcoindRpcClient.Unspent> unspents) throws ParseTransactionException {
         List<AbsoluteOutput> ret = new LinkedList<AbsoluteOutput>();
         for(Unspent unspent: unspents) {
             Output o = getTransaction(unspent.txid()).getOutputs().get(unspent.vout());
@@ -124,15 +156,15 @@ public class BitcoindClient {
         }
         return ret;
     }
-    public List<AbsoluteOutput> getUnspent() {
+    public List<AbsoluteOutput> getUnspent() throws ParseTransactionException {
         return getUnspent(bitcoindRpcClient.listUnspent());
     }
 
-    public List<AbsoluteOutput> getUnspent(int minconf) {
+    public List<AbsoluteOutput> getUnspent(int minconf) throws ParseTransactionException {
         return getUnspent(bitcoindRpcClient.listUnspent(minconf));
     }
 
-    public List<AbsoluteOutput> getUnspent(String account) {
+    public List<AbsoluteOutput> getUnspent(String account) throws ParseTransactionException {
         List<BitcoindRpcClient.Unspent> unspents = bitcoindRpcClient.listUnspent();
         return getUnspent(unspents.stream().filter(
                 u -> account.equals(u.account())).collect(Collectors.toList()));
