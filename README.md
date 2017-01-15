@@ -30,6 +30,19 @@
   git submodule update
   # The current master of the library is broken, changes at https://github.com/cryptobiu/scapi/pull/86/files
   # must be applied and the src/java/edu/biu/SCProtocols/MaliciousYao folder must be removed in order to compile.
+  #Also this repository should be added to pom.xml
+  ```
+  ```xml
+  <repositories>
+    <repository>
+      <id>repository.jboss.org-public</id>
+      <name>JBoss repository</name>
+      <url>https://repository.jboss.org/nexus/content/groups/public</url>
+    </repository>
+  </repositories>
+  ```
+  ```bash
+
   mvn package
   mvn install -Dgpg.skip=true
   
