@@ -165,6 +165,9 @@ public class Transaction {
         byte[] signature = signTransaction(privateKey, hashTypeCode);
 
         retrieveRemovedInputs(inputNo, removedScripts);
+        System.out.println("sigsize:" + signature.length);
+        System.out.println("Hash:" + hashTypeCode[0]);
+        System.out.println(byteArrayToHex(signature));
 
         return mergeArrays( Constants.pushDataOpcode(signature.length + 1)
                           , signature

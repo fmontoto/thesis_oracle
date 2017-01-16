@@ -2,17 +2,22 @@ package bitcoin.transaction;
 
 import bitcoin.key.BitcoinPublicKey;
 import core.Constants;
+import core.Oracle;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static bitcoin.Constants.getOpcode;
 import static bitcoin.Constants.pushDataOpcode;
+import static bitcoin.transaction.Utils.serializeUint16;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 import static core.Utils.mergeArrays;
@@ -23,6 +28,39 @@ import static core.Utils.mergeArrays;
  */
 public class TransactionBuilder {
     static private final Charset utf8 = Charset.forName("utf-8");
+
+
+    static Output multisigOrTimeoutOutput(long amount, List<String> wifMultisigAddresses, String timeoutWifAddress) {
+
+
+        throw new NotImplementedException();
+    }
+
+    static public byte[] multisigOrTimeoutOutput(TimeUnit timeUnit,
+                                                 long timeoutVal,
+                                                 byte[] optionalPublicKey,
+                                                 byte[] alwaysNeededPublicKey) throws IOException, NoSuchAlgorithmException {
+        long timeoutSecs = timeUnit.toSeconds(timeoutVal) / 512; // Granularity is 512 seconds.
+        byte[] timeout = mergeArrays(new byte[] {0x00},
+                                     new byte[] {(byte) (0xFF & 1 << 6)},
+                                     serializeUint16((int)timeoutSecs));
+
+        byte[] script = mergeArrays(pushDataOpcode(alwaysNeededPublicKey.length),
+                                    alwaysNeededPublicKey,
+                                    new byte[] {getOpcode("OP_CHECKSIGVERIFY")},
+                                    new byte[] {getOpcode("OP_IF")},
+                                    pushDataOpcode(optionalPublicKey.length),
+                                    optionalPublicKey,
+                                    new byte[] {getOpcode("OP_ELSE")},
+                                    pushDataOpcode(timeout.length),
+                                    timeout,
+                                    new byte[] {getOpcode("OP_CHECKSEQUENCEVERIFY")},
+                                    new byte[] {getOpcode("OP_DROP")},
+                                    new byte[] {getOpcode("OP_ENDIF")},
+                                    new byte[] {getOpcode("OP_1")}
+                                    );
+        return script;
+    }
 
     /**
      *
@@ -129,9 +167,18 @@ public class TransactionBuilder {
                 hexToByteArray(absOutput.getTxId()), absOutput.getScript());
     }
 
+    static public Transaction betPromise(AbsoluteOutput srcOutput, List<Oracle> oracles, long betAmount, long oraclesFirstPay) {
+        Input inputA = payToPublicKeyHashCreateInput(srcOutput);
+
+
+
+
+        throw new NotImplementedException();
+    }
+
     // Oracle
 
-    static Output createOpReturnOutput(byte[] data) {
+    static private Output createOpReturnOutput(byte[] data) {
         long value = 0;
         byte[] script =  mergeArrays(
                 new byte[]{getOpcode("OP_RETURN")},
@@ -145,10 +192,11 @@ public class TransactionBuilder {
         Input input = payToPublicKeyHashCreateInput(absOutput);
         long value = absOutput.getValue() - fee;
 
+        Output dataOutput = createOpReturnOutput(data);
+
         Output payToPubKeyOutput = createPayToPubKeyOutput(
                 value, BitcoinPublicKey.txAddressToWIF(hexToByteArray(absOutput.getPayAddress()),
                         false));
-        Output dataOutput = createOpReturnOutput(data);
 
         return buildTx(version, locktime, input, dataOutput, payToPubKeyOutput);
     }

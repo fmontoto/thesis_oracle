@@ -6,14 +6,15 @@ import bitcoin.key.BitcoinPublicKey;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import static bitcoin.Constants.getHashType;
 import static bitcoin.Constants.getOpcode;
 import static bitcoin.Constants.pushDataOpcode;
 import static bitcoin.key.Utils.bitcoinB58Encode;
 import static bitcoin.key.Utils.r160SHA256Hash;
-import static bitcoin.transaction.TransactionBuilder.payToPublicKeyHash;
-import static bitcoin.transaction.TransactionBuilder.payToScriptHash;
+import static bitcoin.transaction.TransactionBuilder.*;
+import static bitcoin.transaction.Utils.parseScript;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 import static core.Utils.mergeArrays;
@@ -24,10 +25,8 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 /**
@@ -71,6 +70,22 @@ public class SignTest {
         return addr;
     }
 
+    private String getChangeAddress(Set<String> forbiddenAddresses) {
+        List<String> addresses = client.getAddresses("testingNoMoney");
+        for(String address: addresses)
+            if(!forbiddenAddresses.contains(address))
+                return address;
+        // GetRawChangeAddress must be used here
+        throw new NotImplementedException();
+    }
+
+    private String getChangeAddress(String... forbiddenAddresses) {
+        Set<String> fA = new HashSet<>();
+        for(String forbiddenAdress : forbiddenAddresses)
+            fA.add(forbiddenAdress);
+        return getChangeAddress(fA);
+    }
+
     private List<String> getAvailableOutputs(String addr) throws NoSuchAlgorithmException {
         int i;
         ArrayList<Output>  outputs;
@@ -111,8 +126,8 @@ public class SignTest {
 
         char[] privKey = client.getPrivateKey(wifAddr);
         BitcoinPrivateKey pKey = BitcoinPrivateKey.fromWIF(privKey);
-        for(char b: privKey)
-            b = '\0';
+        for(i = 0; i < privKey.length; i++)
+            privKey[i] = '\0';
 
         Transaction t = payToPublicKeyHash(srcOutput, changeAddr, available);
         t.sign(pKey);
@@ -156,6 +171,61 @@ public class SignTest {
     }
 
     @Test
+    public void multisigTimeoutFallback() throws ParseTransactionException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
+        List<AbsoluteOutput> unspentOutputs = client.getUnspent();
+        AbsoluteOutput srcOutput = null;
+        for(AbsoluteOutput ao: unspentOutputs)
+            if(ao.isPayToKey())
+                srcOutput = ao;
+        assertTrue("Couldn't find an unspent output", srcOutput != null);
+        String srcAddress = srcOutput.getPayAddress();
+        String wifSrcAddress = BitcoinPublicKey.txAddressToWIF(hexToByteArray(srcAddress), true);
+        BitcoinPrivateKey srcPrivKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(wifSrcAddress));
+        String wifOptionalAddress = getChangeAddress(srcAddress);
+        BitcoinPrivateKey optionalPrivKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(wifOptionalAddress));
+        byte[] optionalPublicKey = optionalPrivKey.getPublicKey().getKey();
+        String wifNeededAddress = getChangeAddress(wifSrcAddress, wifOptionalAddress);
+        BitcoinPrivateKey neededPrivKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(wifNeededAddress));
+        byte[] neededPublicKey = neededPrivKey.getPublicKey().getKey();
+
+        byte[] redeemScript = multisigOrTimeoutOutput(TimeUnit.MINUTES, 20, optionalPublicKey, neededPublicKey);
+        byte[] redeemScriptHash = r160SHA256Hash(redeemScript);
+
+        Transaction t0 = payToScriptHash(srcOutput, redeemScriptHash, srcOutput.getValue());
+        t0.sign(srcPrivKey);
+
+        AbsoluteOutput scriptHashOutput = new AbsoluteOutput(t0, 0);
+
+
+        Transaction t1 = payToPublicKeyHash(scriptHashOutput, wifSrcAddress, srcOutput.getValue());
+//         For a P2SH, the temporary scriptSig is the redeemScript itself.
+        t1.setTempScriptSigForSigning(0, redeemScript);
+        byte[] t1OptionalSignature = t1.getPayToScriptSignature(optionalPrivKey, getHashType("ALL"), 0);
+        byte[] t1NeededSignature = t1.getPayToScriptSignature(neededPrivKey, getHashType("ALL"), 0);
+//
+
+        t1.getInputs().get(0).setScript(mergeArrays( t1OptionalSignature
+                                                   , new byte[] {getOpcode("OP_1")}
+                                                   , t1NeededSignature
+                                                   , pushDataOpcode(redeemScript.length)
+                                                   , redeemScript));
+
+        System.out.println(parseScript(t1.getInputs().get(0).getScript(), true));
+
+        System.out.println(t1.hexlify());
+        System.out.println(t1);
+
+        System.out.println("./bitcoin-cli -testnet signrawtransaction " + t1.hexlify() +
+                " '[{" + "\"txid\": \"" + t0.txid() + "\"" +
+                ", \"vout\": " + 0 +
+                ", \"amount\": " + t1.getOutputs().get(0).getValue() +
+                ", \"redeemScript\": \"" + byteArrayToHex(redeemScript) + "\"" +
+                ", \"scriptPubKey\": \"" + byteArrayToHex(t0.getOutputs().get(0).getScript()) + "\"" +
+                "}]' \"[]\"");
+
+    }
+
+    @Test
     public void simplePayToScriptHash() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException, ParseTransactionException {
         AbsoluteOutput srcOutput = null;
         List<AbsoluteOutput> unspentOutputs = client.getUnspent();
@@ -189,10 +259,7 @@ public class SignTest {
         Transaction t0 = payToScriptHash(srcOutput, scriptRedeemHash, available);
         t0.sign(privKey);
 
-        AbsoluteOutput scriptHashOutput = new AbsoluteOutput( t0.getOutputs().get(0).getValue()
-                                                            , t0.getOutputs().get(0).getScript()
-                                                            , 0
-                                                            , t0.txid());
+        AbsoluteOutput scriptHashOutput = new AbsoluteOutput(t0, 0);
 
         Transaction t1 = payToPublicKeyHash(scriptHashOutput, changeAddr, available);
         // For a P2SH, the temporary scriptSig is the redeemScript itself.

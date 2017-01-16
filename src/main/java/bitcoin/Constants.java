@@ -151,7 +151,7 @@ public class Constants {
 // Expansion
         addOpcode("OP_NOP1",                (byte) 0xb0);
         addOpcode("OP_CHECKLOCKTIMEVERIFY", (byte) 0xb1);
-        addOpcode("OP_CHECKSEQUENCE_VERIFY",(byte) 0xb2);
+        addOpcode("OP_CHECKSEQUENCEVERIFY", (byte) 0xb2);
         addOpcode("OP_NOP4",                (byte) 0xb3);
         addOpcode("OP_NOP5",                (byte) 0xb4);
         addOpcode("OP_NOP6",                (byte) 0xb5);
@@ -173,6 +173,8 @@ public class Constants {
             throw new InvalidParameterException("Data must be greater than 0.");
         if(dataLength < 75)
             return new byte[]{(byte)dataLength};
+        if(dataLength < 256)
+            return new byte[]{0x4c, (byte)(dataLength & 0xFF)};
         throw new NotImplementedException();
     }
     static public byte getOpcode(String name) {
@@ -200,6 +202,10 @@ public class Constants {
 
     static public Byte getHashType(String name) {
         return getInstance().hashTypes.get(name);
+    }
+
+    static public String getHashTypeName(byte b) {
+        return getInstance().reversedHashTypes.get(b);
     }
 
     static private void add(String name, Byte b, Map<String, Byte> map, Map<Byte, String> reverseMap) {

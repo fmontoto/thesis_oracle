@@ -1,8 +1,10 @@
 package bitcoin.transaction;
 
+import java.security.InvalidParameterException;
 import java.util.LinkedList;
 import java.util.List;
 
+import static bitcoin.Constants.getHashTypeName;
 import static bitcoin.Constants.getOpcodeName;
 import static bitcoin.Constants.isHashType;
 import static core.Utils.byteArrayToHex;
@@ -60,6 +62,17 @@ public class Utils {
     static public int readUint16(byte[] val, int offset) {
         return (val[offset] & 0xFF)
                 | ((val[offset + 1] & 0xFF) << 8);
+    }
+
+    static public int readUint16(byte[] val) {
+        return readUint16(val, 0);
+    }
+
+    static public byte[] serializeUint16(int val) {
+        if(val > Math.pow(2, 16))
+            throw new InvalidParameterException("Input value (" + val + ") does not fit in 16bits.");
+        return new byte[] { (byte) (0xFF & val),
+                            (byte) (0xFF & val >> 8)};
     }
 
     static public byte[] serializeUint32(long val) {
@@ -151,8 +164,8 @@ public class Utils {
                     ret.add("OP_PUSH_" + b + "_bytes");
                     // Looks like pay to pubkey hash
                     if(b == 71 && isScriptSig && idx == 0 && isHashType(script[71])) {
-                        ret.add(byteArrayToHex(script, 1, 71)); // 1 = idx + 1, 71 = idx + b - 1
-                        ret.add(getOpcodeName(script[71]));
+                        ret.add(byteArrayToHex(script, 1, 71) + "[" + getHashTypeName(script[71]) + "]"); // 1 = idx + 1, 71 = idx + b - 1
+                        ret.add(getHashTypeName(script[71]));
 
                     }
                     else {

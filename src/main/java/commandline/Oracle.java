@@ -201,12 +201,14 @@ class BlockChainDaemon extends Thread{
         fromBlock = 0;
         this.commQueue = commQueue;
         this.client = client;
+        setDaemon(true);
     }
 
     private BlockChainDaemon(BitcoindClient client, BlockingQueue<Map.Entry<String, String>> commQueue, String readFromBlock) {
         fromBlock = client.getBlock(readFromBlock).getHeight();
         this.client = client;
         this.commQueue = commQueue;
+        setDaemon(true);
     }
 
     public BlockChainDaemon(BitcoindClient client, BlockingQueue<Map.Entry<String, String>> commQueue, int readBlocksAgo) {
@@ -242,6 +244,7 @@ class BlockChainDaemon extends Thread{
                 }
             }
         }
+        throw new NotImplementedException();
     }
 
     private Block getBlockOrWait(int height) {
@@ -261,17 +264,42 @@ class BlockChainDaemon extends Thread{
         }
     }
 
-    public void run() {
-        LOGGER.info("Starting...");
-        List<int[]> ints = Arrays.asList(IntStream.rangeClosed(3, 6).toArray());
-        List<Integer> toCheck = IntStream.rangeClosed(fromBlock, client.getBlockCount()).boxed().collect(toList());
-        throw new NotImplementedException();
+    private void checkBlock(Block block) {
+        for(String txId : block.getTxs())
+            notifyIfNeeded(txId);
+    }
 
-//        Block nextBlock = client.getBlock(fromBlock);
-//        while(true) {
-//            nextBlock.getTxs().parallelStream().forEach(this::notifyIfNeeded);
-//            nextBlock = client.getBlock(nextBlock.getHeight() + 1);
-//        }
+    public void run() {
+        final int confirmations = 1;
+        LOGGER.info("Starting...");
+        int blockCount = client.getBlockCount();
+        int lastBlock = fromBlock >= blockCount - confirmations ? fromBlock : blockCount - confirmations;
+        List<Integer> toCheck = IntStream.rangeClosed(fromBlock, lastBlock).boxed().collect(toList());
+
+        while(true) {
+            int blockToCheck = toCheck.get(toCheck.remove(toCheck.size() - 1));
+            checkBlock(client.getBlock(blockToCheck));
+
+            blockCount = client.getBlockCount();
+            if(blockCount - confirmations > lastBlock) {
+                lastBlock += 1;
+                toCheck.add(lastBlock);
+            }
+
+            while(toCheck.isEmpty()) {
+                try {
+                    TimeUnit.MINUTES.sleep(1);
+                } catch (InterruptedException e) {
+                    LOGGER.severe("InterruptedException:" + e.getMessage());
+                    continue;
+                }
+                blockCount = client.getBlockCount();
+                if(blockCount - confirmations > lastBlock) {
+                    lastBlock += 1;
+                    toCheck.add(lastBlock);
+                }
+            }
+        }
     }
 }
 

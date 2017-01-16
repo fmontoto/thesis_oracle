@@ -2,6 +2,8 @@ package bitcoin.transaction;
 
 import org.junit.Test;
 
+import java.security.InvalidParameterException;
+
 import static org.junit.Assert.*;
 import static bitcoin.transaction.Utils.*;
 
@@ -64,6 +66,19 @@ public class UtilsTest {
         assertEquals(4321,  readUint32(serializeUint32(4321)));
         assertEquals(999999,  readUint32(serializeUint32(999999)));
     }
+
+    @Test
+    public void testUint16() {
+        assertEquals(2, readUint16(serializeUint16(2)));
+        assertEquals(8, readUint16(serializeUint16(8)));
+        assertEquals(9999, readUint16(serializeUint16(9999)));
+    }
+
+    @Test(expected = InvalidParameterException.class)
+    public void testTooBigUint16() {
+        serializeUint16(99999);
+    }
+
     @Test
     public void testReadVarInt() throws Exception {
         assertEquals(1L, readVarInt(new byte[]{0x00, 0x01}, 1));
