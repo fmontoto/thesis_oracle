@@ -84,6 +84,10 @@ public class Input {
         return script;
     }
 
+    public long getSequenceNo() {
+        return sequenceNo;
+    }
+
     public byte[] serialize() {
         return mergeArrays(arrayReverse(prevTxHash != null ? prevTxHash: new byte[32]),
                            serializeUint32(prevIdx),

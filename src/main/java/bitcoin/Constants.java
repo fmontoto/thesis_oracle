@@ -177,10 +177,14 @@ public class Constants {
             return new byte[]{0x4c, (byte)(dataLength & 0xFF)};
         throw new NotImplementedException();
     }
+
     static public byte getOpcode(String name) {
         return getInstance().opcodes.get(name);
     }
 
+    static public byte[] getOpcodeAsArray(String name) {
+        return new byte[]{getOpcode(name)};
+    }
 
     static public String getOpcodeName(byte b) {
         return getInstance().reversedOpcodes.get(b);

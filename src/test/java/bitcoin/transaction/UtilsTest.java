@@ -80,6 +80,14 @@ public class UtilsTest {
     }
 
     @Test
+    public void testScriptNum() {
+        assertEquals(2, readScriptNum(serializeScriptNum(2)));
+        assertEquals(0, readScriptNum(serializeScriptNum(0)));
+        assertEquals(16344, readScriptNum(serializeScriptNum(16344)));
+        assertEquals(255, readScriptNum(serializeScriptNum(255)));
+        assertEquals(256, readScriptNum(serializeScriptNum(256)));
+    }
+    @Test
     public void testReadVarInt() throws Exception {
         assertEquals(1L, readVarInt(new byte[]{0x00, 0x01}, 1));
         assertNotEquals(1L, readVarInt(new byte[]{0x00, 0x01}, 0));

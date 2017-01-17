@@ -1,25 +1,32 @@
 package commandline;
 
-import bitcoin.BitcoindClient;
-import bitcoin.key.BitcoinPublicKey;
-
 import java.io.IOException;
-import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.IntStream;
 
-import static bitcoin.transaction.TransactionBuilder.multisigOrTimeoutOutput;
-import static core.Utils.hexToByteArray;
-import static java.util.stream.Collectors.toList;
+import static bitcoin.transaction.Utils.serializeUint16;
+import static bitcoin.transaction.Utils.serializeUint32;
+import static core.Utils.byteArrayToHex;
 
 /**
  * Created by fmontoto on 06-01-17.
  */
 public class Test {
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        long uno = 81920;
+        long dos = 147456;
+
+        byte[] unoSerialized = serializeUint32(uno);
+        byte[] dosSerialized = serializeUint32(dos);
+
+        System.out.println(byteArrayToHex(serializeUint32(uno)));
+        System.out.println(byteArrayToHex(serializeUint32(dos)));
+        System.out.println(byteArrayToHex(serializeUint16((int)(uno & 0xffff))));
+        System.out.println(byteArrayToHex(serializeUint16((int)(dos & 0xffff))));
+        System.out.println(uno & 0x0000ffff);
+        System.out.println(uno & (1 << 22));
+        System.out.println(dos & (1 << 22));
+        System.out.println(byteArrayToHex(serializeUint32(1 << 22)));
 
 //        multisigOrTimeoutOutput(TimeUnit.MINUTES, 100, "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2", "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy");
 //        static byte[] multisigOrTimeoutOutput(TimeUnit timeUnit,

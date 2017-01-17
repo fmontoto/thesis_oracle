@@ -54,6 +54,10 @@ public class Transaction {
         this();
         this.version = version;
         this.lockTime = lockTime;
+        if(version == 2) {
+            marker = 0x00;
+            flag = 0x01;
+        }
     }
 
     public Transaction(byte[] rawTransaction) throws ParseTransactionException {
@@ -165,9 +169,6 @@ public class Transaction {
         byte[] signature = signTransaction(privateKey, hashTypeCode);
 
         retrieveRemovedInputs(inputNo, removedScripts);
-        System.out.println("sigsize:" + signature.length);
-        System.out.println("Hash:" + hashTypeCode[0]);
-        System.out.println(byteArrayToHex(signature));
 
         return mergeArrays( Constants.pushDataOpcode(signature.length + 1)
                           , signature
@@ -229,16 +230,15 @@ public class Transaction {
         return inputs;
     }
 
-
     private byte[] serialize(boolean complete) {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         try {
             byteArrayOutputStream.write(serializeUint32(version));
-            if(complete) {
+            if(version == 2 && complete && witnessScript != null) {
                 if(marker != null)
-                    byteArrayOutputStream.write(new byte[]{marker});
+                    byteArrayOutputStream.write(marker);
                 if(flag != null)
-                    byteArrayOutputStream.write(new byte[]{flag});
+                    byteArrayOutputStream.write(flag);
             }
             byteArrayOutputStream.write(serializeVarInt(inputs.size()));
             for(Input i: inputs)
@@ -246,7 +246,7 @@ public class Transaction {
             byteArrayOutputStream.write(serializeVarInt(outputs.size()));
             for(Output o: outputs)
                 byteArrayOutputStream.write(o.serialize());
-            if(complete && witnessScript != null)
+            if(version == 2 && complete && witnessScript != null)
                 byteArrayOutputStream.write(witnessScript);
             byteArrayOutputStream.write(serializeUint32(lockTime));
         } catch (IOException e) {

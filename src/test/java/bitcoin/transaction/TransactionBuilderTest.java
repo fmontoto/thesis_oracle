@@ -2,10 +2,8 @@ package bitcoin.transaction;
 
 import org.junit.Before;
 import org.junit.Test;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.security.NoSuchAlgorithmException;
 
 import static bitcoin.transaction.TransactionBuilder.*;
@@ -30,7 +28,7 @@ public class TransactionBuilderTest {
         // From tx 0e4c7fb9ce6fa870c15533dddec7217a13ea2c49b5202a02c81d97713f5f8e77
         String dstAddr = "1JL8Qwkw5DGLezwEeM4ENVL2PJFPSJrpNJ";
         long val = 1000059;//0.01000059BTC
-        Output payToPubKeyOutput = createPayToPubKeyOutput(val, dstAddr);
+        Output payToPubKeyOutput = OutputBuilder.createPayToPubKeyOutput(val, dstAddr);
         assertEquals("7b420f00000000001976a914be183ac1967eafffb6949f507e8f235b548763e988ac".toUpperCase(),
                      byteArrayToHex(payToPubKeyOutput.serialize()));
     }

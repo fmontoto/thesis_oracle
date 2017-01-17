@@ -1,23 +1,20 @@
 package bitcoin.transaction;
 
 import bitcoin.key.BitcoinPublicKey;
+import core.Bet;
 import core.Constants;
-import core.Oracle;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.Constants.getOpcode;
 import static bitcoin.Constants.pushDataOpcode;
-import static bitcoin.transaction.Utils.serializeUint16;
+import static bitcoin.key.Utils.r160SHA256Hash;
+import static bitcoin.transaction.Utils.*;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 import static core.Utils.mergeArrays;
@@ -36,56 +33,11 @@ public class TransactionBuilder {
         throw new NotImplementedException();
     }
 
-    static public byte[] multisigOrTimeoutOutput(TimeUnit timeUnit,
-                                                 long timeoutVal,
-                                                 byte[] optionalPublicKey,
-                                                 byte[] alwaysNeededPublicKey) throws IOException, NoSuchAlgorithmException {
-        long timeoutSecs = timeUnit.toSeconds(timeoutVal) / 512; // Granularity is 512 seconds.
-        byte[] timeout = mergeArrays(new byte[] {0x00},
-                                     new byte[] {(byte) (0xFF & 1 << 6)},
-                                     serializeUint16((int)timeoutSecs));
-
-        byte[] script = mergeArrays(pushDataOpcode(alwaysNeededPublicKey.length),
-                                    alwaysNeededPublicKey,
-                                    new byte[] {getOpcode("OP_CHECKSIGVERIFY")},
-                                    new byte[] {getOpcode("OP_IF")},
-                                    pushDataOpcode(optionalPublicKey.length),
-                                    optionalPublicKey,
-                                    new byte[] {getOpcode("OP_ELSE")},
-                                    pushDataOpcode(timeout.length),
-                                    timeout,
-                                    new byte[] {getOpcode("OP_CHECKSEQUENCEVERIFY")},
-                                    new byte[] {getOpcode("OP_DROP")},
-                                    new byte[] {getOpcode("OP_ENDIF")},
-                                    new byte[] {getOpcode("OP_1")}
-                                    );
-        return script;
-    }
-
-    /**
-     *
-     * @param value Output's value
-     * @param dstAddr Destination address in WIF format
-     * @return Output with the specified parameters.
-     */
-    static Output createPayToPubKeyOutput(long value, String dstAddr) throws IOException, NoSuchAlgorithmException {
-
-        byte[] addr = BitcoinPublicKey.WIFToTxAddress(dstAddr);
-        byte[] script =  mergeArrays(new byte[]{getOpcode("OP_DUP")},
-                                     new byte[] {getOpcode("OP_HASH160")},
-                                     pushDataOpcode(addr.length),
-                                     addr,
-                                     new byte[]{getOpcode("OP_EQUALVERIFY")},
-                                     new byte[]{getOpcode("OP_CHECKSIG")});
-        return new Output(value, script);
-    }
-
-    private static Output createPayToScriptHashOutput(long amount, byte[] scriptHash) {
-        byte[] script = mergeArrays(new byte[]{getOpcode("OP_HASH160")},
-                                    pushDataOpcode(scriptHash.length),
-                                    scriptHash,
-                                    new byte[]{getOpcode("OP_EQUAL")});
-        return new Output(amount, script);
+    static public byte[] createSequenceNumber(TimeUnit timeUnit, long timeoutVal) {
+        // Granularity is 512 seconds as defined by BIP 68
+        long timeoutSeconds = timeUnit.toSeconds(timeoutVal) / 512;
+        long sequenceNo = (long)(1 << 22) | timeoutSeconds;
+        return serializeScriptNum(sequenceNo);
     }
 
     static private Input payToPublicKeyHashCreateInput(AbsoluteOutput absOutput, int inputSequenceNo) {
@@ -116,10 +68,12 @@ public class TransactionBuilder {
     static public Transaction payToPublicKeyHash(
             AbsoluteOutput absOutput, String dstAddr, String changeAddr, long amount, long fee,
             int version, int locktime, int inputSequenceNo) throws IOException, NoSuchAlgorithmException {
-                long available = absOutput.getValue();
+        long available = absOutput.getValue();
         Input input = payToPublicKeyHashCreateInput(absOutput, inputSequenceNo);
-        Output o1 = createPayToPubKeyOutput(amount, dstAddr);
-        Output o2 = createPayToPubKeyOutput(available - amount - fee, changeAddr);
+        Output o1 = OutputBuilder.createPayToPubKeyOutput(amount, dstAddr);
+        if(available - amount - fee <= 0)
+            return buildTx(version, locktime, input, o1);
+        Output o2 = OutputBuilder.createPayToPubKeyOutput(available - amount - fee, changeAddr);
         return buildTx(version, locktime, input, o1, o2);
     }
 
@@ -133,7 +87,7 @@ public class TransactionBuilder {
         final int version = 1;
         final int locktime = 0;
         Input input = payToPublicKeyHashCreateInput(absOutput);
-        Output output = createPayToPubKeyOutput(amount, dstAddr);
+        Output output = OutputBuilder.createPayToPubKeyOutput(amount, dstAddr);
         return buildTx(version, locktime, input, output);
     }
 
@@ -147,19 +101,20 @@ public class TransactionBuilder {
         for(AbsoluteOutput ao: absOutputs)
             inputs.add(payToPublicKeyHashCreateInput(ao));
 
-        outputs.add(createPayToPubKeyOutput(amount, dstAddr));
+        outputs.add(OutputBuilder.createPayToPubKeyOutput(amount, dstAddr));
         return buildTx(version, locktime, inputs, outputs);
     }
 
-    static public Transaction payToScriptHash(AbsoluteOutput absOutput, byte[] scriptRedeemHash, long amount, int version,
-                                              int locktime, int sequenceNo) {
+    static public Transaction payToScriptHash(AbsoluteOutput absOutput, byte[] scriptRedeem, long amount, int version,
+                                              int locktime, int sequenceNo) throws NoSuchAlgorithmException {
+        byte[] redeemScriptHash = r160SHA256Hash(scriptRedeem);
         Input input = payToPublicKeyHashCreateInput(absOutput, sequenceNo);
-        Output output = createPayToScriptHashOutput(amount, scriptRedeemHash);
+        Output output = OutputBuilder.createPayToScriptHashOutput(amount, redeemScriptHash);
         return buildTx(version, locktime, input, output);
     }
 
-    static public Transaction payToScriptHash(AbsoluteOutput absOutput, byte[] scriptRedeemHash, long amount) {
-        return payToScriptHash(absOutput, scriptRedeemHash, amount, 1, 0, 0xffffffff);
+    static public Transaction payToScriptHash(AbsoluteOutput absOutput, byte[] scriptRedeem, long amount) throws NoSuchAlgorithmException {
+        return payToScriptHash(absOutput, scriptRedeem, amount, 1, 0, 0xffffffff);
     }
 
     static public Input redeemScriptHash(AbsoluteOutput absOutput, byte[] script, byte[] redeemScript) {
@@ -167,8 +122,13 @@ public class TransactionBuilder {
                 hexToByteArray(absOutput.getTxId()), absOutput.getScript());
     }
 
-    static public Transaction betPromise(AbsoluteOutput srcOutput, List<Oracle> oracles, long betAmount, long oraclesFirstPay) {
-        Input inputA = payToPublicKeyHashCreateInput(srcOutput);
+    static public Transaction betPromise(List<AbsoluteOutput> srcOutputs, String changeAddress, Bet bet) {
+        Stack<Input> inputs = new Stack<>();
+        for(AbsoluteOutput srcOutput : srcOutputs)
+            inputs.push(payToPublicKeyHashCreateInput(srcOutput));
+
+//        Output prize = createPayToScriptHashOutputFromScript(amount, script);
+
 
 
 
@@ -194,28 +154,43 @@ public class TransactionBuilder {
 
         Output dataOutput = createOpReturnOutput(data);
 
-        Output payToPubKeyOutput = createPayToPubKeyOutput(
+        Output payToPubKeyOutput = OutputBuilder.createPayToPubKeyOutput(
                 value, BitcoinPublicKey.txAddressToWIF(hexToByteArray(absOutput.getPayAddress()),
                         false));
 
         return buildTx(version, locktime, input, dataOutput, payToPubKeyOutput);
     }
 
-    static public Transaction inscribeAsOracle(AbsoluteOutput absOutput,
-                                               long fee,
-                                               int version, int locktime)
-                                                    throws IOException, NoSuchAlgorithmException {
-        return opReturnOpTx(absOutput, fee, version, locktime, Constants.ORACLE_INSCRIPTION);
+    static public Transaction inscribeAsOracle(AbsoluteOutput absOutput, String wifInscribeAddress,
+                                               long fee, int version, int locktime) throws IOException, NoSuchAlgorithmException {
+        Input input = payToPublicKeyHashCreateInput(absOutput);
+        long value = absOutput.getValue() - fee;
+
+        Output dataOutput = createOpReturnOutput(Constants.ORACLE_INSCRIPTION);
+        Output changeOutput = OutputBuilder.createPayToPubKeyOutput(value, wifInscribeAddress);
+
+        return buildTx(version, locktime, input, dataOutput, changeOutput);
     }
 
     static public Transaction inscribeAsOracle(AbsoluteOutput absOutput,
-                                               long fee) throws IOException, NoSuchAlgorithmException {
+                                               String wifAddressToInscribe) throws IOException, NoSuchAlgorithmException {
         final int version = 1;
         final int locktime = 0;
-        return inscribeAsOracle(absOutput, fee, version, locktime);
+        final int fee = 1000;
+        return inscribeAsOracle(absOutput, wifAddressToInscribe, fee, version, locktime);
+
+    }
+    static public Transaction inscribeAsOracle(AbsoluteOutput absOutput,
+                                               long fee, boolean testnet) throws IOException, NoSuchAlgorithmException {
+        final int version = 1;
+        final int locktime = 0;
+        String wifOracleAddress = BitcoinPublicKey.txAddressToWIF(hexToByteArray(absOutput.getPayAddress()), testnet);
+        return inscribeAsOracle(absOutput, wifOracleAddress, fee, version, locktime);
     }
 
-    static public Transaction inscribeAsOracle(AbsoluteOutput absOutput) throws IOException, NoSuchAlgorithmException {
-        return inscribeAsOracle(absOutput, 2000);
+    static public Transaction inscribeAsOracle(AbsoluteOutput absOutput, boolean testnet) throws IOException, NoSuchAlgorithmException {
+        String wifOracleAddress = BitcoinPublicKey.txAddressToWIF(hexToByteArray(absOutput.getPayAddress()), testnet);
+        return inscribeAsOracle(absOutput, wifOracleAddress);
     }
+
 }

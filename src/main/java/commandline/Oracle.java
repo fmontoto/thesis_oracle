@@ -144,7 +144,7 @@ public class Oracle {
     }
 
     String inscribeOracle() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException {
-        Transaction inscriptionTx = TransactionBuilder.inscribeAsOracle(unspentOutputs.get(0));
+        Transaction inscriptionTx = TransactionBuilder.inscribeAsOracle(unspentOutputs.get(0), bitcoindClient.isTestnet());
         inscriptionTx.sign(BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(address)));
         return bitcoindClient.sendTransaction(inscriptionTx);
     }

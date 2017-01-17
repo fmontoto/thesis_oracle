@@ -1,8 +1,11 @@
 package bitcoin.transaction;
 
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
 import java.security.InvalidParameterException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Stack;
 
 import static bitcoin.Constants.getHashTypeName;
 import static bitcoin.Constants.getOpcodeName;
@@ -47,6 +50,25 @@ public class Utils {
                          };
     }
 
+    static public long readScriptNum(byte[] val) {
+        long result = 0;
+        for (int i = 0; i < val.length; i++)
+            result |= (val[i] & 0xff) << (8 * i);
+        return result;
+    }
+
+    static public byte[] serializeScriptNum(long val) {
+        Stack<Byte> ret = new Stack();
+//        List<Byte> ret = new LinkedList<>();
+        while(val > 0) {
+            ret.push((byte) (val & 0xff));
+            val >>= 8;
+        }
+        byte[] bytes = new byte[ret.size()];
+        for(int i = 0; i < bytes.length; i++)
+            bytes[bytes.length - i - 1] = ret.pop();
+        return bytes;
+    }
 
     static public long readUint32(byte[] val, int offset) {
         return (0xFFl & val[offset])
@@ -163,14 +185,12 @@ public class Utils {
                 if(b < 76) {
                     ret.add("OP_PUSH_" + b + "_bytes");
                     // Looks like pay to pubkey hash
-                    if(b == 71 && isScriptSig && idx == 0 && isHashType(script[71])) {
-                        ret.add(byteArrayToHex(script, 1, 71) + "[" + getHashTypeName(script[71]) + "]"); // 1 = idx + 1, 71 = idx + b - 1
-                        ret.add(getHashTypeName(script[71]));
-
-                    }
-                    else {
+                    if(b == 71 && isScriptSig && isHashType(script[idx + 71]))
+                        ret.add(byteArrayToHex(script, idx + 1, idx + b - 1) + "[" + getHashTypeName(script[idx + 71]) + "]");
+                    else if(b == 72 && isScriptSig && isHashType(script[idx + 72]))
+                        ret.add(byteArrayToHex(script, idx + 1, idx + b - 1) + "[" + getHashTypeName(script[idx + 72]) + "]");
+                    else
                         ret.add(byteArrayToHex(script, idx + 1, idx + 1 + b));
-                    }
                     idx += (1 + b);
                 }
                 else {
