@@ -170,8 +170,7 @@ public class Transaction {
 
         retrieveRemovedInputs(inputNo, removedScripts);
 
-        return mergeArrays( Constants.pushDataOpcode(signature.length + 1)
-                          , signature
+        return mergeArrays( signature
                           , new byte[] {hashTypeCode[0]}
                           );
     }

@@ -1,5 +1,6 @@
 package commandline;
 
+import bitcoin.key.BitcoinPublicKey;
 import communication.*;
 import core.Bet;
 import core.Constants;
@@ -57,6 +58,7 @@ public class Player {
     private BitcoinPrivateKey myPrivateKey;
     private String myBitcoinAddress;
 
+    BitcoinPublicKey otherPartyPublicBitcoinKey;
 
 
     private ExecutorService executor;
@@ -228,13 +230,18 @@ public class Player {
             otherPartyAddr = "tcp://" + otherPartyLocation + ":" + (otherPartyPort + 1);
             myPort = myPort + 1;
 
-            Future<SecureChannelManager> gotAuthenticatedChannel = executor.submit(
-                    new OpenSecureChannel(zctx, myKeyPair, "tcp://*:" + myPort, myPrivateKey,
-                            otherPartyAddr, otherPartyPublicZmqKey,
-                            otherPartyBitcoinAddress, authSockSend, authSockRcv));
-            return gotAuthenticatedChannel.get(1600, TimeUnit.SECONDS);
+            OpenSecureChannel openSecureChannel = new OpenSecureChannel(zctx, myKeyPair, "tcp://*:" + myPort,
+                                                                        myPrivateKey, otherPartyAddr,
+                                                                        otherPartyPublicZmqKey,
+                                                                        otherPartyBitcoinAddress, authSockSend,
+                                                                        authSockRcv);
 
-            } catch (TimeoutException e) {
+            Future<SecureChannelManager> gotAuthenticatedChannel = executor.submit(openSecureChannel);
+            SecureChannelManager secureChannelManager = gotAuthenticatedChannel.get(1600, TimeUnit.SECONDS);
+            otherPartyPublicBitcoinKey = openSecureChannel.getOtherPartyPublicBitcoinKey();
+            return secureChannelManager;
+
+        } catch (TimeoutException e) {
                 LOGGER.severe("Unable to open the authenticated channel on time");
                 return null;
             }

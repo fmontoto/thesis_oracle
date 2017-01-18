@@ -1,6 +1,7 @@
 package core;
 
 import bitcoin.BitcoindClient;
+import bitcoin.key.BitcoinPublicKey;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.*;
@@ -12,7 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
-import java.util.logging.Logger;
+import java.util.concurrent.TimeUnit;
 
 import static bitcoin.key.Utils.r160SHA256Hash;
 import static bitcoin.transaction.Utils.*;
@@ -27,36 +28,77 @@ public class Bet {
     private static final Charset utf8 = Charset.forName("UTF-8");
 
     private String description;
-    private int min_oracles;
-    private int max_oracles;
+    private int minOracles;
+    private int maxOracles;
     private List<Oracle> oracles;
     private List<Oracle> backupOracles;
+    private BitcoinPublicKey[] playersPubKey;
+    private long firstPaymentAmount;
+    private long oraclePayment;
+    private long amount;
+    private long oracleInscription;
+    private long oraclePenalty;
+    private long fee;
+    private TimeUnit timeoutUnit;
+    private long timeoutVal;
 
-    private Bet() {
-
-    }
-
-    public Bet(String description, int min_oracles, int max_oracles, List<Oracle> oracles, List<Oracle> backupOracles) {
+    public Bet(String description, int minOracles, int max_oracles, List<Oracle> oracles,
+               List<Oracle> backupOracles, BitcoinPublicKey[] playersPubKey, long firstPaymentAmount,
+               long oraclePayment, long amount, long oracleInscription, long oraclePenalty, long fee, TimeUnit timeoutUnit, long timeoutVal) {
         this.description = description;
-        this.min_oracles = min_oracles;
-        this.max_oracles = max_oracles;
+        this.minOracles = minOracles;
+        this.maxOracles = max_oracles;
         this.oracles = new ArrayList<>(oracles);
         this.backupOracles = new ArrayList<>(backupOracles);
+        this.playersPubKey = playersPubKey;
+        this.firstPaymentAmount = firstPaymentAmount;
+        this.oraclePayment = oraclePayment;
+        this.amount = amount;
+        this.oracleInscription = oracleInscription;
+        this.oraclePenalty = oraclePenalty;
+        this.fee = fee;
+        this.timeoutUnit = timeoutUnit;
+        this.timeoutVal = timeoutVal;
+        if(playersPubKey.length != 2)
+            throw new InvalidParameterException("Only two players accepted");
+        if(maxOracles != this.oracles.size())
+            throw new InvalidParameterException("oracles list must have same amount of oraclas as maxOracles specify.");
     }
 
-    public Bet(String description, int num_oracles, List<Oracle>oracles, List<Oracle> backupOracles) {
-        this(description, num_oracles, num_oracles, oracles, backupOracles);
+    public Bet(String description, int num_oracles, List<Oracle>oracles, List<Oracle> backupOracles,
+               BitcoinPublicKey[] playersPubKey, long firstPaymentAmount, long oraclePayment, long amount, long fee,
+               long oracleInscription, long oraclePenalty, TimeUnit timeoutUnit, long timeoutVal) {
+        this(description, num_oracles, num_oracles, oracles, backupOracles, playersPubKey, firstPaymentAmount,
+             oraclePayment, amount, fee, oracleInscription, oraclePenalty, timeoutUnit, timeoutVal);
     }
 
-    public byte[] getHash() throws NoSuchAlgorithmException {
+    public byte[] serialize() {
+        byte[] descriptionBytes = description.getBytes(utf8);
+        throw new NotImplementedException();
+
+    }
+
+    public byte[] getHash() throws NoSuchAlgorithmException, IOException {
         StringBuilder sb = new StringBuilder();
         oracles.forEach(oracle -> sb.append(oracle.getAddress()));
         backupOracles.forEach(oracle -> sb.append(oracle.getAddress()));
+        String oracles = sb.toString();
 
         return r160SHA256Hash(
-                mergeArrays(hexToByteArray(this.description),
-                            serializeUint32(min_oracles),
-                            serializeUint32(max_oracles),
+                mergeArrays(description.getBytes(utf8),
+                            serializeVarInt(minOracles),
+                            serializeVarInt(maxOracles),
+                            oracles.getBytes(utf8),
+                            playersPubKey[0].getKey(),
+                            playersPubKey[1].getKey(),
+                            serializeVarInt(firstPaymentAmount),
+                            serializeVarInt(oraclePayment),
+                            serializeVarInt(amount),
+                            serializeVarInt(oracleInscription),
+                            serializeVarInt(oraclePenalty),
+                            serializeVarInt(fee),
+
+
                             sb.toString().getBytes(utf8))); // TODO add oracles and backup oracles somehow...
     }
 
@@ -132,6 +174,14 @@ public class Bet {
         throw new NotImplementedException();
     }
 
+    public BitcoinPublicKey[] getPlayersPubKey() {
+        return playersPubKey;
+    }
+
+    public List<Oracle> getOracles() {
+        return oracles;
+    }
+
     private static List<Oracle> getRandomOracles(Scanner sc, PrintStream out, int num_oracles) {
         out.println("There are " + num_oracles + "oracles to be chosen randomly.");
         out.println("You need to provide a block interval to chose oracles from there.");
@@ -143,6 +193,38 @@ public class Bet {
         BitcoindClient bitcoindClient = new BitcoindClient(false);
         bitcoindClient.getOracleList(first_block, last_block);
         throw new NotImplementedException();
+    }
+
+    public long getAmount() {
+        return amount;
+    }
+
+    public long getFee() {
+        return fee;
+    }
+
+    public int getMaxOracles() {
+        return maxOracles;
+    }
+
+    public TimeUnit getTimeoutUnit() {
+        return timeoutUnit;
+    }
+
+    public long getTimeoutVal() {
+        return timeoutVal;
+    }
+
+    public void setTimeoutVal(long timeoutVal) {
+        this.timeoutVal = timeoutVal;
+    }
+
+    public long getFirstPaymentAmount() {
+        return firstPaymentAmount;
+    }
+
+    public long getOraclePayment() {
+        return oraclePayment;
     }
 }
 
@@ -166,8 +248,7 @@ class BetTxForm {
         byteStream.write(serializeVarInt(oracles.size()));
         for(Oracle o : oracles) {
             byte[] addr = o.getTxFormAddress();
-            assert addr.length < 256;
-            byteStream.write((byte)addr.length);
+            byteStream.write(serializeVarInt(addr.length));
             byteStream.write(addr);
         }
 
@@ -184,8 +265,8 @@ class BetTxForm {
             offset += varIntByteSize(oraclesNum);
             List<Oracle> oracles = new ArrayList<>();
             for (int i = 0; i < oraclesNum; i++) {
-                addrSize = bet[offset] & 0xff;
-                offset += 1;
+                addrSize = (int) readVarInt(bet, offset);
+                offset += varIntByteSize(addrSize);
                 byte[] addrTxForm = Arrays.copyOfRange(bet, offset, offset + addrSize);
                 offset += addrSize;
 

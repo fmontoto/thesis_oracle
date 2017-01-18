@@ -2,13 +2,11 @@ package bitcoin.transaction;
 
 import bitcoin.BitcoindClient;
 import bitcoin.key.BitcoinPrivateKey;
+import bitcoin.transaction.builder.TransactionBuilder;
 import org.junit.Before;
 import org.junit.Test;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
-import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -24,7 +22,7 @@ public class ProtocolTxsTest {
         bitcoindClient = new BitcoindClient(testnet);
     }
 
-    public List<AbsoluteOutput> getUnspentOutputs() throws ParseTransactionException {
+    private List<AbsoluteOutput> getUnspentOutputs() throws ParseTransactionException {
         List<AbsoluteOutput> unspentOutputs = bitcoindClient.getUnspent();
         AbsoluteOutput srcOutput = null;
         String changeAddr = null;
@@ -35,7 +33,7 @@ public class ProtocolTxsTest {
         return unspentOutputs;
     }
 
-    public AbsoluteOutput getUnspentOutput() throws ParseTransactionException {
+    private AbsoluteOutput getUnspentOutput() throws ParseTransactionException {
         return getUnspentOutputs().get(0);
     }
 

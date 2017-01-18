@@ -2,6 +2,7 @@ package bitcoin;
 
 import org.junit.Test;
 
+import static bitcoin.Constants.pushNumberOpcode;
 import static org.junit.Assert.*;
 
 /**
@@ -21,5 +22,12 @@ public class ConstantsTest {
         assertEquals("OP_RIPEMD160", Constants.getInstance().getOpcodeName((byte)0xa6));
         assertEquals("OP_NOP", Constants.getInstance().getOpcodeName((byte)0x61));
         assertEquals("OP_IF", Constants.getInstance().getOpcodeName((byte)0x63));
+    }
+
+    @Test
+    public void pushNumberTest() throws Exception {
+        assertArrayEquals(new byte[]{(byte) 0x51}, pushNumberOpcode(1));
+        assertArrayEquals(new byte[]{(byte) 0x52}, pushNumberOpcode(2));
+        assertArrayEquals(new byte[]{(byte) 0x60}, pushNumberOpcode(16));
     }
 }

@@ -1,12 +1,16 @@
-package bitcoin.transaction;
+package bitcoin.transaction.builder;
 
+import bitcoin.transaction.AbsoluteOutput;
+import bitcoin.transaction.Output;
+import bitcoin.transaction.Transaction;
+import bitcoin.transaction.builder.OutputBuilder;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
-import static bitcoin.transaction.TransactionBuilder.*;
+import static bitcoin.transaction.builder.TransactionBuilder.*;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 import static org.junit.Assert.*;

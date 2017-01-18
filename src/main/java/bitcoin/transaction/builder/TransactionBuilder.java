@@ -1,23 +1,27 @@
-package bitcoin.transaction;
+package bitcoin.transaction.builder;
 
 import bitcoin.key.BitcoinPublicKey;
+import bitcoin.transaction.AbsoluteOutput;
+import bitcoin.transaction.Input;
+import bitcoin.transaction.Output;
+import bitcoin.transaction.Transaction;
 import core.Bet;
 import core.Constants;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static bitcoin.Constants.getOpcode;
-import static bitcoin.Constants.pushDataOpcode;
 import static bitcoin.key.Utils.r160SHA256Hash;
 import static bitcoin.transaction.Utils.*;
+import static bitcoin.transaction.builder.OutputBuilder.createMultisigOutput;
+import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
-import static core.Utils.mergeArrays;
 
 /**
  * Builds some useful transactions used in the protocol.
@@ -40,17 +44,6 @@ public class TransactionBuilder {
         return serializeScriptNum(sequenceNo);
     }
 
-    static private Input payToPublicKeyHashCreateInput(AbsoluteOutput absOutput, int inputSequenceNo) {
-        // The script is the output to be redeem before signing it.
-        return  new Input(inputSequenceNo, absOutput.getVout(),
-                hexToByteArray(absOutput.getTxId()), absOutput.getScript());
-    }
-
-    static private Input payToPublicKeyHashCreateInput(AbsoluteOutput absoluteOutput) {
-        return payToPublicKeyHashCreateInput(absoluteOutput, 0xffffffff);
-
-    }
-
     static private Transaction buildTx(int version, int locktime, Collection<Input> inputs, Collection<Output> outputs) {
         Transaction ret = new Transaction(version, locktime);
         for(Input i: inputs)
@@ -69,11 +62,11 @@ public class TransactionBuilder {
             AbsoluteOutput absOutput, String dstAddr, String changeAddr, long amount, long fee,
             int version, int locktime, int inputSequenceNo) throws IOException, NoSuchAlgorithmException {
         long available = absOutput.getValue();
-        Input input = payToPublicKeyHashCreateInput(absOutput, inputSequenceNo);
-        Output o1 = OutputBuilder.createPayToPubKeyOutput(amount, dstAddr);
+        Input input = InputBuilder.payToPublicKeyHashCreateInput(absOutput, inputSequenceNo);
+        Output o1 = createPayToPubKeyOutput(amount, dstAddr);
         if(available - amount - fee <= 0)
             return buildTx(version, locktime, input, o1);
-        Output o2 = OutputBuilder.createPayToPubKeyOutput(available - amount - fee, changeAddr);
+        Output o2 = createPayToPubKeyOutput(available - amount - fee, changeAddr);
         return buildTx(version, locktime, input, o1, o2);
     }
 
@@ -86,8 +79,8 @@ public class TransactionBuilder {
                                                  long amount) throws IOException, NoSuchAlgorithmException {
         final int version = 1;
         final int locktime = 0;
-        Input input = payToPublicKeyHashCreateInput(absOutput);
-        Output output = OutputBuilder.createPayToPubKeyOutput(amount, dstAddr);
+        Input input = InputBuilder.payToPublicKeyHashCreateInput(absOutput);
+        Output output = createPayToPubKeyOutput(amount, dstAddr);
         return buildTx(version, locktime, input, output);
     }
 
@@ -99,16 +92,16 @@ public class TransactionBuilder {
         List<Output> outputs = new ArrayList<Output>();
 
         for(AbsoluteOutput ao: absOutputs)
-            inputs.add(payToPublicKeyHashCreateInput(ao));
+            inputs.add(InputBuilder.payToPublicKeyHashCreateInput(ao));
 
-        outputs.add(OutputBuilder.createPayToPubKeyOutput(amount, dstAddr));
+        outputs.add(createPayToPubKeyOutput(amount, dstAddr));
         return buildTx(version, locktime, inputs, outputs);
     }
 
     static public Transaction payToScriptHash(AbsoluteOutput absOutput, byte[] scriptRedeem, long amount, int version,
                                               int locktime, int sequenceNo) throws NoSuchAlgorithmException {
         byte[] redeemScriptHash = r160SHA256Hash(scriptRedeem);
-        Input input = payToPublicKeyHashCreateInput(absOutput, sequenceNo);
+        Input input = InputBuilder.payToPublicKeyHashCreateInput(absOutput, sequenceNo);
         Output output = OutputBuilder.createPayToScriptHashOutput(amount, redeemScriptHash);
         return buildTx(version, locktime, input, output);
     }
@@ -117,44 +110,71 @@ public class TransactionBuilder {
         return payToScriptHash(absOutput, scriptRedeem, amount, 1, 0, 0xffffffff);
     }
 
-    static public Input redeemScriptHash(AbsoluteOutput absOutput, byte[] script, byte[] redeemScript) {
-        return  new Input(0xffffffff, absOutput.getVout(),
-                hexToByteArray(absOutput.getTxId()), absOutput.getScript());
-    }
+    /**
+     *
+     * @param srcOutputs The first will be used as bet address.
+     * @param wifChangeAddress
+     * @param bet
+     * @return
+     */
+    static public Transaction betPromise(List<AbsoluteOutput> srcOutputs, String wifChangeAddress,
+                                         Bet bet, boolean iAmPlayerOne) throws IOException, NoSuchAlgorithmException {
+        // TODO check the numbers
+        final long fixedBytesNeeded = 90;
+        final long bytesNeededByOracle = 43;
+        final long estimatedTotalBytesNeededInTheBlockChain = fixedBytesNeeded + bet.getMaxOracles() * bytesNeededByOracle;
+        final int locktime = 0;
+        final int version = 1;
+        BitcoinPublicKey[] playersPubKey = bet.getPlayersPubKey();
+        List<Input> inputs = new LinkedList<>();
+        List<Output> outputs = new LinkedList<>();
+        final long minimumAmount = estimatedTotalBytesNeededInTheBlockChain + bet.getOraclePayment() * bet.getMaxOracles();
 
-    static public Transaction betPromise(List<AbsoluteOutput> srcOutputs, String changeAddress, Bet bet) {
-        Stack<Input> inputs = new Stack<>();
+        if(playersPubKey.length != 2)
+            throw new NotImplementedException();
+        if(bet.getAmount() < minimumAmount)
+            throw new InvalidParameterException("The bet amount is too small, you need a bigger amount, at least " + minimumAmount);
+
+        long change = 0;
+        for(AbsoluteOutput absOutput : srcOutputs)
+            change += absOutput.getValue();
+        change = change - (bet.getAmount() + bet.getFirstPaymentAmount() * bet.getMaxOracles());
+        if(change < 0)
+            throw new InvalidParameterException("Not enough money to start the bet. At least " + (-change) + " more needed.");
+
         for(AbsoluteOutput srcOutput : srcOutputs)
-            inputs.push(payToPublicKeyHashCreateInput(srcOutput));
+            inputs.add(InputBuilder.payToPublicKeyHashCreateInput(srcOutput));
 
-//        Output prize = createPayToScriptHashOutputFromScript(amount, script);
+        Output prizePlayerA = OutputBuilder.oneSignatureOnTimeoutOrMultiSig(bet.getPlayersPubKey()[0].getKey(),
+                                                              bet.getPlayersPubKey()[1].getKey(),
+                                                              bet.getAmount(), bet.getTimeoutUnit(), bet.getTimeoutVal());
+        Output prizePlayerB = OutputBuilder.oneSignatureOnTimeoutOrMultiSig(bet.getPlayersPubKey()[1].getKey(),
+                                                              bet.getPlayersPubKey()[0].getKey(),
+                                                              bet.getAmount(), bet.getTimeoutUnit(), bet.getTimeoutVal());
+        outputs.add(prizePlayerA);
+        outputs.add(prizePlayerB);
+        int numOracles = bet.getMaxOracles();
 
+        for(int i = 0; i < numOracles; i++) {
+            outputs.add(createMultisigOutput(bet.getFirstPaymentAmount(), playersPubKey, playersPubKey.length));
+        }
 
+        if(change != 0)
+            outputs.add(createPayToPubKeyOutput(change, wifChangeAddress));
 
-
-
-        throw new NotImplementedException();
+        return buildTx(version, locktime, inputs, outputs);
     }
 
     // Oracle
 
-    static private Output createOpReturnOutput(byte[] data) {
-        long value = 0;
-        byte[] script =  mergeArrays(
-                new byte[]{getOpcode("OP_RETURN")},
-                pushDataOpcode(data.length),
-                data);
-        return new Output(value, script);
-    }
-
     static Transaction opReturnOpTx(AbsoluteOutput absOutput, long fee, int version,
                                   int locktime, byte[] data) throws IOException, NoSuchAlgorithmException {
-        Input input = payToPublicKeyHashCreateInput(absOutput);
+        Input input = InputBuilder.payToPublicKeyHashCreateInput(absOutput);
         long value = absOutput.getValue() - fee;
 
-        Output dataOutput = createOpReturnOutput(data);
+        Output dataOutput = OutputBuilder.createOpReturnOutput(data);
 
-        Output payToPubKeyOutput = OutputBuilder.createPayToPubKeyOutput(
+        Output payToPubKeyOutput = createPayToPubKeyOutput(
                 value, BitcoinPublicKey.txAddressToWIF(hexToByteArray(absOutput.getPayAddress()),
                         false));
 
@@ -163,11 +183,11 @@ public class TransactionBuilder {
 
     static public Transaction inscribeAsOracle(AbsoluteOutput absOutput, String wifInscribeAddress,
                                                long fee, int version, int locktime) throws IOException, NoSuchAlgorithmException {
-        Input input = payToPublicKeyHashCreateInput(absOutput);
+        Input input = InputBuilder.payToPublicKeyHashCreateInput(absOutput);
         long value = absOutput.getValue() - fee;
 
-        Output dataOutput = createOpReturnOutput(Constants.ORACLE_INSCRIPTION);
-        Output changeOutput = OutputBuilder.createPayToPubKeyOutput(value, wifInscribeAddress);
+        Output dataOutput = OutputBuilder.createOpReturnOutput(Constants.ORACLE_INSCRIPTION);
+        Output changeOutput = createPayToPubKeyOutput(value, wifInscribeAddress);
 
         return buildTx(version, locktime, input, dataOutput, changeOutput);
     }

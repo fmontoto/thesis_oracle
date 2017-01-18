@@ -101,6 +101,7 @@ public class OpenSecureChannel implements Callable<SecureChannelManager> {
     private final ZMQ.Socket outgoing_socket;
     private final ZMQ.Socket incoming_socket;
     private final boolean testnet;
+    private BitcoinPublicKey otherPartyPublicBitcoinKey;
 
     public OpenSecureChannel(ZMQ.Context zctx, ZMQ.Curve.KeyPair myCurveKeyPair, String myURI,
                              BitcoinPrivateKey myBitcoinPrivateKey,
@@ -116,6 +117,7 @@ public class OpenSecureChannel implements Callable<SecureChannelManager> {
         this.outgoing_socket = outgoing_socket;
         this.incoming_socket = incoming_socket;
         this.testnet = myBitcoinPrivateKey.isTestnet();
+        otherPartyPublicBitcoinKey = null;
 
 
 //        outgoing_socket.setBacklog(1);
@@ -184,7 +186,7 @@ public class OpenSecureChannel implements Callable<SecureChannelManager> {
             LOGGER.warning("Unexpected length of bitcoin.key received:" + otherPartyPublicBitcoinKeyBytes.length);
             return false;
         }
-        BitcoinPublicKey otherPartyPublicBitcoinKey = new BitcoinPublicKey(otherPartyPublicBitcoinKeyBytes, testnet);
+        otherPartyPublicBitcoinKey = new BitcoinPublicKey(otherPartyPublicBitcoinKeyBytes, testnet);
         if(!otherPartyBitcoinAddr.equals(otherPartyPublicBitcoinKey.toWIF())){
             LOGGER.warning("The bitcoin key provided by the other party does not match the address");
             return false;
@@ -199,9 +201,9 @@ public class OpenSecureChannel implements Callable<SecureChannelManager> {
     }
 
 
-//    static String exchangeData(String dataName, String myData, int expectedDataLength,
-//                               ZMQ.Socket incomingSocket, ZMQ.Socket outgoingSocket) {
-//    }
+    public BitcoinPublicKey getOtherPartyPublicBitcoinKey() {
+        return otherPartyPublicBitcoinKey;
+    }
 
     @Override
     public SecureChannelManager call() throws Exception {

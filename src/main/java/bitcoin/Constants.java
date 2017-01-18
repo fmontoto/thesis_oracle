@@ -198,6 +198,12 @@ public class Constants {
         return getInstance().reversedOpcodes.containsKey(b);
     }
 
+    static public byte[] pushNumberOpcode(int val) {
+        if(val > 16 || val <= 0)
+            throw new NotImplementedException();
+        return new byte[] {(byte)(getOpcode("OP_1") + val - 1)};
+    }
+
     static public Constants getInstance() {
         if(instance == null)
             instance = new Constants();
