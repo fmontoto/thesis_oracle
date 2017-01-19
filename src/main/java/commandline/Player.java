@@ -3,6 +3,7 @@ package commandline;
 import bitcoin.key.BitcoinPublicKey;
 import communication.*;
 import core.Bet;
+import core.ConsistencyException;
 import core.Constants;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.Secp256k1;
@@ -326,7 +327,7 @@ public class Player {
         return match;
     }
 
-    private Bet negotiateBet(SecureChannelManager channelManager) throws CommunicationException, IOException, InterruptedException, NoSuchAlgorithmException, ClassNotFoundException, CommitValueException, TimeoutException {
+    private Bet negotiateBet(SecureChannelManager channelManager) throws CommunicationException, IOException, InterruptedException, NoSuchAlgorithmException, ClassNotFoundException, CommitValueException, TimeoutException, ConsistencyException {
         List<String> oracles = new ArrayList<>();
         Map<String, String> results = new HashMap<>();
 //        List<String> parameters = new ArrayList<>(Arrays.asList("Description",
@@ -423,27 +424,27 @@ public class Player {
         return oraclesList;
     }
 
-    private List<String> choseOraclesRandomly(int i, SecureChannelManager channelManager) throws IOException, ClassNotFoundException, CommitValueException, InterruptedException, TimeoutException, CommunicationException, NoSuchAlgorithmException {
+    private List<String> choseOraclesRandomly(int neededOracles, SecureChannelManager channelManager) throws IOException, ClassNotFoundException, CommitValueException, InterruptedException, TimeoutException, CommunicationException, NoSuchAlgorithmException, ConsistencyException {
         List<String> oracles = new ArrayList<>();
         SecureChannel oracleNegotiationChannel = null, channel = null;
         CTOutput result;
-        List<String> oraclesList = buildOracleList(i, channelManager);
+        List<String> oraclesList = buildOracleList(neededOracles, channelManager);
         byte[] reducedList = oraclesList.stream().reduce("", (a, b) -> a + b).getBytes(utf8);
         channel = channelManager.subscribe("checkListConsistency");
         if(!checkDataConsistencyOtherParty(channel, r160SHA256Hash(reducedList), 25, TimeUnit.SECONDS))
-            //TODO change the exception type
-            throw new InvalidParameterException("Both parties have different lists of oracles.");
+            throw new ConsistencyException("Both parties have different lists of oracles.");
 
+        List<String> chosenOracles = new LinkedList<>();
+        CTStringParty ctStringParty;
         try{
             oracleNegotiationChannel = channelManager.subscribe("randomOracleNegotiation");
             oracleNegotiationChannel.waitUntilConnected(15, TimeUnit.SECONDS);
-            if(amIPartyOne()) {
-                CTStringPartyOne ctStringPartyOne = new CTStringPartyOne(oracleNegotiationChannel, i);
-                result = ctStringPartyOne.toss();
-            } else {
-                CTStringPartyTwo ctStringPartyTwo = new CTStringPartyTwo(oracleNegotiationChannel, i);
-                result = ctStringPartyTwo.toss();
-            }
+            if(amIPartyOne())
+                ctStringParty = new CTStringParty(new CTStringPartyOne(oracleNegotiationChannel, neededOracles));
+             else
+                ctStringParty = new CTStringParty(new CTStringPartyTwo(oracleNegotiationChannel, neededOracles));
+            result = ctStringParty.toss();
+
         } finally {
             if(oracleNegotiationChannel != null) {
                 channelManager.unsubscribe(oracleNegotiationChannel);
@@ -454,7 +455,7 @@ public class Player {
         return oracles;
     }
 
-    public void run() throws InterruptedException, ExecutionException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException, InvalidKeySpecException, CommunicationException {
+    public void run() throws InterruptedException, ExecutionException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException, InvalidKeySpecException, CommunicationException, ConsistencyException {
         SecureChannelManager channelManager = openSecureChannel();
         channelManager.setDaemon(true);
         channelManager.start();

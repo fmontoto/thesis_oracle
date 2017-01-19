@@ -146,12 +146,16 @@ public class TransactionBuilder {
         for(AbsoluteOutput srcOutput : srcOutputs)
             inputs.add(InputBuilder.payToPublicKeyHashCreateInput(srcOutput));
 
+        Output data = OutputBuilder.createOpReturnOutput(bet.getWireRepresentation());
+
         Output prizePlayerA = OutputBuilder.oneSignatureOnTimeoutOrMultiSig(bet.getPlayersPubKey()[0].getKey(),
                                                               bet.getPlayersPubKey()[1].getKey(),
                                                               bet.getAmount(), TimeUnit.SECONDS, bet.getTimeoutSeconds());
         Output prizePlayerB = OutputBuilder.oneSignatureOnTimeoutOrMultiSig(bet.getPlayersPubKey()[1].getKey(),
                                                               bet.getPlayersPubKey()[0].getKey(),
                                                               bet.getAmount(), TimeUnit.SECONDS, bet.getTimeoutSeconds());
+
+        outputs.add(data);
         outputs.add(prizePlayerA);
         outputs.add(prizePlayerB);
         int numOracles = bet.getMaxOracles();
