@@ -9,10 +9,8 @@ import java.nio.charset.Charset;
 import java.security.InvalidParameterException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Scanner;
+import java.security.spec.InvalidKeySpecException;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.key.Utils.r160SHA256Hash;
@@ -32,6 +30,7 @@ public class Bet {
     private int maxOracles;
     private List<Oracle> oracles;
     private List<Oracle> backupOracles;
+    private List<BitcoinPublicKey> participantOracles;
     private BitcoinPublicKey[] playersPubKey;
     private long firstPaymentAmount;
     private long oraclePayment;
@@ -39,12 +38,14 @@ public class Bet {
     private long oracleInscription;
     private long oraclePenalty;
     private long fee;
-    private TimeUnit timeoutUnit;
-    private long timeoutVal;
+    private long timeoutSeconds;
+
 
     public Bet(String description, int minOracles, int max_oracles, List<Oracle> oracles,
                List<Oracle> backupOracles, BitcoinPublicKey[] playersPubKey, long firstPaymentAmount,
-               long oraclePayment, long amount, long oracleInscription, long oraclePenalty, long fee, TimeUnit timeoutUnit, long timeoutVal) {
+               long oraclePayment, long amount, long oracleInscription, long oraclePenalty, long fee,
+               TimeUnit timeoutUnit, long timeoutVal) {
+
         this.description = description;
         this.minOracles = minOracles;
         this.maxOracles = max_oracles;
@@ -57,8 +58,9 @@ public class Bet {
         this.oracleInscription = oracleInscription;
         this.oraclePenalty = oraclePenalty;
         this.fee = fee;
-        this.timeoutUnit = timeoutUnit;
-        this.timeoutVal = timeoutVal;
+        timeoutSeconds = timeoutUnit.toSeconds(timeoutVal);
+        participantOracles = new LinkedList<>();
+
         if(playersPubKey.length != 2)
             throw new InvalidParameterException("Only two players accepted");
         if(maxOracles != this.oracles.size())
@@ -72,10 +74,128 @@ public class Bet {
              oraclePayment, amount, fee, oracleInscription, oraclePenalty, timeoutUnit, timeoutVal);
     }
 
-    public byte[] serialize() {
-        byte[] descriptionBytes = description.getBytes(utf8);
-        throw new NotImplementedException();
+    public void addParticipantOracle(BitcoinPublicKey participantOracle) {
+        participantOracles.add(participantOracle);
+    }
 
+    public byte[] serialize() throws IOException, NoSuchAlgorithmException {
+        byte[] descriptionBytes = description.getBytes(utf8);
+        ByteArrayOutputStream oracleOutputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream backUporacleOutputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream publicKeysOutputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream participantOraclesOutputStream = new ByteArrayOutputStream();
+
+        for(Oracle oracle : oracles)
+            oracleOutputStream.write(oracle.serialize());
+        for(Oracle oracle : backupOracles)
+            backUporacleOutputStream.write(oracle.serialize());
+        for(BitcoinPublicKey publicKey : playersPubKey)
+            publicKeysOutputStream.write(publicKey.serialize());
+        for(BitcoinPublicKey publicKey : participantOracles)
+            participantOraclesOutputStream.write(publicKey.serialize());
+
+
+        return mergeArrays( serializeVarInt(descriptionBytes.length)
+                          , descriptionBytes
+                          , serializeVarInt(minOracles)
+                          , serializeVarInt(maxOracles)
+                          , serializeVarInt(oracles.size())
+                          , oracleOutputStream.toByteArray()
+                          , serializeVarInt(backupOracles.size())
+                          , backUporacleOutputStream.toByteArray()
+                          , serializeVarInt(playersPubKey.length)
+                          , publicKeysOutputStream.toByteArray()
+                          , serializeVarInt(participantOracles.size())
+                          , participantOraclesOutputStream.toByteArray()
+                          , serializeVarInt(firstPaymentAmount)
+                          , serializeVarInt(oraclePayment)
+                          , serializeVarInt(amount)
+                          , serializeVarInt(oracleInscription)
+                          , serializeVarInt(oraclePenalty)
+                          , serializeVarInt(fee)
+                          , serializeVarInt(timeoutSeconds)
+        );
+    }
+
+    static public Bet fromSerialized(byte[] buffer, int offset) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+        List<Oracle> oracles = new LinkedList<>(), backupOracles = new LinkedList<>();
+        int descriptionSize = Math.toIntExact(readVarInt(buffer, offset));
+        offset += varIntByteSize(descriptionSize);
+        String description = new String(Arrays.copyOfRange(buffer, offset, offset + descriptionSize), utf8);
+        offset += descriptionSize;
+
+        int minOracles = Math.toIntExact(readVarInt(buffer, offset));
+        offset += varIntByteSize(minOracles);
+
+        int maxOracles = Math.toIntExact(readVarInt(buffer, offset));
+        offset += varIntByteSize(maxOracles);
+
+        int oraclesQuantity = Math.toIntExact(readVarInt(buffer, offset));
+        offset += varIntByteSize(oraclesQuantity);
+        while(oraclesQuantity-- != 0) {
+            Oracle oracle = Oracle.loadFromSerialized(buffer, offset);
+            oracles.add(oracle);
+            offset += oracle.serializationSize();
+        }
+
+        int backUpOraclesQuantity = Math.toIntExact(readVarInt(buffer, offset));
+        offset += varIntByteSize(backUpOraclesQuantity);
+        while(backUpOraclesQuantity-- != 0) {
+            Oracle oracle = Oracle.loadFromSerialized(buffer, offset);
+            backupOracles.add(oracle);
+            offset += oracle.serializationSize();
+        }
+
+        int playersQuantity = Math.toIntExact(readVarInt(buffer, offset));
+        offset += varIntByteSize(playersQuantity);
+
+        BitcoinPublicKey[] playersKey = new BitcoinPublicKey[playersQuantity];
+        for(int i = 0; i < playersQuantity; i++) {
+            playersKey[i] = BitcoinPublicKey.fromSerialized(buffer, offset);
+            offset += playersKey[i].serializationSize();
+        }
+
+        int participantOraclesQuantity = Math.toIntExact(readVarInt(buffer, offset));
+        offset += varIntByteSize(participantOraclesQuantity);
+
+
+        BitcoinPublicKey[] participantOracles = new BitcoinPublicKey[participantOraclesQuantity];
+        for(int i = 0; i < participantOraclesQuantity; i++) {
+            playersKey[i] = BitcoinPublicKey.fromSerialized(buffer, offset);
+            offset += playersKey[i].serializationSize();
+        }
+
+        long firstPaymentAmount = readVarInt(buffer, offset);
+        offset += varIntByteSize(firstPaymentAmount);
+
+        long oraclePayment = readVarInt(buffer, offset);
+        offset += varIntByteSize(oraclePayment);
+
+        long amount = Math.toIntExact(readVarInt(buffer, offset));
+        offset += varIntByteSize(oraclePayment);
+
+        long oracleInscription = readVarInt(buffer, offset);
+        offset += varIntByteSize(oracleInscription);
+
+        long oraclePenalty = readVarInt(buffer, offset);
+        offset += varIntByteSize(oraclePenalty);
+
+        long fee = readVarInt(buffer, offset);
+        offset += varIntByteSize(fee);
+
+        long timeoutSeconds = readVarInt(buffer, offset);
+
+        Bet bet = new Bet(description, minOracles, maxOracles, oracles, backupOracles, playersKey, firstPaymentAmount,
+                          oraclePayment, amount, oracleInscription, oraclePenalty, fee, TimeUnit.SECONDS,
+                          timeoutSeconds);
+        for(BitcoinPublicKey bitcoinPublicKey : participantOracles)
+            bet.addParticipantOracle(bitcoinPublicKey);
+
+        return bet;
+    }
+
+    static public Bet fromSerialized(byte[] buffer) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+        return fromSerialized(buffer, 0);
     }
 
     public byte[] getHash() throws NoSuchAlgorithmException, IOException {
@@ -207,24 +327,58 @@ public class Bet {
         return maxOracles;
     }
 
-    public TimeUnit getTimeoutUnit() {
-        return timeoutUnit;
-    }
-
-    public long getTimeoutVal() {
-        return timeoutVal;
-    }
-
-    public void setTimeoutVal(long timeoutVal) {
-        this.timeoutVal = timeoutVal;
-    }
-
     public long getFirstPaymentAmount() {
         return firstPaymentAmount;
     }
 
     public long getOraclePayment() {
         return oraclePayment;
+    }
+
+    public long getTimeoutSeconds() {
+        return timeoutSeconds;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Bet bet = (Bet) o;
+
+        if (minOracles != bet.minOracles) return false;
+        if (maxOracles != bet.maxOracles) return false;
+        if (firstPaymentAmount != bet.firstPaymentAmount) return false;
+        if (oraclePayment != bet.oraclePayment) return false;
+        if (amount != bet.amount) return false;
+        if (oracleInscription != bet.oracleInscription) return false;
+        if (oraclePenalty != bet.oraclePenalty) return false;
+        if (fee != bet.fee) return false;
+        if (timeoutSeconds != bet.timeoutSeconds) return false;
+        if (!description.equals(bet.description)) return false;
+        if (!oracles.equals(bet.oracles)) return false;
+        if (!backupOracles.equals(bet.backupOracles)) return false;
+        if (!participantOracles.equals(bet.participantOracles)) return false;
+        return Arrays.equals(playersPubKey, bet.playersPubKey);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = description.hashCode();
+        result = 31 * result + minOracles;
+        result = 31 * result + maxOracles;
+        result = 31 * result + oracles.hashCode();
+        result = 31 * result + backupOracles.hashCode();
+        result = 31 * result + participantOracles.hashCode();
+        result = 31 * result + Arrays.hashCode(playersPubKey);
+        result = 31 * result + (int) (firstPaymentAmount ^ (firstPaymentAmount >>> 32));
+        result = 31 * result + (int) (oraclePayment ^ (oraclePayment >>> 32));
+        result = 31 * result + (int) (amount ^ (amount >>> 32));
+        result = 31 * result + (int) (oracleInscription ^ (oracleInscription >>> 32));
+        result = 31 * result + (int) (oraclePenalty ^ (oraclePenalty >>> 32));
+        result = 31 * result + (int) (fee ^ (fee >>> 32));
+        result = 31 * result + (int) (timeoutSeconds ^ (timeoutSeconds >>> 32));
+        return result;
     }
 }
 

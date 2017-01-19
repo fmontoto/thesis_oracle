@@ -40,9 +40,32 @@ public class Oracle {
         return mergeArrays(serializeVarInt(addressBytes.length), addressBytes);
     }
 
-    static Oracle loadFromSerialized(byte[] buffer, int offset) {
+    public int serializationSize() {
+        return serialize().length;
+    }
+
+    static public Oracle loadFromSerialized(byte[] buffer, int offset) {
         long size = readVarInt(buffer, offset);
         offset += varIntByteSize(size);
         return new Oracle(new String(Arrays.copyOfRange(buffer, offset, (int) (offset + size)), utf8));
+    }
+
+    static public Oracle loadFromSerialized(byte[] buffer) {
+        return loadFromSerialized(buffer, 0);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Oracle oracle = (Oracle) o;
+
+        return address != null ? address.equals(oracle.address) : oracle.address == null;
+    }
+
+    @Override
+    public int hashCode() {
+        return address != null ? address.hashCode() : 0;
     }
 }

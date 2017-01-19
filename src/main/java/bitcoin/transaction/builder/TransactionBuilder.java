@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
+import java.sql.Time;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -147,10 +148,10 @@ public class TransactionBuilder {
 
         Output prizePlayerA = OutputBuilder.oneSignatureOnTimeoutOrMultiSig(bet.getPlayersPubKey()[0].getKey(),
                                                               bet.getPlayersPubKey()[1].getKey(),
-                                                              bet.getAmount(), bet.getTimeoutUnit(), bet.getTimeoutVal());
+                                                              bet.getAmount(), TimeUnit.SECONDS, bet.getTimeoutSeconds());
         Output prizePlayerB = OutputBuilder.oneSignatureOnTimeoutOrMultiSig(bet.getPlayersPubKey()[1].getKey(),
                                                               bet.getPlayersPubKey()[0].getKey(),
-                                                              bet.getAmount(), bet.getTimeoutUnit(), bet.getTimeoutVal());
+                                                              bet.getAmount(), TimeUnit.SECONDS, bet.getTimeoutSeconds());
         outputs.add(prizePlayerA);
         outputs.add(prizePlayerB);
         int numOracles = bet.getMaxOracles();

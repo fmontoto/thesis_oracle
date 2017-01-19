@@ -42,7 +42,7 @@ public class ProtocolTxsTest {
         AbsoluteOutput unspentOutput = getUnspentOutput();
         String srcAddress = unspentOutput.getPayAddress();
         Transaction inscriptionTx = TransactionBuilder.inscribeAsOracle(unspentOutput, bitcoindClient.isTestnet());
-        inscriptionTx.sign(BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(srcAddress)));
+//        inscriptionTx.sign(BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(srcAddress)));
         throw new NotImplementedException();
     }
 

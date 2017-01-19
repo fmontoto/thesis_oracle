@@ -39,4 +39,19 @@ public class BitcoinPublicKeyTest {
         assertEquals("mrbFF4kC3Mci2KqHLzPTNhj7QXoi2vyxfk", bitcoinPublicKey.toWIF());
     }
 
+    @Test
+    public void serializeTest() throws Exception {
+        String publicKeyHex = "030881eb43770203716888f131eaba4d9b35446d60cebafebcb9908ffdb050b006";
+        BitcoinPublicKey bitcoinPublicKey = new BitcoinPublicKey(publicKeyHex, true, true);
+
+        BitcoinPublicKey loaded = BitcoinPublicKey.fromSerialized(bitcoinPublicKey.serialize());
+        assertEquals(bitcoinPublicKey.toWIF(), loaded.toWIF());
+
+        bitcoinPublicKey = new BitcoinPublicKey(publicKeyHex, false, false);
+        assertNotEquals(bitcoinPublicKey.toWIF(), loaded.toWIF());
+        loaded = BitcoinPublicKey.fromSerialized(bitcoinPublicKey.serialize());
+        assertEquals(bitcoinPublicKey.toWIF(), loaded.toWIF());
+
+    }
+
 }

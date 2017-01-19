@@ -16,8 +16,12 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
+import static bitcoin.transaction.Utils.readVarInt;
+import static bitcoin.transaction.Utils.serializeVarInt;
+import static bitcoin.transaction.Utils.varIntByteSize;
 import static core.Utils.hexToByteArray;
 import static bitcoin.key.Utils.*;
+import static core.Utils.mergeArrays;
 
 /**
  * Created by fmontoto on 09-11-16.
@@ -61,12 +65,16 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
         this.compressed = compressed;
     }
 
+//    public BitcoinPublicKey(byte[] publicKeyBytes, boolean testnet) {
+//
+//    }
+
     public BitcoinPublicKey(String publicKeyHex, boolean compressed, boolean testnet) throws InvalidKeySpecException, NoSuchAlgorithmException, IOException {
         this(hexToByteArray(publicKeyHex), compressed, testnet);
     }
 
     public BitcoinPublicKey(byte[] key, boolean testnet) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
-        this(key, key[0] != 0x04, testnet);
+        this(key, key.length == 33, testnet);
     }
 
     public BitcoinPublicKey(BigInteger x, BigInteger y, boolean compressed, boolean testnet) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
@@ -164,6 +172,29 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
         return getKey(compressed);
     }
 
+    public byte[] serialize() throws IOException, NoSuchAlgorithmException {
+        byte isTestnet = testnet ? (byte) 0x01 : (byte) 0x00;
+        return mergeArrays( new byte[] {isTestnet}
+                          , serializeVarInt(getKey().length)
+                          , getKey());
+    }
+
+    public int serializationSize() throws IOException, NoSuchAlgorithmException {
+        return serialize().length;
+    }
+
+    static public BitcoinPublicKey fromSerialized(byte[] buffer, int offset) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+        boolean testnet = buffer[offset] == (byte) 0x01;
+        int length = (int)readVarInt(buffer, offset +1);
+        int ini = 1 + varIntByteSize(length);
+        byte[] key = Arrays.copyOfRange(buffer, offset + ini, offset + ini + length);
+        return new BitcoinPublicKey(key, testnet);
+    }
+
+    static public BitcoinPublicKey fromSerialized(byte[] buffer) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+        return fromSerialized(buffer,  0);
+    }
+
     @Override
     public ECPoint getW() {
         return ecPublicKey.getW();
@@ -197,5 +228,25 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
     @Override
     public ECParameterSpec getParams() {
         return ecPublicKey.getParams();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        BitcoinPublicKey that = (BitcoinPublicKey) o;
+
+        if (compressed != that.compressed) return false;
+        if (testnet != that.testnet) return false;
+        return ecPublicKey != null ? ecPublicKey.equals(that.ecPublicKey) : that.ecPublicKey == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = ecPublicKey != null ? ecPublicKey.hashCode() : 0;
+        result = 31 * result + (compressed ? 1 : 0);
+        result = 31 * result + (testnet ? 1 : 0);
+        return result;
     }
 }
