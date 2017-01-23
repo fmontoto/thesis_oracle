@@ -196,7 +196,7 @@ public class Utils {
                 else {
                     int bytes_to_push = 0;
                     if(b == 76) {
-                        bytes_to_push = script[idx + 1];
+                        bytes_to_push = (0xff) & script[idx + 1];
                         idx += 2;
                     }
                     else if(b == 77) {

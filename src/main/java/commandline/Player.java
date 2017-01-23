@@ -34,6 +34,7 @@ import java.util.logging.Logger;
 import static bitcoin.Utils.doubleSHA256;
 import static bitcoin.Utils.getOracleList;
 import static bitcoin.key.Utils.r160SHA256Hash;
+import static communication.MultipartyComputation.choseRandomlyFromList;
 import static communication.Utils.checkDataConsistencyOtherParty;
 
 /**
@@ -335,6 +336,7 @@ public class Player {
 //                                                                "Max oracles"));
 
         List<String> parameters = new ArrayList<>(Arrays.asList());
+        // This is for testing purposes.
         results.put("Description", "nada");
         results.put("Min oracles", "3");
         results.put("Max oracles", "9");
@@ -425,9 +427,7 @@ public class Player {
     }
 
     private List<String> choseOraclesRandomly(int neededOracles, SecureChannelManager channelManager) throws IOException, ClassNotFoundException, CommitValueException, InterruptedException, TimeoutException, CommunicationException, NoSuchAlgorithmException, ConsistencyException {
-        List<String> oracles = new ArrayList<>();
         SecureChannel oracleNegotiationChannel = null, channel = null;
-        CTOutput result;
         List<String> oraclesList = buildOracleList(neededOracles, channelManager);
         byte[] reducedList = oraclesList.stream().reduce("", (a, b) -> a + b).getBytes(utf8);
         channel = channelManager.subscribe("checkListConsistency");
@@ -439,11 +439,7 @@ public class Player {
         try{
             oracleNegotiationChannel = channelManager.subscribe("randomOracleNegotiation");
             oracleNegotiationChannel.waitUntilConnected(15, TimeUnit.SECONDS);
-            if(amIPartyOne())
-                ctStringParty = new CTStringParty(new CTStringPartyOne(oracleNegotiationChannel, neededOracles));
-             else
-                ctStringParty = new CTStringParty(new CTStringPartyTwo(oracleNegotiationChannel, neededOracles));
-            result = ctStringParty.toss();
+            return choseRandomlyFromList(oraclesList, neededOracles, oracleNegotiationChannel, amIPartyOne());
 
         } finally {
             if(oracleNegotiationChannel != null) {
@@ -451,8 +447,6 @@ public class Player {
                 oracleNegotiationChannel.close();
             }
         }
-        System.out.println(result.getOutput());
-        return oracles;
     }
 
     public void run() throws InterruptedException, ExecutionException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException, InvalidKeySpecException, CommunicationException, ConsistencyException {

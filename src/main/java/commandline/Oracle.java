@@ -6,8 +6,10 @@ import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.*;
 import bitcoin.transaction.builder.TransactionBuilder;
+import core.BetTxForm;
 import core.Constants;
 import org.apache.commons.cli.*;
+import org.omg.CORBA.DynAnyPackage.Invalid;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
@@ -103,7 +105,6 @@ public class Oracle {
         List<AbsoluteOutput> availableOutputs = unspent.stream().filter(
                 u -> u.isPayToKey()).collect(toList());
 
-
         Set<String> txFormAddresses = new HashSet<String>(availableOutputs.stream().map(
                 o -> o.getPayAddress()).collect(toList()));
         String []addrList = new String[txFormAddresses.size()];
@@ -137,7 +138,6 @@ public class Oracle {
 
         addrTxForm = byteArrayToHex(WIFToTxAddress(address));
 
-
         unspentOutputs = availableOutputs.stream().filter(
                 u -> u.getPayAddress().equals(addrTxForm)).collect(toList());
     }
@@ -146,6 +146,38 @@ public class Oracle {
         Transaction inscriptionTx = TransactionBuilder.inscribeAsOracle(unspentOutputs.get(0), bitcoindClient.isTestnet());
         inscriptionTx.sign(BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(address)));
         return bitcoindClient.sendTransaction(inscriptionTx);
+    }
+
+    private void notifierInputEvent(String msg) {
+    }
+
+    private void userInputEvent(String msg) {
+    }
+
+    private void runLoop(BlockingQueue<Map.Entry<String, String>> commQueue) {
+        Map.Entry<String, String> input;
+        String from, msg;
+        Stack<Map.Entry> buffer = new Stack<>();
+        boolean waitingUserInput = false;
+        while(true) {
+            if(!waitingUserInput && !buffer.isEmpty())
+                input = buffer.pop();
+            else
+                input = commQueue.poll();
+
+            from = input.getKey();
+            msg = input.getKey();
+            if(from.equals("user")) {
+                userInputEvent(msg);
+            }
+            else {
+                if(waitingUserInput)
+                    buffer.push(input);
+                else
+                    notifierInputEvent(msg);
+            }
+
+        }
     }
 
     public void run() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException, ParseTransactionException {
@@ -161,7 +193,11 @@ public class Oracle {
             }
         }
 
-        new UserInputReader(System.in, commQueue).start();
+        UserInputReader userInputReader = new UserInputReader(System.in, commQueue);
+        userInputReader.start();
+
+        runLoop(commQueue);
+
 
     }
 }
@@ -176,7 +212,7 @@ class UserInputReader extends Thread {
         this.in = in;
         scanner = new Scanner(in);
         this.commQueue = commQueue;
-        commPrefix = "User";
+        commPrefix = "user";
         setDaemon(true);
     }
 
@@ -194,24 +230,30 @@ class BlockChainDaemon extends Thread{
     private int fromBlock;
     private final BlockingQueue<Map.Entry<String, String>> commQueue;
     private String commPrefix = "blockchain";
+    private Set<String> wifOracleAddresses;
 
 
-    public BlockChainDaemon(BitcoindClient client, BlockingQueue<Map.Entry<String, String>> commQueue) {
+    public BlockChainDaemon(BitcoindClient client, BlockingQueue<Map.Entry<String, String>> commQueue,
+                            Set<String> wifOracleAddresses) {
         fromBlock = 0;
         this.commQueue = commQueue;
         this.client = client;
+        this.wifOracleAddresses = wifOracleAddresses;
         setDaemon(true);
     }
 
-    private BlockChainDaemon(BitcoindClient client, BlockingQueue<Map.Entry<String, String>> commQueue, String readFromBlock) {
+    private BlockChainDaemon(BitcoindClient client, BlockingQueue<Map.Entry<String, String>> commQueue,
+                             Set<String> wifOracleAddresses, String readFromBlock) {
         fromBlock = client.getBlock(readFromBlock).getHeight();
         this.client = client;
         this.commQueue = commQueue;
+        this.wifOracleAddresses = wifOracleAddresses;
         setDaemon(true);
     }
 
-    public BlockChainDaemon(BitcoindClient client, BlockingQueue<Map.Entry<String, String>> commQueue, int readBlocksAgo) {
-        this(client, commQueue, client.getBlockHash(client.getBlockCount() - readBlocksAgo));
+    public BlockChainDaemon(BitcoindClient client, BlockingQueue<Map.Entry<String, String>> commQueue,
+                            Set<String> wifOracleAddresses, int readBlocksAgo) {
+        this(client, commQueue, wifOracleAddresses, client.getBlockHash(client.getBlockCount() - readBlocksAgo));
     }
 
     synchronized private void sendNotification(String []strList) {
@@ -233,13 +275,28 @@ class BlockChainDaemon extends Thread{
         }
         ArrayList<Output> outputs = transaction.getOutputs();
         String expectedDescription = byteArrayToHex(Constants.BET_DESCRIPTION);
-        for(Output o: outputs) {
+        for(int i = 0; i < outputs.size(); i++) {
+            Output o = outputs.get(i);
             if(o.isPayToKey() || o.isPayToScript())
                 continue;
             List<String> parsedScript = o.getParsedScript();
             if(parsedScript.size() == 3 && parsedScript.get(0).equals("OP_RETURN")) {
-                if(parsedScript.get(2).equals(expectedDescription)) {
-                    ;
+                if(parsedScript.get(3).equals(expectedDescription)) {
+                    try {
+                        BetTxForm betTxForm = BetTxForm.fromSerialized(hexToByteArray(parsedScript.get(3)));
+                        Set<String> presentOracles = betTxForm.getPresentOracles(wifOracleAddresses);
+                        if(!presentOracles.isEmpty()) {
+                            for(String address : presentOracles) {
+                                // Check if the bet is available and if I'm not already participating.
+                                commQueue.add(new AbstractMap.SimpleImmutableEntry<>(commPrefix, "bet:" + txId));                            }
+                        }
+
+                    } catch (NoSuchAlgorithmException | IOException e) {
+                        e.printStackTrace();
+                    } catch (InvalidParameterException e) {
+                        continue;
+                    }
+                    ;// TODO parse the BET_DESCRIPTION
                 }
             }
         }

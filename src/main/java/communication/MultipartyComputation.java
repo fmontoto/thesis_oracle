@@ -9,6 +9,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import java.io.IOException;
 import java.security.InvalidParameterException;
 import java.util.InvalidPropertiesFormatException;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -27,31 +28,63 @@ public class MultipartyComputation {
             result <<= 8;
             result |= (bytes[i] & 0xFF);
         }
-        assert result > 0;
+
+        assert result >= 0;
         return result;
     }
 
-    private static <T> List<T> choseRandomlyFromListStandard(List<T> list, int neededElements, Channel channel, boolean partyOne) throws IOException, ClassNotFoundException, CommitValueException {
-        CTStringParty ctStringParty;
-        int bitsToGet = log(list.size(), 2);
-        bitsToGet = bitsToGet < 8 ? 8 : bitsToGet;
-
-        if(partyOne)
-            ctStringParty = new CTStringParty(new CTStringPartyOne(channel, bitsToGet * 8));
-        else
-            ctStringParty = new CTStringParty(new CTStringPartyTwo(channel, bitsToGet * 8));
-
-        while(neededElements > 0) {
-            long gotNumber = bytesToLong((byte[])ctStringParty.toss().getOutput());
-            if(gotNumber >= list.size())
-                continue;
-            
-        }
-        throw new NotImplementedException();
+    static private int mask(int numberOfOnes) {
+        return (1 << numberOfOnes) - 1;
     }
 
-    private static <T> List<T> choseRandomlyFromListByRemoving(List<T> list, int neededElements, Channel channel, boolean partyOne) {
-        throw new NotImplementedException();
+    private static <T> List<T> choseRandomlyFromListStandard(List<T> list, int neededElements, Channel channel, boolean partyOne) throws IOException, ClassNotFoundException, CommitValueException {
+        //TODO there some duplicated lines with choseRandomlyFromListByRemoving, refactor into choseRandomlyFromList
+        CTStringParty ctStringParty;
+        int bitsToGet = log(list.size(), 2);
+        int bytesToGet = (int) Math.ceil(bitsToGet / 8.0);
+        List<T> copyList = new LinkedList<T>(list);
+        List<T> retList = new LinkedList<T>();
+
+        if(partyOne)
+            ctStringParty = new CTStringParty(new CTStringPartyOne(channel, bytesToGet * 8));
+        else
+            ctStringParty = new CTStringParty(new CTStringPartyTwo(channel, bytesToGet * 8));
+
+        while(neededElements > 0) {
+            byte[] results = (byte[]) ctStringParty.toss().getOutput();
+            if(results.length == 1 && bitsToGet < 8) // This will speed up most cases.
+                results[0] = (byte) (results[0] & mask(bitsToGet));
+            long gotNumber = bytesToLong(results);
+            if(gotNumber >= copyList.size())
+                continue;
+            retList.add(copyList.remove(Math.toIntExact(gotNumber)));
+            neededElements--;
+            // Is this method takes too long an optimization could be to start again the CTStringPartyxxx
+            // objects with the amount of bits to calculate updated with the current list size.
+        }
+        return retList;
+    }
+
+    private static <T> void choseRandomlyFromListByRemoving(List<T> list, int elementsToRemove, Channel channel, boolean partyOne) throws IOException, ClassNotFoundException, CommitValueException {
+        CTStringParty ctStringParty;
+        int bitsToGet = log(list.size(), 2);
+        int bytesToGet = (int) Math.ceil(bitsToGet / 8.0);
+        assert bytesToGet > 0;
+        if(partyOne)
+            ctStringParty = new CTStringParty(new CTStringPartyOne(channel, bytesToGet * 8));
+        else
+            ctStringParty = new CTStringParty(new CTStringPartyTwo(channel, bytesToGet * 8));
+
+        while(elementsToRemove > 0) {
+            byte[] results = (byte[]) ctStringParty.toss().getOutput();
+            if(results.length == 1 && bitsToGet < 8) // This will speed up most cases.
+                results[0] = (byte) (results[0] & mask(bitsToGet));
+            long gotNumber = bytesToLong(results);
+            if(gotNumber >= list.size())
+                continue;
+            list.remove(Math.toIntExact(gotNumber));
+            elementsToRemove--;
+        }
     }
 
 
@@ -61,42 +94,12 @@ public class MultipartyComputation {
         if(list.size() <= neededElements)
             throw new InvalidParameterException(
                     "Can not get " + neededElements + " elements from a list of size " + list.size());
-
+        List<T> retList;
         if(neededElements < list.size() - neededElements)
             return choseRandomlyFromListStandard(list, neededElements, channel, partyOne);
         else
-            return choseRandomlyFromListByRemoving(list, neededElements, channel, partyOne);
+            retList = new LinkedList<T>(list);
+            choseRandomlyFromListByRemoving(retList, list.size() - neededElements, channel, partyOne);
+            return retList;
     }
-
-    private List<String> choseOraclesRandomly(int neededOracles, SecureChannelManager channelManager) throws IOException, ClassNotFoundException, CommitValueException, InterruptedException, TimeoutException, CommunicationException, NoSuchAlgorithmException, ConsistencyException {
-        List<String> oracles = new ArrayList<>();
-        SecureChannel oracleNegotiationChannel = null, channel = null;
-        CTOutput result;
-        List<String> oraclesList = buildOracleList(neededOracles, channelManager);
-        byte[] reducedList = oraclesList.stream().reduce("", (a, b) -> a + b).getBytes(utf8);
-        channel = channelManager.subscribe("checkListConsistency");
-        if(!checkDataConsistencyOtherParty(channel, r160SHA256Hash(reducedList), 25, TimeUnit.SECONDS))
-            throw new ConsistencyException("Both parties have different lists of oracles.");
-
-        List<String> chosenOracles = new LinkedList<>();
-        CTStringParty ctStringParty;
-        try{
-            oracleNegotiationChannel = channelManager.subscribe("randomOracleNegotiation");
-            oracleNegotiationChannel.waitUntilConnected(15, TimeUnit.SECONDS);
-            if(amIPartyOne())
-                ctStringParty = new CTStringParty(new CTStringPartyOne(oracleNegotiationChannel, neededOracles));
-            else
-                ctStringParty = new CTStringParty(new CTStringPartyTwo(oracleNegotiationChannel, neededOracles));
-            result = ctStringParty.toss();
-
-        } finally {
-            if(oracleNegotiationChannel != null) {
-                channelManager.unsubscribe(oracleNegotiationChannel);
-                oracleNegotiationChannel.close();
-            }
-        }
-        System.out.println(result.getOutput());
-        return oracles;
-    }
-
 }

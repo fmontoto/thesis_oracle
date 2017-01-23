@@ -3,7 +3,6 @@ package communication;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMsg;
 
-import java.io.InvalidClassException;
 import java.security.InvalidParameterException;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,7 +17,8 @@ import java.util.logging.Logger;
  */
 public class SecureChannelManager extends Thread {
     private static final Logger LOGGER = Logger.getLogger(SecureChannelManager.class.getName());
-    private static int instanceCounter = 0;
+    private static int classInstanceCounter = 0;
+
     private final String inprocAddress;
     private final ZMQ.Context zctx;
     private boolean socketsOpen;
@@ -30,6 +30,7 @@ public class SecureChannelManager extends Thread {
 
     private ZMQ.Socket closeSocket;
     private ZMQ.Socket signalTocloseSocket;
+    private int instanceCounter;
 
     private Map<String, Integer> subscriber = new HashMap<>();
     private boolean closed;
@@ -40,7 +41,7 @@ public class SecureChannelManager extends Thread {
         this.out = out;
         this.zctx = zctx;
 
-        instanceCounter++;
+        instanceCounter = classInstanceCounter++;
         inprocAddress = "inproc://scm" + instanceCounter;
         closed = false;
         socketsOpen = false;
@@ -59,7 +60,7 @@ public class SecureChannelManager extends Thread {
         fin.setLinger(100);
 
         closeSocket = zctx.socket(ZMQ.PAIR);
-        closeSocket.bind("inproc://closeSocket" + instanceCounter);
+        closeSocket.bind("inproc://SecureChannelManagerCloseSocket" + instanceCounter);
 
         fout.bind(inprocAddress + "out");
         fin.bind(inprocAddress + "in");
@@ -158,7 +159,7 @@ public class SecureChannelManager extends Thread {
             return;
         if(socketsOpen) {
             signalTocloseSocket = zctx.socket(ZMQ.PAIR);
-            signalTocloseSocket.connect("inproc://closeSocket" + instanceCounter);
+            signalTocloseSocket.connect("inproc://SecureChannelManagerCloseSocket" + instanceCounter);
             signalTocloseSocket.send("Close!");
             signalTocloseSocket.recv();
             signalTocloseSocket.close();

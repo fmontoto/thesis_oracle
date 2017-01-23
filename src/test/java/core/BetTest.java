@@ -28,6 +28,7 @@ public class BetTest {
     BitcoinPublicKey[] playersPubKey;
     long firstPaymentAmount, oraclePayment, amount, oracleInscription, oraclePenalty, fee, timeoutSeconds;
     String[] oraclesAddress;
+    Channel channel;
 
     @Before
     public void setUp() throws InvalidKeySpecException, NoSuchAlgorithmException, IOException {
@@ -49,6 +50,8 @@ public class BetTest {
         playersPubKey[1] = new BitcoinPublicKey("0450863AD64A87AE8A2FE83C1AF1A8403CB53F53E486D8511DAD8A04887E5B23522CD470243453A299FA9E77237716103ABC11A1DF38855ED6F2EE187E9C582BA6",
                 false, true);
 
+        channel = new ZeroMQChannel("localhost:3424", "10.17.5.12:3324");
+
         firstPaymentAmount = 2;
         oraclePayment = 3;
         amount = 4;
@@ -58,8 +61,10 @@ public class BetTest {
         timeoutSeconds = 1000;
 
 
-        b1 = new Bet(description, minOracles, maxOracles, oracles, backUpOracles, playersPubKey, firstPaymentAmount,
-                oraclePayment, amount, oracleInscription, oraclePenalty, fee, TimeUnit.SECONDS, timeoutSeconds);
+        Bet.Amounts amounts = new Bet.Amounts(firstPaymentAmount, oraclePayment, amount, oracleInscription,
+                oraclePenalty, fee);
+        b1 = new Bet(description, minOracles, maxOracles, oracles, backUpOracles, playersPubKey, amounts,
+                TimeUnit.SECONDS, timeoutSeconds, channel);
     }
 
     @Test

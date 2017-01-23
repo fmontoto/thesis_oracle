@@ -34,7 +34,13 @@ public class Output {
     public Output(long value, byte[] script){
         this.value = value;
         this.script = script;
-        parseScript();
+        try {
+            parseScript();
+        } catch (IndexOutOfBoundsException e) {
+            parsedScript = new LinkedList<>(Arrays.asList(new String[] {"ERROR. Non standard"}));
+            isPayToKey = false;
+            isPayToScript = false;
+        }
     }
 
     public Output(byte[] rawOutput, int offset) {
@@ -136,4 +142,31 @@ public class Output {
         return parsedScript;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Output output = (Output) o;
+
+        if (value != output.value) return false;
+        if (isPayToKey != output.isPayToKey) return false;
+        if (isPayToScript != output.isPayToScript) return false;
+        if (!Arrays.equals(script, output.script)) return false;
+        return parsedScript != null ? parsedScript.equals(output.parsedScript) : output.parsedScript == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = (int) (value ^ (value >>> 32));
+        result = 31 * result + Arrays.hashCode(script);
+        result = 31 * result + (isPayToKey ? 1 : 0);
+        result = 31 * result + (isPayToScript ? 1 : 0);
+        result = 31 * result + (parsedScript != null ? parsedScript.hashCode() : 0);
+        return result;
+    }
+
+    public void setValue(long value) {
+        this.value = value;
+    }
 }

@@ -35,7 +35,7 @@ public class Input {
 
     public Input(int sequenceNo, int prevIdx, byte[] prevTxHash, byte[] script) {
         this(prevIdx, prevTxHash, script);
-        this.sequenceNo = sequenceNo;
+        this.sequenceNo = 0xffffffffL & sequenceNo;
     }
 
 
@@ -98,6 +98,28 @@ public class Input {
 
     public String hexify() {
         return byteArrayToHex(serialize());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Input input = (Input) o;
+
+        if (prevIdx != input.prevIdx) return false;
+        if (sequenceNo != input.sequenceNo) return false;
+        if (!Arrays.equals(prevTxHash, input.prevTxHash)) return false;
+        return Arrays.equals(script, input.script);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Arrays.hashCode(prevTxHash);
+        result = 31 * result + (int) (prevIdx ^ (prevIdx >>> 32));
+        result = 31 * result + Arrays.hashCode(script);
+        result = 31 * result + (int) (sequenceNo ^ (sequenceNo >>> 32));
+        return result;
     }
 
     public Map<String, String> toDict() {

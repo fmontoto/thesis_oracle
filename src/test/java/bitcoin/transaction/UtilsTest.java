@@ -49,6 +49,8 @@ public class UtilsTest {
         assertEquals(2, readUint32(new byte[]{0x02, 0x00, 0x00, 0x00}));
         assertEquals(2, readUint32(new byte[]{0x00, 0x02, 0x00, 0x00, 0x00}, 1));
         assertEquals(1234, readUint32(new byte[]{(byte)0xd2, 0x04, 0x00, 0x00}, 0));
+
+        assertEquals(0xffffffffl, readUint32(new byte[] {(byte)0xff, (byte)0xff, (byte)0xff, (byte)0xff}, 0));
     }
 
     @Test

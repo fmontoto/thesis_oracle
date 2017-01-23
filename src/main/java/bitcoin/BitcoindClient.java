@@ -53,6 +53,10 @@ public class BitcoindClient {
         return new Transaction(rawTransactionHex);
     }
 
+    public Transaction getTransaction(byte[] txHash) throws ParseTransactionException {
+        return getTransaction(byteArrayToHex(txHash));
+    }
+
 //    public Transaction getTransaction(Input inTx) {
 //        return getTransaction(inTx.getPrevTxHash());
 //    }
@@ -223,4 +227,7 @@ public class BitcoindClient {
         return castBlock(bitcoindRpcClient.getBlock(blockHeight));
     }
 
+    public String getAccountAddress(String account) {
+        return bitcoindRpcClient.getAccountAddress(account);
+    }
 }

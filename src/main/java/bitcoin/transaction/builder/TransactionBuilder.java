@@ -1,18 +1,21 @@
 package bitcoin.transaction.builder;
 
+import bitcoin.BitcoindClient;
+import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
-import bitcoin.transaction.AbsoluteOutput;
-import bitcoin.transaction.Input;
-import bitcoin.transaction.Output;
-import bitcoin.transaction.Transaction;
+import bitcoin.transaction.*;
 import core.Bet;
 import core.Constants;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.security.InvalidKeyException;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
+import java.security.spec.InvalidKeySpecException;
 import java.sql.Time;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -23,6 +26,7 @@ import static bitcoin.transaction.builder.OutputBuilder.createMultisigOutput;
 import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
+import static core.Utils.mergeArrays;
 
 /**
  * Builds some useful transactions used in the protocol.
@@ -120,26 +124,27 @@ public class TransactionBuilder {
      */
     static public Transaction betPromise(List<AbsoluteOutput> srcOutputs, String wifChangeAddress,
                                          Bet bet, boolean iAmPlayerOne) throws IOException, NoSuchAlgorithmException {
-        // TODO check the numbers
-        final long fixedBytesNeeded = 90;
+        // TODO this values are random... check them
+        final long fixedBytesNeeded = 190;
         final long bytesNeededByOracle = 43;
+        // TODO end
         final long estimatedTotalBytesNeededInTheBlockChain = fixedBytesNeeded + bet.getMaxOracles() * bytesNeededByOracle;
         final int locktime = 0;
         final int version = 1;
         BitcoinPublicKey[] playersPubKey = bet.getPlayersPubKey();
         List<Input> inputs = new LinkedList<>();
         List<Output> outputs = new LinkedList<>();
-        final long minimumAmount = estimatedTotalBytesNeededInTheBlockChain + bet.getOraclePayment() * bet.getMaxOracles();
+        final long minimumAmount = estimatedTotalBytesNeededInTheBlockChain * bet.getFee() + bet.getOraclePayment() * bet.getMaxOracles();
 
         if(playersPubKey.length != 2)
             throw new NotImplementedException();
-        if(bet.getAmount() < minimumAmount)
-            throw new InvalidParameterException("The bet amount is too small, you need a bigger amount, at least " + minimumAmount);
+        if(bet.getAmount() * 2 < minimumAmount) // As there are two participants, each one does contributes.
+            throw new InvalidParameterException("The bet amount is too small, you need a bigger amount, at least " + Math.ceil(minimumAmount / 2.0));
 
         long change = 0;
         for(AbsoluteOutput absOutput : srcOutputs)
             change += absOutput.getValue();
-        change = change - (bet.getAmount() + bet.getFirstPaymentAmount() * bet.getMaxOracles());
+        change = change - (bet.getAmount() + (bet.getFirstPaymentAmount() * bet.getMaxOracles()) / 2);
         if(change < 0)
             throw new InvalidParameterException("Not enough money to start the bet. At least " + (-change) + " more needed.");
 
@@ -164,10 +169,90 @@ public class TransactionBuilder {
             outputs.add(createMultisigOutput(bet.getFirstPaymentAmount(), playersPubKey, playersPubKey.length));
         }
 
-        if(change != 0)
-            outputs.add(createPayToPubKeyOutput(change, wifChangeAddress));
+        Transaction tx = buildTx(version, locktime, inputs, outputs);
 
-        return buildTx(version, locktime, inputs, outputs);
+        // 34 is approximated size of the change output.
+        long fees = ((tx.serialize().length + 34) * bet.getFee()) / 2;
+        if(change < fees - 34 * bet.getFee())
+            throw new InvalidParameterException("Not enough money from inputs to pay the tx fees");
+
+        if(change - fees > 0)
+            tx.getOutputs().add(createPayToPubKeyOutput(change - fees, wifChangeAddress));
+
+        return tx;
+    }
+
+    static public void updateBetPromise(List<AbsoluteOutput> srcOutputs, String wifChangeAddress,
+                                               Bet bet, boolean iAmPlayerOne, Transaction tx) throws IOException, NoSuchAlgorithmException {
+
+        long change = 0;
+        int inputs = tx.getInputs().size();
+        for(AbsoluteOutput ao: srcOutputs)
+            change += ao.getValue();
+
+        change = change - (bet.getAmount() + bet.getFirstPaymentAmount() * bet.getMaxOracles());
+        if(change < 0)
+            throw new InvalidParameterException("Not enough money to start the bet. At least " + (-change) + " more needed.");
+
+        for(AbsoluteOutput srcOutput : srcOutputs)
+            tx.getInputs().add(InputBuilder.payToPublicKeyHashCreateInput(srcOutput));
+
+        long fees = (tx.serialize().length + 34)* bet.getFee();
+        if(change < fees - 34 * bet.getFee())
+            throw new InvalidParameterException("Not enough money from inputs to pay the tx fees");
+
+        if(change - fees > 0)
+            tx.getOutputs().add(createPayToPubKeyOutput(change - fees, wifChangeAddress));
+    }
+
+    static public void checkBetPromiseAndSign(
+            BitcoindClient client, Bet agreedBet, String wifChangeAddress, Transaction myIncompletedTx,
+            Transaction completedTx, boolean allowModification) throws IOException, NoSuchAlgorithmException,
+                                                                       ParseTransactionException,
+                                                                       InvalidKeySpecException,
+                                                                       SignatureException, InvalidKeyException {
+
+        long expectedFees = completedTx.serialize().length * agreedBet.getFee();
+        long inputTotal = 0;
+        long myInput = 0;
+        HashMap<Output, Integer> srcOutputs = new HashMap<>();
+
+        Set<Input> expectedInputs = new HashSet<>(myIncompletedTx.getInputs());
+        Set<Output> expectedOutputs = new HashSet<>(myIncompletedTx.getOutputs());
+
+        if(!completedTx.getInputs().containsAll(expectedInputs))
+            throw new InvalidParameterException("Not all the expected inputs were found in the tx");
+        if(!completedTx.getOutputs().containsAll(expectedOutputs))
+            throw new InvalidParameterException("Not all the expected outputs were");
+
+        int idx = 0;
+        for(Input i : completedTx.getInputs()) {
+            Output srcOutput = client.getTransaction(i.getPrevTxHash())
+                    .getOutputs().get(Math.toIntExact(i.getPrevIdx()));
+            inputTotal += srcOutput.getValue();
+            if(expectedInputs.contains(i)) {
+                myInput += srcOutput.getValue();
+                srcOutputs.put(srcOutput, idx);
+            }
+            idx++;
+        }
+        long txFees = inputTotal - completedTx.serialize().length * agreedBet.getFee();
+        if(txFees < expectedFees) {
+            long myFees = myInput - completedTx.serialize().length * agreedBet.getFee();
+            if(allowModification && myFees < Math.ceil(txFees / 2.0))
+                if(!reduceChange(completedTx, wifChangeAddress, (long) Math.ceil(txFees / 2.0) - myFees))
+                    throw new InvalidParameterException("Not enough money to pay tx fees.");
+            else
+                throw new InvalidParameterException("Fees (" + txFees + ") are not the expected ones:" + expectedFees);
+        }
+
+
+        List<BitcoinPrivateKey> privateKeys = new LinkedList<>();
+        for(Map.Entry<Output, Integer> entry : srcOutputs.entrySet()) {
+            String WIF = BitcoinPublicKey.txAddressToWIF(hexToByteArray(entry.getKey().getPayAddress()), true);
+            BitcoinPrivateKey privKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(WIF));
+            completedTx.sign(privKey, entry.getValue());
+        }
     }
 
     // Oracle
@@ -218,4 +303,22 @@ public class TransactionBuilder {
         return inscribeAsOracle(absOutput, wifOracleAddress);
     }
 
+    // Utils
+
+    private static boolean reduceChange(Transaction completedTx, String wifChangeAddress, long amountToReduce) throws IOException, NoSuchAlgorithmException {
+        Output changeOutput = null;
+        String changeAddress = byteArrayToHex(BitcoinPublicKey.WIFToTxAddress(wifChangeAddress));
+        for(Output ao: completedTx.getOutputs()) {
+            if (ao.isPayToKey() && ao.getPayAddress().equals(changeAddress)) {
+                changeOutput = ao;
+                break;
+            }
+        }
+
+        if(changeOutput == null || changeOutput.getValue() < amountToReduce)
+            return false;
+
+        changeOutput.setValue(changeOutput.getValue() - amountToReduce);
+        return true;
+    }
 }

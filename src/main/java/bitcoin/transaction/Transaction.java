@@ -89,6 +89,13 @@ public class Transaction {
         this(hexToByteArray(rawTransactionHex));
     }
 
+    public Transaction(Transaction tx) throws ParseTransactionException {
+        // TODO This is not optimal, and the exception is stupid.
+        // But was the fastest way to implement a copy-constructor.
+        this(tx.serialize());
+    }
+
+
     private void v1TxParser (byte[] rawTransaction) {
         long inputs_num, outputs_num;
         int offset = 4;
