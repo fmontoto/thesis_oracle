@@ -6,6 +6,7 @@ import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.builder.TransactionBuilder;
 import core.*;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
@@ -22,24 +23,28 @@ import static org.junit.Assert.*;
  * Created by fmontoto on 16-01-17.
  */
 public class ProtocolTxsTest {
-    boolean testnet = true;
-    BitcoindClient bitcoindClient;
+    static final boolean testnet = true;
+    static BitcoindClient bitcoindClient;
 
-    String[] oraclesAddress;
+    static String[] oraclesAddress;
     List<Oracle> oracles;
     Channel channel;
 
     final String player1Account = "player1";
     final String player2Account = "player2";
+    static final String oracleAccountPrefix = "oracle";
 
 
-    @Before
-    public void setUp() {
+    @BeforeClass
+    static public void oneTimeSetUp() {
         bitcoindClient = new BitcoindClient(testnet);
         oraclesAddress = new String[3];
-        oraclesAddress[0] = "mrV3e1QTX2ZqkNcTreaqYbTKLD7ASFXkVA";
-        oraclesAddress[1] = "mtR9jJM7XMSQwd1cAhLHdkfuxJ2DbLeVNX";
-        oraclesAddress[2] = "mqutBAufXX4qYBnLVrtoNUZXdAJicykkwC";
+        oraclesAddress[0] = bitcoindClient.getAccountAddress(oracleAccountPrefix + 0);
+        oraclesAddress[1] = bitcoindClient.getAccountAddress(oracleAccountPrefix + 1);
+        oraclesAddress[2] = bitcoindClient.getAccountAddress(oracleAccountPrefix + 2);
+    }
+    @Before
+    public void setUp() {
         oracles = new LinkedList<>();
         for(String oracleAddress : oraclesAddress)
             oracles.add(new Oracle(oracleAddress));
@@ -67,7 +72,7 @@ public class ProtocolTxsTest {
         AbsoluteOutput unspentOutput = getUnspentOutput();
         String srcAddress = unspentOutput.getPayAddress();
         String wifSrcAddress = BitcoinPublicKey.txAddressToWIF(hexToByteArray(srcAddress), testnet);
-        Transaction inscriptionTx = TransactionBuilder.inscribeAsOracle(unspentOutput, bitcoindClient.isTestnet());
+        Transaction inscriptionTx = TransactionBuilder.registerAsOracle(unspentOutput, bitcoindClient.isTestnet());
         inscriptionTx.sign(BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(wifSrcAddress)));
         throw new NotImplementedException();
     }
@@ -104,8 +109,7 @@ public class ProtocolTxsTest {
         System.out.println("./bitcoin-cli -testnet signrawtransaction " + byteArrayToHex(betPromise.serialize()) + " \"[]\" \"[]\"");
     }
 
-    @Test
-    public void betPromiseFlowTest() throws Exception {
+    public Transaction betPromiseFlow() throws Exception {
         // Parameters
         int minOracles, maxOracles;
         long firstPaymentAmount, oraclePayment, amount, oracleInscription, oraclePenalty, fee, timeoutSeconds;
@@ -133,22 +137,53 @@ public class ProtocolTxsTest {
 
         // Player 2
         List<AbsoluteOutput> player2SrcOutputs = getUnspentOutputs(player2Account);
-        System.out.println(player2SrcOutputs.size());
         String player2WifChangeAddress = bitcoindClient.getAccountAddress(player2Account);
-        Transaction player2BetPromise = TransactionBuilder.betPromise(player2SrcOutputs, player2WifChangeAddress,
+        Transaction player2ExpectedBet = TransactionBuilder.betPromise(player2SrcOutputs, player2WifChangeAddress,
                                                                       agreedBet, false);
-        TransactionBuilder.updateBetPromise(player2SrcOutputs, player2WifChangeAddress, agreedBet, false,
-                                            sharedTx);
+        if(TransactionBuilder.updateBetPromise(player2SrcOutputs, player2WifChangeAddress, agreedBet, false,
+                                               sharedTx)) {
+            // Remove change Output as it is changed at updateBetPromise
+            player2ExpectedBet.getOutputs().remove(player2ExpectedBet.getOutputs().size() - 1);
+            // Add the real change output.
+            player2ExpectedBet.getOutputs().add(sharedTx.getOutputs().get(sharedTx.getOutputs().size() - 1));
+        }
 
         // Player 1
         TransactionBuilder.checkBetPromiseAndSign(bitcoindClient, agreedBet, player1WifChangeAddress, player1BetPromise,
                                                   sharedTx, true);
         // Player 2
-        TransactionBuilder.checkBetPromiseAndSign(bitcoindClient, agreedBet, player2WifChangeAddress, player2BetPromise,
+        TransactionBuilder.checkBetPromiseAndSign(bitcoindClient, agreedBet, player2WifChangeAddress, player2ExpectedBet,
                                                   sharedTx, false); // Player 1 already signed, do not
                                                                                    // allow modifications.
-https://www.facebook.com/permalink.php?story_fbid=636532193203574&id=524547651068696
-        System.out.println("./bitcoin-cli -testnet signrawtransaction " + sharedTx.hexlify() + " \"[]\" \"[]\"");
+        return sharedTx;
+    }
+
+    @Test
+    public void betPromiseFlowTest() throws Exception {
+        System.out.println("./bitcoin-cli -testnet signrawtransaction " + betPromiseFlow().hexlify() + " \"[]\" \"[]\"");
+    }
+
+    public Transaction oracleBetInscriptionFlow(int numOracle, Bet bet) throws Exception {
+        long oracleInscription = bet.getOracleInscription();
+        long oracleUnduePayment = bet.getOraclePayment();
+        long oraclePenalty = bet.getOraclePayment();
+        Transaction betPromiseTransaction = betPromiseFlow();
+
+        // Oracle
+        // This key must match the address in the betPromise
+        BitcoinPrivateKey oraclePrivKey = BitcoinPrivateKey.fromWIF(
+                bitcoindClient.getPrivateKey(oraclesAddress[numOracle]));
+        List<AbsoluteOutput> oracleSrcOutputs = getUnspentOutputs(oracleAccountPrefix + numOracle);
+        String oracle2WifChangeAddress = bitcoindClient.getAccountAddress(oracleAccountPrefix + numOracle);
+
+        TransactionBuilder.oracleInscription(oracleSrcOutputs, oraclePrivKey, oracle2WifChangeAddress,
+                                             bet, betPromiseTransaction);
+
+        Transaction betPromise = betPromiseFlow();
+        throw new NotImplementedException();
+
+
+
     }
 
 

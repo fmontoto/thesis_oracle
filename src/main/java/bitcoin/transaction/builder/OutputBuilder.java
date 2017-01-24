@@ -2,12 +2,15 @@ package bitcoin.transaction.builder;
 
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.Output;
+import org.omg.CORBA.DynAnyPackage.Invalid;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.Constants.*;
@@ -18,6 +21,65 @@ import static core.Utils.mergeArrays;
  * Created by fmontoto on 17-01-17.
  */
 public class OutputBuilder {
+    static private byte[] timeOutOptionalPath(byte[] always, byte[] noTimeout,
+                                              byte[] onTimeout, TimeUnit timeUnit,
+                                              long timeoutVal) throws IOException {
+        byte[] timeout = TransactionBuilder.createSequenceNumber(timeUnit, timeoutVal);
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+        if(always != null && always.length > 0) {
+            buffer.write(pushDataOpcode(always.length));
+            buffer.write(always);
+        }
+
+        buffer.write(getOpcode("OP_IF"));
+
+        if(noTimeout != null && noTimeout.length > 0) {
+            buffer.write(pushDataOpcode(noTimeout.length));
+            buffer.write(noTimeout);
+        }
+
+        buffer.write(getOpcode("OP_ELSE"));
+
+        if(onTimeout != null && onTimeout.length > 0) {
+            buffer.write(pushDataOpcode(onTimeout.length));
+            buffer.write(onTimeout);
+        }
+
+        buffer.write(pushDataOpcode(timeout.length));
+        buffer.write(timeout);
+        buffer.write(getOpcode("OP_CHECKSEQUENCEVERIFY"));
+        buffer.write(getOpcode("OP_DROP"));
+        buffer.write(getOpcode("OP_ENDIF"));
+        buffer.write(getOpcode("OP_1"));
+
+        return buffer.toByteArray();
+    }
+
+    static public byte[] multisigOrSomeSignaturesTimeoutOutput(
+            TimeUnit timeUnit, long timeoutVal, List<BitcoinPublicKey> alwaysNeedKeys,
+            List<BitcoinPublicKey> optionalKeys) throws IOException, NoSuchAlgorithmException {
+        if(alwaysNeedKeys.isEmpty() || optionalKeys.isEmpty())
+            throw new InvalidParameterException("Keys' list can not be empty");
+
+        byte[] alwaysNeededCheck;
+        if(alwaysNeedKeys.size() > 1)
+            alwaysNeededCheck = multisigScript(alwaysNeedKeys, alwaysNeedKeys.size(), true);
+        else
+            alwaysNeededCheck = mergeArrays( pushDataOpcode(alwaysNeedKeys.get(0).getKey().length)
+                                           , alwaysNeedKeys.get(0).getKey()
+                                           , getOpcodeAsArray("OP_CHECKSIGVERIFY"));
+        byte[] optionalCheck;
+        if(optionalKeys.size() > 1)
+            optionalCheck = multisigScript(optionalKeys, optionalKeys.size(), true);
+        else
+            optionalCheck = mergeArrays( pushDataOpcode(optionalKeys.get(0).getKey().length)
+                                       , optionalKeys.get(0).getKey()
+                                       , getOpcodeAsArray("OP_CHECKSIGVERIFY"));
+
+        return timeOutOptionalPath(alwaysNeededCheck, optionalCheck, null, timeUnit, timeoutVal);
+
+    }
     static public byte[] multisigOrOneSignatureTimeoutOutput(TimeUnit timeUnit,
                                                              long timeoutVal,
                                                              byte[] alwaysNeededPublicKey,
@@ -81,7 +143,7 @@ public class OutputBuilder {
         return createPayToScriptHashOutput(amount, redeemScriptHash);
     }
 
-    public static byte[] multisigScript(BitcoinPublicKey[] keys, int requiredSignatures) throws IOException, NoSuchAlgorithmException {
+    private static byte[] multisigScript(BitcoinPublicKey[] keys, int requiredSignatures, boolean multisigVerify) throws IOException, NoSuchAlgorithmException {
         ByteArrayOutputStream publicKeys = new ByteArrayOutputStream();
         for(BitcoinPublicKey key: keys) {
             byte[] pubKey = key.getKey();
@@ -89,10 +151,24 @@ public class OutputBuilder {
             publicKeys.write(pubKey);
         }
 
+        byte[] multisig;
+        if(multisigVerify)
+            multisig = getOpcodeAsArray("OP_CHECKMULTISIGVERIFY");
+        else
+            multisig = getOpcodeAsArray("OP_CHECKMULTISIG");
+
         return mergeArrays(pushNumberOpcode(requiredSignatures),
                 publicKeys.toByteArray(),
                 pushNumberOpcode(keys.length),
-                getOpcodeAsArray("OP_CHECKMULTISIG"));
+                multisig);
+    }
+
+    private static byte[] multisigScript(Collection<BitcoinPublicKey> keys, int requiredSignatures, boolean multisigVerify) throws IOException, NoSuchAlgorithmException {
+        return multisigScript((BitcoinPublicKey[]) keys.toArray(), requiredSignatures, multisigVerify);
+    }
+
+    public static byte[] multisigScript(BitcoinPublicKey[] keys, int requiredSignatures) throws IOException, NoSuchAlgorithmException {
+        return multisigScript(keys, requiredSignatures, false);
     }
 
     static public Output createMultisigOutput(long amount, BitcoinPublicKey[] keys, int requiredSignatures) throws IOException, NoSuchAlgorithmException {

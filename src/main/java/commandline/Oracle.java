@@ -9,7 +9,6 @@ import bitcoin.transaction.builder.TransactionBuilder;
 import core.BetTxForm;
 import core.Constants;
 import org.apache.commons.cli.*;
-import org.omg.CORBA.DynAnyPackage.Invalid;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
@@ -143,7 +142,7 @@ public class Oracle {
     }
 
     String inscribeOracle() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException {
-        Transaction inscriptionTx = TransactionBuilder.inscribeAsOracle(unspentOutputs.get(0), bitcoindClient.isTestnet());
+        Transaction inscriptionTx = TransactionBuilder.registerAsOracle(unspentOutputs.get(0), bitcoindClient.isTestnet());
         inscriptionTx.sign(BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(address)));
         return bitcoindClient.sendTransaction(inscriptionTx);
     }

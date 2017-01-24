@@ -232,6 +232,10 @@ public class Bet {
         return timeoutSeconds;
     }
 
+    public long getOracleInscription() {
+        return amounts.getOracleInscription();
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -263,7 +267,6 @@ public class Bet {
         result = 31 * result + (int) (timeoutSeconds ^ (timeoutSeconds >>> 32));
         return result;
     }
-
 
 
     public static class Amounts {
@@ -360,6 +363,10 @@ public class Bet {
 
         public long getOraclePayment() {
             return oraclePayment;
+        }
+
+        public long getOracleInscription() {
+            return oracleInscription;
         }
     }
 }
