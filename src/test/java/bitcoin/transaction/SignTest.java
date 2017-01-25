@@ -10,8 +10,8 @@ import org.junit.Test;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import static bitcoin.Constants.*;
-import static bitcoin.key.Utils.bitcoinB58Encode;
 import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOrOneSignatureTimeoutOutput;
+import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOrSomeSignaturesTimeoutOutput;
 import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOutput;
 import static bitcoin.transaction.builder.OutputBuilder.multisigScript;
 import static bitcoin.transaction.builder.TransactionBuilder.*;
@@ -107,7 +107,7 @@ public class SignTest {
     }
 
     @Test
-    public void simpleSendToAddressSign() throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, SignatureException, InvalidKeyException, ParseTransactionException {
+    public void simpleSendToAddressSign() throws Exception {
         int i;
         List<AbsoluteOutput> unspentOutputs = client.getUnspent();
         AbsoluteOutput srcOutput = null;
@@ -132,13 +132,12 @@ public class SignTest {
 
         Transaction t = payToPublicKeyHash(srcOutput, changeAddr, available);
         t.sign(pKey);
-        // The java client does not provide an interface to check the transaction, you need to do ir manually:
-        // bitcoin-cli -testnet signrawtransaction <HEX TRANSACTION> "[]" "[]"
-        System.out.println("./bitcoin-cli -testnet signrawtransaction " + byteArrayToHex(t.serialize()) + " \"[]\" \"[]\"");
+
+        client.verifyTransaction(t);
     }
 
     @Test
-    public void multipleInputsSignTest() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException, ParseTransactionException {
+    public void multipleInputsSignTest() throws Exception {
         List<AbsoluteOutput> unspentOutputs = client.getUnspent();
         List<AbsoluteOutput> outputs = new ArrayList<>();
         List<BitcoinPrivateKey> privKeys = new ArrayList<>();
@@ -168,21 +167,75 @@ public class SignTest {
         for(int i = 0; i < privKeys.size(); i++) {
             t.sign(privKeys.get(i), i);
         }
-        System.out.println("./bitcoin-cli -testnet signrawtransaction " + byteArrayToHex(t.serialize()) + " \"[]\" \"[]\"");
+        client.verifyTransaction(t);
     }
 
     @Test
-    public void multisigTimeoutFallback() throws ParseTransactionException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
+    public void treeRequiredSignaturesOneOnTimeout() throws Exception {
+        List<AbsoluteOutput> unspentOutputs = client.getUnspent();
+        AbsoluteOutput srcOutput = null;
+        for (AbsoluteOutput ao : unspentOutputs)
+            if (ao.isPayToKey())
+                srcOutput = ao;
+        List<BitcoinPublicKey> optionalPublicKeys = new LinkedList<>();
+        List<BitcoinPrivateKey> optionalPrivateKeys = new LinkedList<>();
+        List<BitcoinPublicKey> neededPublicKeys = new LinkedList<>();
+        List<BitcoinPrivateKey> neededPrivateKeys= new LinkedList<>();
+        Set<String> alreadyUsedWIFAddresses = new HashSet<>();
+        List<byte[]> requiredSignatures = new LinkedList<>();
+        List<byte[]> optionalSignatures = new LinkedList<>();
+
+        assertTrue("Couldn't find an unspent output", srcOutput != null);
+        String wifSrcAddress = BitcoinPublicKey.txAddressToWIF(hexToByteArray(srcOutput.getPayAddress()), true);
+        alreadyUsedWIFAddresses.add(wifSrcAddress);
+        BitcoinPrivateKey srcPrivKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(wifSrcAddress));
+
+        optionalPrivateKeys.add(BitcoinPrivateKey.fromWIF(
+                client.getPrivateKey(getChangeAddress(alreadyUsedWIFAddresses))));
+        optionalPublicKeys.add(optionalPrivateKeys.get(optionalPrivateKeys.size() - 1).getPublicKey());
+        alreadyUsedWIFAddresses.add(optionalPublicKeys.get(optionalPublicKeys.size() - 1).toWIF());
+        optionalPrivateKeys.add(BitcoinPrivateKey.fromWIF(
+                client.getPrivateKey(getChangeAddress(alreadyUsedWIFAddresses))));
+        optionalPublicKeys.add(optionalPrivateKeys.get(optionalPrivateKeys.size() - 1).getPublicKey());
+        alreadyUsedWIFAddresses.add(optionalPublicKeys.get(optionalPublicKeys.size() - 1).toWIF());
+
+        neededPrivateKeys.add(
+                BitcoinPrivateKey.fromWIF(client.getPrivateKey(getChangeAddress(alreadyUsedWIFAddresses))));
+        neededPublicKeys.add(neededPrivateKeys.get(neededPrivateKeys.size() - 1).getPublicKey());
+        alreadyUsedWIFAddresses.add(neededPrivateKeys.get(neededPrivateKeys.size() - 1).getPublicKey().toWIF());
+
+        byte[] redeemScript = OutputBuilder.multisigOrSomeSignaturesTimeoutOutput(
+                TimeUnit.MINUTES, 20, neededPublicKeys, optionalPublicKeys);
+
+        Transaction t0 = payToScriptHash(srcOutput, redeemScript, srcOutput.getValue());
+        t0.sign(srcPrivKey);
+
+        AbsoluteOutput scriptHashOutput = new AbsoluteOutput(t0, 0);
+        Transaction t1 = payToPublicKeyHash(scriptHashOutput, wifSrcAddress, srcOutput.getValue());
+        t1.setTempScriptSigForSigning(0, redeemScript);
+
+        for(BitcoinPrivateKey bitcoinPrivateKey : neededPrivateKeys)
+            requiredSignatures.add(t1.getPayToScriptSignature(bitcoinPrivateKey, getHashType("ALL"), 0));
+        for(BitcoinPrivateKey bitcoinPrivateKey : optionalPrivateKeys)
+            optionalSignatures.add(t1.getPayToScriptSignature(bitcoinPrivateKey, getHashType("ALL"), 0));
+
+        t1.getInputs().get(0).setScript(redeemMultisigOrSomeSignaturesTimeoutOutput(
+                redeemScript, requiredSignatures, optionalSignatures));
+
+        client.verifyTransaction(t1, new PayToScriptAbsoluteOutput(t0, 0, redeemScript));
+    }
+
+    @Test
+    public void multisigTimeoutFallback() throws Exception {
         List<AbsoluteOutput> unspentOutputs = client.getUnspent();
         AbsoluteOutput srcOutput = null;
         for (AbsoluteOutput ao : unspentOutputs)
             if (ao.isPayToKey())
                 srcOutput = ao;
         assertTrue("Couldn't find an unspent output", srcOutput != null);
-        String srcAddress = srcOutput.getPayAddress();
-        String wifSrcAddress = BitcoinPublicKey.txAddressToWIF(hexToByteArray(srcAddress), true);
+        String wifSrcAddress = BitcoinPublicKey.txAddressToWIF(hexToByteArray(srcOutput.getPayAddress()), true);
         BitcoinPrivateKey srcPrivKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(wifSrcAddress));
-        String wifOptionalAddress = getChangeAddress(srcAddress);
+        String wifOptionalAddress = getChangeAddress(wifSrcAddress);
         BitcoinPrivateKey optionalPrivKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(wifOptionalAddress));
         byte[] optionalPublicKey = optionalPrivKey.getPublicKey().getKey();
         String wifNeededAddress = getChangeAddress(wifSrcAddress, wifOptionalAddress);
@@ -209,13 +262,7 @@ public class SignTest {
         t1.getInputs().get(0).setScript(redeemMultisigOrOneSignatureTimeoutOutput(redeemScript, t1NeededSignature,
                                         t1OptionalSignature));
 
-        System.out.println("./bitcoin-cli -testnet signrawtransaction " + t1.hexlify() +
-                " '[{" + "\"txid\": \"" + t0.txid() + "\"" +
-                ", \"vout\": " + 0 +
-                ", \"amount\": " + t1.getOutputs().get(0).getValue() +
-                ", \"redeemScript\": \"" + byteArrayToHex(redeemScript) + "\"" +
-                ", \"scriptPubKey\": \"" + byteArrayToHex(t0.getOutputs().get(0).getScript()) + "\"" +
-                "}]' \"[]\"");
+        client.verifyTransaction(t1, new PayToScriptAbsoluteOutput(t0, 0, redeemScript));
 
         int txVersion = 2;
         int locktime = 0;
@@ -228,17 +275,16 @@ public class SignTest {
         byte[] t2NeededSignature = t2.getPayToScriptSignature(neededPrivKey, getHashType("ALL"), 0);
         t2.getInputs().get(0).setScript(redeemMultisigOrOneSignatureTimeoutOutput(redeemScript, t2NeededSignature));
 
-        System.out.println("./bitcoin-cli -testnet signrawtransaction " + t2.hexlify() +
-                " '[{" + "\"txid\": \"" + t0.txid() + "\"" +
-                ", \"vout\": " + 0 +
-                ", \"amount\": " + t2.getOutputs().get(0).getValue() +
-                ", \"redeemScript\": \"" + byteArrayToHex(redeemScript) + "\"" +
-                ", \"scriptPubKey\": \"" + byteArrayToHex(t0.getOutputs().get(0).getScript()) + "\"" +
-                "}]' \"[]\"");
+        try {
+            client.verifyTransaction(t2, new PayToScriptAbsoluteOutput(t0, 0, redeemScript));
+            fail("Transaction shouldn't verify.");
+        }catch (BitcoindClient.BitcoindClientException e ) {
+
+        }
     }
 
     @Test
-    public void simplePayToScriptHash() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException, ParseTransactionException {
+    public void simplePayToScriptHash() throws Exception {
         AbsoluteOutput srcOutput = null;
         List<AbsoluteOutput> unspentOutputs = client.getUnspent();
         String changeAddr = null;
@@ -258,7 +304,6 @@ public class SignTest {
                                          , pushDataOpcode(changeAddrPublicKey.length)
                                          , changeAddrPublicKey
                                          , new byte[]{getOpcode("OP_1")}
-//                                         , new byte[]{getOpcode("OP_CHECKMULTISIGVERIFY")}, new byte[] {getOpcode("OP_1")});
                                          , new byte[]{getOpcode("OP_CHECKMULTISIG")});
 
 
@@ -282,25 +327,18 @@ public class SignTest {
                                                    , pushDataOpcode(scriptRedeem.length)
                                                    , scriptRedeem));
 
-        System.out.println("./bitcoin-cli -testnet signrawtransaction " + t1.hexlify() +
-                " '[{" + "\"txid\": \"" + t0.txid() + "\"" +
-                   ", \"vout\": " + 0 +
-                   ", \"amount\": " + available +
-                   ", \"redeemScript\": \"" + byteArrayToHex(scriptRedeem) + "\"" +
-                   ", \"scriptPubKey\": \"" + byteArrayToHex(t0.getOutputs().get(0).getScript()) + "\"" +
-                   "}]' \"[]\"");
+        client.verifyTransaction(t1, new PayToScriptAbsoluteOutput(t0, 0, scriptRedeem));
     }
 
     @Test
-    public void simpleMultiSigPayToScriptHash() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, SignatureException, InvalidKeyException, ParseTransactionException {
+    public void simpleMultiSigPayToScriptHash() throws Exception {
         AbsoluteOutput srcOutput = null;
         List<AbsoluteOutput> unspentOutputs = client.getUnspent();
-        String srcAddr = null;
         for(AbsoluteOutput ao: unspentOutputs)
             if(ao.isPayToKey())
                 srcOutput = ao;
         assertNotNull("Couldn't find unspent outputs.", srcOutput);
-        srcAddr = srcOutput.getPayAddress();
+        String srcAddr = srcOutput.getPayAddress();
         long available = srcOutput.getValue();
 
         String wifSrcAddr = BitcoinPublicKey.txAddressToWIF(hexToByteArray(srcAddr), client.isTestnet());
@@ -333,12 +371,6 @@ public class SignTest {
 
         t1.getInputs().get(0).setScript(redeemMultisigOutput(redeemScript, signatures));
 
-        System.out.println("./bitcoin-cli -testnet signrawtransaction " + t1.hexlify() +
-                " '[{" + "\"txid\": \"" + t0.txid() + "\"" +
-                ", \"vout\": " + 0 +
-                ", \"amount\": " + available +
-                ", \"redeemScript\": \"" + byteArrayToHex(redeemScript) + "\"" +
-                ", \"scriptPubKey\": \"" + byteArrayToHex(t0.getOutputs().get(0).getScript()) + "\"" +
-                "}]' \"[]\"");
+        client.verifyTransaction(t1, new PayToScriptAbsoluteOutput(t0, 0, redeemScript));
     }
 }

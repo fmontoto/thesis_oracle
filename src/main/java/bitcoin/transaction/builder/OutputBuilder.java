@@ -28,14 +28,12 @@ public class OutputBuilder {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
         if(always != null && always.length > 0) {
-            buffer.write(pushDataOpcode(always.length));
             buffer.write(always);
         }
 
         buffer.write(getOpcode("OP_IF"));
 
         if(noTimeout != null && noTimeout.length > 0) {
-            buffer.write(pushDataOpcode(noTimeout.length));
             buffer.write(noTimeout);
         }
 
@@ -164,7 +162,7 @@ public class OutputBuilder {
     }
 
     private static byte[] multisigScript(Collection<BitcoinPublicKey> keys, int requiredSignatures, boolean multisigVerify) throws IOException, NoSuchAlgorithmException {
-        return multisigScript((BitcoinPublicKey[]) keys.toArray(), requiredSignatures, multisigVerify);
+        return multisigScript(keys.toArray(new BitcoinPublicKey[0]) , requiredSignatures, multisigVerify);
     }
 
     public static byte[] multisigScript(BitcoinPublicKey[] keys, int requiredSignatures) throws IOException, NoSuchAlgorithmException {

@@ -8,7 +8,7 @@ import java.security.NoSuchAlgorithmException;
 
 public class AbsoluteOutput extends Output{
     private final int vout;
-    private String txId;
+    private final String txId;
 
     private AbsoluteOutput() {
         super();
@@ -35,5 +35,6 @@ public class AbsoluteOutput extends Output{
     public int getVout() {
         return vout;
     }
+
 
 }

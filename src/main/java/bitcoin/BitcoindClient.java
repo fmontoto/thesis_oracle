@@ -4,12 +4,15 @@ import bitcoin.transaction.*;
 import bitcoin.transaction.Transaction;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
+import wf.bitcoin.javabitcoindrpcclient.BitcoinRpcException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
+import java.math.BigDecimal;
 import java.security.InvalidParameterException;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
+import java.security.NoSuchAlgorithmException;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -216,7 +219,8 @@ public class BitcoindClient {
     private Block castBlock(BitcoindRpcClient.Block block) {
         if(block == null)
             return null;
-        return new Block(block.hash(), block.tx(), block.nextHash(), block.height());
+        return new Block(block.hash(), block.tx(), block.nextHash(), block.height(),
+                         block.time());
     }
 
     public Block getBlock(String blockHash) {
@@ -229,5 +233,61 @@ public class BitcoindClient {
 
     public String getAccountAddress(String account) {
         return bitcoindRpcClient.getAccountAddress(account);
+    }
+
+    private String verifyTransaction(String transactionHex,
+                                     List<ExtendedTxInput> inputs,
+                                     List<String> keys) throws BitcoindClientException {
+        try {
+            return bitcoindRpcClient.signRawTransaction(transactionHex, inputs, keys);
+        } catch(BitcoinRpcException e) {
+            throw new BitcoindClientException(e.getMessage());
+        }
+    }
+
+    public String verifyTransaction(String transactionHex) throws BitcoindClientException {
+        return verifyTransaction(transactionHex, new LinkedList<>(), new LinkedList<>());
+    }
+
+    public String verifyTransaction(Transaction tx) throws BitcoindClientException {
+        return verifyTransaction(tx.hexlify());
+    }
+
+    public String verifyTransaction(Transaction tx, Collection<PayToScriptAbsoluteOutput> inputs) throws BitcoindClientException {
+        List<ExtendedTxInput> inputsList = new LinkedList<>();
+        for(PayToScriptAbsoluteOutput input : inputs) {
+            inputsList.add(
+                    new ExtendedTxInput(input.getTxId(),
+                                        input.getVout(),
+                                        byteArrayToHex(input.getScript()),
+                                        byteArrayToHex(input.getRedeemScript()),
+                                        new BigDecimal(input.getValue())));
+        }
+
+        return verifyTransaction(tx.hexlify(), inputsList, new LinkedList<>());
+    }
+
+    public String verifyTransaction(Transaction tx, PayToScriptAbsoluteOutput input) throws BitcoindClientException {
+        List<PayToScriptAbsoluteOutput> inputs = new LinkedList<>();
+        inputs.add(input);
+        return verifyTransaction(tx, inputs);
+    }
+
+    public ZonedDateTime getTxTime(String txId) {
+        Date date = bitcoindRpcClient.getRawTransaction(txId).time();
+        return ZonedDateTime.ofInstant(date.toInstant(), ZoneId.of("UTC"));
+    }
+
+    public ZonedDateTime getTxTime(Transaction tx) throws NoSuchAlgorithmException {
+        return getTxTime(tx.txid());
+    }
+
+
+
+    // Keep at the end
+    static public class BitcoindClientException extends Exception {
+        public BitcoindClientException(String message) {
+            super(message);
+        }
     }
 }

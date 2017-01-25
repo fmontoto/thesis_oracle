@@ -3,9 +3,7 @@ package core;
 import bitcoin.key.BitcoinPublicKey;
 
 import java.io.*;
-import java.nio.charset.Charset;
 import java.security.InvalidParameterException;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.*;
@@ -29,7 +27,7 @@ public class Bet {
     private List<Oracle> backupOracles;
     private List<BitcoinPublicKey> participantOracles;
     private BitcoinPublicKey[] playersPubKey;
-    private long timeoutSeconds;
+    private long relativeBetResolutionSecs;
     private Channel channel;
     Amounts amounts;
 
@@ -45,7 +43,7 @@ public class Bet {
         this.backupOracles = new ArrayList<>(backupOracles);
         this.playersPubKey = playersPubKey;
         this.amounts = amounts;
-        timeoutSeconds = timeoutUnit.toSeconds(timeoutVal);
+        relativeBetResolutionSecs = timeoutUnit.toSeconds(timeoutVal);
         participantOracles = new LinkedList<>();
         this.channel = channel;
 
@@ -96,7 +94,7 @@ public class Bet {
                           , serializeVarInt(participantOracles.size())
                           , participantOraclesOutputStream.toByteArray()
                           , amounts.serialize()
-                          , serializeVarInt(timeoutSeconds)
+                          , serializeVarInt(relativeBetResolutionSecs)
                           , channel.serialize()
         );
     }
@@ -228,8 +226,8 @@ public class Bet {
         return amounts.getOraclePayment();
     }
 
-    public long getTimeoutSeconds() {
-        return timeoutSeconds;
+    public long getRelativeBetResolutionSecs() {
+        return relativeBetResolutionSecs;
     }
 
     public long getOracleInscription() {
@@ -246,7 +244,7 @@ public class Bet {
         if (minOracles != bet.minOracles) return false;
         if (maxOracles != bet.maxOracles) return false;
         if (!amounts.equals(bet.amounts)) return false;
-        if (timeoutSeconds != bet.timeoutSeconds) return false;
+        if (relativeBetResolutionSecs != bet.relativeBetResolutionSecs) return false;
         if (!description.equals(bet.description)) return false;
         if (!oracles.equals(bet.oracles)) return false;
         if (!backupOracles.equals(bet.backupOracles)) return false;
@@ -264,8 +262,15 @@ public class Bet {
         result = 31 * result + participantOracles.hashCode();
         result = 31 * result + Arrays.hashCode(playersPubKey);
         result = 31 * result + amounts.hashCode();
-        result = 31 * result + (int) (timeoutSeconds ^ (timeoutSeconds >>> 32));
+        result = 31 * result + (int) (relativeBetResolutionSecs ^ (relativeBetResolutionSecs >>> 32));
         return result;
+    }
+
+    public int getOraclePos(String a) {
+        for(Oracle o: oracles)
+            if(o.getAddress().equals(a))
+                return oracles.indexOf(o);
+        throw new InvalidParameterException("Oracle not found in the Bet");
     }
 
 

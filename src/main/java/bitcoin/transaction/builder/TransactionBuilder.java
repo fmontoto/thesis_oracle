@@ -142,6 +142,7 @@ public class TransactionBuilder {
         long change = 0;
         for(AbsoluteOutput absOutput : srcOutputs)
             change += absOutput.getValue();
+
         change -= (bet.getAmount() + (long) Math.ceil((bet.getFirstPaymentAmount() * bet.getMaxOracles()) / 2.0));
         if(change < 0)
             throw new InvalidParameterException("Not enough money to start the bet. At least " + (-change) + " more needed.");
@@ -153,10 +154,12 @@ public class TransactionBuilder {
 
         Output prizePlayerA = OutputBuilder.oneSignatureOnTimeoutOrMultiSig(bet.getPlayersPubKey()[0].getKey(),
                                                               bet.getPlayersPubKey()[1].getKey(),
-                                                              bet.getAmount(), TimeUnit.SECONDS, bet.getTimeoutSeconds());
+                                                              bet.getAmount(), TimeUnit.SECONDS,
+                                                              bet.getRelativeBetResolutionSecs());
         Output prizePlayerB = OutputBuilder.oneSignatureOnTimeoutOrMultiSig(bet.getPlayersPubKey()[1].getKey(),
                                                               bet.getPlayersPubKey()[0].getKey(),
-                                                              bet.getAmount(), TimeUnit.SECONDS, bet.getTimeoutSeconds());
+                                                              bet.getAmount(), TimeUnit.SECONDS,
+                                                              bet.getRelativeBetResolutionSecs());
 
         outputs.add(data);
         outputs.add(prizePlayerA);
@@ -312,11 +315,24 @@ public class TransactionBuilder {
         return registerAsOracle(absOutput, wifOracleAddress);
     }
 
-    public static Transaction oracleInscription(List<AbsoluteOutput> srcOutputs, BitcoinPrivateKey oraclePrivKey,
-                                                String wifChangeAddress, Bet bet, Transaction betPromise) throws IOException, NoSuchAlgorithmException {
+    public static Transaction oracleInscription(
+            List<AbsoluteOutput> srcOutputs, BitcoinPrivateKey oraclePrivKey,
+            String wifChangeAddress, Bet bet, Transaction betPromise,
+            long timeoutSeconds) throws IOException, NoSuchAlgorithmException,
+            InvalidKeySpecException {
         int idx;
-        Output expectedOutput = createMultisigOutput(bet.getFirstPaymentAmount(), bet.getPlayersPubKey(),
-                bet.getPlayersPubKey().length);
+        List<Input> inputs = new LinkedList<>();
+        List<Output> outputs = new LinkedList<>();
+
+        long change = bet.getFirstPaymentAmount();
+        for(AbsoluteOutput srcOutput : srcOutputs) {
+            change += srcOutput.getValue();
+            inputs.add(InputBuilder.payToPublicKeyHashCreateInput(srcOutput));
+        }
+
+        byte[] promiseBetRedeemScript = multisigScript(
+                bet.getPlayersPubKey(), bet.getPlayersPubKey().length);
+        Output expectedOutput = new Output(bet.getFirstPaymentAmount(), promiseBetRedeemScript);
 
         for (idx = 0; idx < betPromise.getOutputs().size(); idx++) {
             if (betPromise.getOutputs().get(idx).equals(expectedOutput)) {
@@ -326,15 +342,20 @@ public class TransactionBuilder {
         if(idx == betPromise.getOutputs().size())
             throw new InvalidParameterException("The provided promiseBet transaction does not contains the expected output.");
 
+        int oraclePos = bet.getOraclePos(oraclePrivKey.getPublicKey().toWIF());
+        PayToScriptAbsoluteOutput betPromiseOutput = new PayToScriptAbsoluteOutput(
+                betPromise, idx + oraclePos, promiseBetRedeemScript);
 
+        inputs.add(InputBuilder.redeemScriptHash(betPromiseOutput));
 
-//        AbsoluteOutput multiSigSrcOutput = new AbsoluteOutput(betPromise, idx);
-//        byte[] redeemMultiSig = multisigScript(bet.getPlayersPubKey(), bet.getPlayersPubKey().length);
+//        OutputBuilder.multisigOrSomeSignaturesTimeoutOutput();
 //
-//        long change = 0;
-//        for(AbsoluteOutput absOutput: srcOutputs)
-//            change += absOutput.getValue();
 //        bet.getPlayersPubKey()[0].getKey();
+
+
+
+
+
         throw new NotImplementedException();
 
     }

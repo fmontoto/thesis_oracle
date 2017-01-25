@@ -3,6 +3,7 @@ package bitcoin.transaction.builder;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.AbsoluteOutput;
 import bitcoin.transaction.Input;
+import bitcoin.transaction.PayToScriptAbsoluteOutput;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayOutputStream;
@@ -27,9 +28,14 @@ public class InputBuilder {
         return payToPublicKeyHashCreateInput(absoluteOutput, 0xffffffff);
     }
 
-    static public Input redeemScriptHash(AbsoluteOutput absOutput, byte[] script, byte[] redeemScript) {
-        return  new Input(0xffffffff, absOutput.getVout(),
-                hexToByteArray(absOutput.getTxId()), absOutput.getScript());
+
+    static public Input redeemScriptHash(PayToScriptAbsoluteOutput srcOutput, int sequenceNo) {
+        return new Input(sequenceNo, srcOutput.getVout(), hexToByteArray(srcOutput.getTxId()),
+                srcOutput.getRedeemScript());
+    }
+
+    static public Input redeemScriptHash(PayToScriptAbsoluteOutput srcOutput) {
+        return redeemScriptHash(srcOutput, 0xffffffff);
     }
 
     static public Input redeemMultiSigOutput() {
@@ -37,6 +43,39 @@ public class InputBuilder {
     }
 
 //    static public byte[] multisigOrOneSignatureTimeoutOutput(TimeUnit timeUnit,
+
+    static public byte[] redeemMultisigOrSomeSignaturesTimeoutOutput(byte[] redeemScript,
+                                                                     List<byte[]> alwaysNeededSigs,
+                                                                     List<byte[]> optionalSigs) throws IOException {
+        ByteArrayOutputStream byteArrayStream = new ByteArrayOutputStream();
+        if(optionalSigs != null) {
+            if(optionalSigs.size() > 1)
+                byteArrayStream.write(getOpcode("OP_0"));
+            for(byte[] sig : optionalSigs) {
+                byteArrayStream.write(pushDataOpcode(sig.length));
+                byteArrayStream.write(sig);
+            }
+        }
+
+        // Select the if-else branch
+        if(optionalSigs == null)
+            byteArrayStream.write(getOpcode("OP_0"));
+        else
+            byteArrayStream.write(getOpcode("OP_1"));
+
+        if(alwaysNeededSigs.size() > 1) {
+            byteArrayStream.write(getOpcode("OP_0"));
+        }
+        for(byte[] sig : alwaysNeededSigs) {
+            byteArrayStream.write(pushDataOpcode(sig.length));
+            byteArrayStream.write(sig);
+        }
+
+        byteArrayStream.write(pushDataOpcode(redeemScript.length));
+        byteArrayStream.write(redeemScript);
+
+        return byteArrayStream.toByteArray();
+    }
 
     static public byte[] redeemMultisigOrOneSignatureTimeoutOutput(byte[] redeemScript, byte[] requiredSignature) {
         return mergeArrays(new byte[]{getOpcode("OP_0")},

@@ -27,7 +27,7 @@ dependencies {
     compile group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.55'
 
     compile group: 'org.zeromq', name: 'jzmq', version: '3.1.1-SNAPSHOT'
-    compile group: 'wf.bitcoin', name: 'JavaBitcoindRpcClient', version: '0.9.9'
+    compile group: 'wf.bitcoin', name: 'JavaBitcoindRpcClient', version: '0.9.12'
     compile group: 'edu.biu.scapi', name: 'scapi', version: '2.3.0'
     // https://mvnrepository.com/artifact/org.slf4j/slf4j-api
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.6.1'
