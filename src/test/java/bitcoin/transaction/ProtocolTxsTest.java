@@ -10,10 +10,18 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static bitcoin.key.Utils.r160SHA256Hash;
+import static bitcoin.transaction.ProtocolTxUtils.getOracleNumber;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 import static java.util.stream.Collectors.toList;
@@ -163,27 +171,81 @@ public class ProtocolTxsTest {
         System.out.println("./bitcoin-cli -testnet signrawtransaction " + betPromiseFlow().hexlify() + " \"[]\" \"[]\"");
     }
 
-    public Transaction oracleBetInscriptionFlow(int numOracle, Bet bet) throws Exception {
-        long oracleInscription = bet.getOracleInscription();
-        long oracleUnduePayment = bet.getOraclePayment();
-        long oraclePenalty = bet.getOraclePayment();
-        Transaction betPromiseTransaction = betPromiseFlow();
+    public Transaction oracleBetInscription(List<byte[]> expectedAnswersHash, int numOracle,
+                                            Bet bet, Transaction betPromiseTx) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, ParseTransactionException, SignatureException, InvalidKeyException {
 
-        // Oracle
-        // This key must match the address in the betPromise
+        List<BitcoinPrivateKey> oracleSrcKeys = new LinkedList<>();
+        String oracleWifChangeAddress = bitcoindClient.getAccountAddress(oracleAccountPrefix + numOracle);
+
+
         BitcoinPrivateKey oraclePrivKey = BitcoinPrivateKey.fromWIF(
                 bitcoindClient.getPrivateKey(oraclesAddress[numOracle]));
         List<AbsoluteOutput> oracleSrcOutputs = getUnspentOutputs(oracleAccountPrefix + numOracle);
-        String oracle2WifChangeAddress = bitcoindClient.getAccountAddress(oracleAccountPrefix + numOracle);
 
-        TransactionBuilder.oracleInscription(oracleSrcOutputs, oraclePrivKey, oracle2WifChangeAddress,
-                                             bet, betPromiseTransaction);
 
+        for(AbsoluteOutput srcOutput : oracleSrcOutputs) {
+            String wifAddr = BitcoinPublicKey.txAddressToWIF(srcOutput.getPayAddress(),
+                    bitcoindClient.isTestnet());
+            oracleSrcKeys.add(BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(wifAddr)));
+        }
+
+        return TransactionBuilder.oracleInscription(
+                oracleSrcOutputs, oracleSrcKeys, oraclePrivKey.getPublicKey(),
+                oracleWifChangeAddress, expectedAnswersHash, bet, betPromiseTx,
+                bet.getRelativeBetResolutionSecs());
+    }
+
+    @Test
+    public Transaction oracleBetInscriptionFlow(Bet bet) throws Exception {
+        final int totalOracles = 5;
+        final Transaction betPromiseTransaction = betPromiseFlow();
+        List<List<byte[]>> expectedAnswers = new LinkedList<>();
+        List<Transaction> oracleTransactions = new LinkedList<>();
+        List<Transaction> sharedTransactions = new LinkedList<>();
+
+        // Oracles
+        for(int numOracle = 0; numOracle < totalOracles; numOracle++) {
+            List<byte[]> expectedAnswersHash = new LinkedList<>();
+            List<byte[]> expectedAnswersOracle = new LinkedList<>();
+            for(int i = 0; i < bet.getPlayersPubKey().length; i++) {
+                expectedAnswersOracle.add(
+                        new String("player" + i + "wins, " + numOracle).getBytes(Constants.charset));
+                expectedAnswers.add(expectedAnswersOracle);
+            }
+
+            for(byte[] answer : expectedAnswersOracle)
+                expectedAnswersHash.add(r160SHA256Hash(answer));
+
+            Transaction tx = oracleBetInscription(
+                    expectedAnswersHash, numOracle, bet, betPromiseTransaction);
+            oracleTransactions.add(tx);
+            sharedTransactions.add(new Transaction(tx));
+        }
+
+        // Players
+        for(int playerNum = 0; playerNum < bet.getPlayersPubKey().length; playerNum++) {
+            // At this point the players still don't have the oracle pubKey...
+            for(int oracleNum = 0; oracleNum < totalOracles; oracleNum++) {
+                getOracleNumber(betPromiseTransaction, oracleWifAddress, bet);
+
+            }
+        }
+
+        // This key must match the address in the betPromise
+
+//        expectedAnswers.add("Player A wins".getBytes(Constants.charset));
+//        expectedAnswers.add("Player B wins".getBytes(Constants.charset));
+//        for(byte[] b : expectedAnswers) {
+//            expectedAnswersHash.add(r160SHA256Hash(b));
+//        }
+
+
+        Transaction sharedTx = new Transaction(tx);
+
+        // Player1
+        BitcoinPrivateKey player1PrivateKey = bet.getPlayersPubKey()
         Transaction betPromise = betPromiseFlow();
         throw new NotImplementedException();
-
-
-
     }
 
 

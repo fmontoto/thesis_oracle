@@ -21,7 +21,7 @@ public class Output {
     private boolean isPayToKey;
     private boolean isPayToScript;
 
-    List<String> parsedScript;
+    private List<String> parsedScript;
 
     public Output() {
         byte_size = 0;

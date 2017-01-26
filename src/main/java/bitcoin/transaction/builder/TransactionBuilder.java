@@ -20,9 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 import static bitcoin.key.Utils.r160SHA256Hash;
 import static bitcoin.transaction.Utils.*;
-import static bitcoin.transaction.builder.OutputBuilder.createMultisigOutput;
-import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
-import static bitcoin.transaction.builder.OutputBuilder.multisigScript;
+import static bitcoin.transaction.builder.OutputBuilder.*;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 
@@ -56,9 +54,16 @@ public class TransactionBuilder {
         return ret;
     }
 
-    static private Transaction buildTx(int version, int locktime, Input input, Output... outputs) {
-        return buildTx(version, locktime, Arrays.asList(input),
+    static private Transaction buildTx(int version, int locktime, Input inputs, Output... outputs) {
+        return buildTx(version, locktime, Arrays.asList(inputs),
                        Arrays.asList(outputs));
+    }
+
+    static private Transaction buildTx(Collection<Input> inputs, Collection<Output> outputs) {
+        final int version = 1;
+        final int locktime = 0;
+        return buildTx(version, locktime, inputs, outputs);
+
     }
 
     static public Transaction payToPublicKeyHash(
@@ -315,11 +320,18 @@ public class TransactionBuilder {
         return registerAsOracle(absOutput, wifOracleAddress);
     }
 
+
     public static Transaction oracleInscription(
-            List<AbsoluteOutput> srcOutputs, BitcoinPrivateKey oraclePrivKey,
-            String wifChangeAddress, Bet bet, Transaction betPromise,
+            List<AbsoluteOutput> srcOutputs, List<BitcoinPrivateKey> srcKeys,
+            BitcoinPublicKey oraclePublicKey, String wifChangeAddress,
+            List<byte[]> expectedAnswersHash, Bet bet, Transaction betPromise,
             long timeoutSeconds) throws IOException, NoSuchAlgorithmException,
-            InvalidKeySpecException {
+            InvalidKeySpecException, SignatureException, InvalidKeyException {
+
+        if(expectedAnswersHash.size() != 2)
+            throw new InvalidParameterException("Expected 2 answers");
+        if(srcOutputs.size() != srcKeys.size())
+            throw new InvalidParameterException("srcOutputs size is different from srcKeys size");
         int idx;
         List<Input> inputs = new LinkedList<>();
         List<Output> outputs = new LinkedList<>();
@@ -342,22 +354,49 @@ public class TransactionBuilder {
         if(idx == betPromise.getOutputs().size())
             throw new InvalidParameterException("The provided promiseBet transaction does not contains the expected output.");
 
-        int oraclePos = bet.getOraclePos(oraclePrivKey.getPublicKey().toWIF());
+        int oraclePos = bet.getOraclePos(oraclePublicKey.toWIF());
         PayToScriptAbsoluteOutput betPromiseOutput = new PayToScriptAbsoluteOutput(
                 betPromise, idx + oraclePos, promiseBetRedeemScript);
 
         inputs.add(InputBuilder.redeemScriptHash(betPromiseOutput));
 
-//        OutputBuilder.multisigOrSomeSignaturesTimeoutOutput();
-//
-//        bet.getPlayersPubKey()[0].getKey();
+        // Inscription Output
+        List<BitcoinPublicKey> playersPubKey = Arrays.asList(bet.getPlayersPubKey());
+        byte[] inscriptionRedeemScript = multisigOrSomeSignaturesTimeoutOutput(
+                TimeUnit.SECONDS, timeoutSeconds, oraclePublicKey, playersPubKey);
 
+        // Inscription + Payment from players to participate + unduePaymentPenalty
+        long inscriptionAmount = bet.getFirstPaymentAmount() + bet.getOracleInscription() +
+                                    bet.getOracleInscription();
+        Output inscriptionOutput = createPayToScriptHashOutputFromScript(
+                inscriptionAmount, inscriptionRedeemScript);
 
+        // Two answers penalty Output
+        // This penalty is finishing one day after the bet is resolved.
+        timeoutSeconds += (24 * 60 * 60);
+        byte[] twoAnswersInsuranceRedeemScript = oracleTwoAnswersInsuranceRedeemScript(
+                playersPubKey, oraclePublicKey, expectedAnswersHash,
+                TimeUnit.SECONDS, timeoutSeconds);
 
+        Output twoAnswersInsuranceOutput = createPayToScriptHashOutputFromScript(
+                bet.getOraclePenalty(), twoAnswersInsuranceRedeemScript);
 
+        Transaction tx = buildTx(inputs, outputs);
 
-        throw new NotImplementedException();
+        for(Output o: outputs)
+            change -= o.getValue();
 
+        if(change < bet.getFee() * tx.serialize().length)
+            throw new InvalidParameterException("Not enough money at the inputs to do the tx.");
+
+        if(change > bet.getFee() * (tx.serialize().length + 34))
+            tx.getOutputs().add(createPayToPubKeyOutput(change - bet.getFee() * (tx.serialize().length + 34),
+                    wifChangeAddress));
+
+        for(int i = 0; i < srcKeys.size(); i++)
+            tx.sign(srcKeys.get(i), i);
+
+        return tx;
     }
 
     // Utils

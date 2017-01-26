@@ -98,6 +98,10 @@ public class BitcoinPublicKey implements BitcoinKey, ECPublicKey{
 
     }
 
+    public static String txAddressToWIF(String hexTxAddr, boolean testnet) throws IOException, NoSuchAlgorithmException {
+        return txAddressToWIF(hexToByteArray(hexTxAddr), testnet);
+    }
+
     public static String txAddressToWIF(byte[] txAddr, boolean testnet, boolean scriptHashAddr) throws IOException, NoSuchAlgorithmException {
         if(!scriptHashAddr)
             return txAddressToWIF(txAddr, testnet);

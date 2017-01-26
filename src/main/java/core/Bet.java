@@ -273,6 +273,10 @@ public class Bet {
         throw new InvalidParameterException("Oracle not found in the Bet");
     }
 
+    public long getOraclePenalty() {
+        return amounts.getOraclePenalty();
+    }
+
 
     public static class Amounts {
         private final long firstPaymentAmount;
@@ -372,6 +376,10 @@ public class Bet {
 
         public long getOracleInscription() {
             return oracleInscription;
+        }
+
+        public long getOraclePenalty() {
+            return oraclePenalty;
         }
     }
 }
