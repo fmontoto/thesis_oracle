@@ -11,7 +11,6 @@ import org.junit.Test;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
@@ -21,7 +20,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.key.Utils.r160SHA256Hash;
-import static bitcoin.transaction.ProtocolTxUtils.getOracleNumber;
+import static bitcoin.transaction.SignTest.getChangeAddress;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 import static java.util.stream.Collectors.toList;
@@ -32,32 +31,54 @@ import static org.junit.Assert.*;
  */
 public class ProtocolTxsTest {
     static final boolean testnet = true;
-    static BitcoindClient bitcoindClient;
+    static final int numOracles = 3;
+    static final int numPlayers = 2;
+    BitcoindClient bitcoindClient;
 
-    static String[] oraclesAddress;
+    String[] oraclesAddress;
     List<Oracle> oracles;
     Channel channel;
 
-    final String player1Account = "player1";
-    final String player2Account = "player2";
-    static final String oracleAccountPrefix = "oracle";
+    String[] playersAccount;
+    String[] playersWIFAddress;
+    BitcoinPrivateKey[] playersPrivateKey;
+
+    final String playerAccountPrefix = "player";
+    final String oracleAccountPrefix = "oracle";
 
 
     @BeforeClass
     static public void oneTimeSetUp() {
-        bitcoindClient = new BitcoindClient(testnet);
-        oraclesAddress = new String[3];
-        oraclesAddress[0] = bitcoindClient.getAccountAddress(oracleAccountPrefix + 0);
-        oraclesAddress[1] = bitcoindClient.getAccountAddress(oracleAccountPrefix + 1);
-        oraclesAddress[2] = bitcoindClient.getAccountAddress(oracleAccountPrefix + 2);
+
     }
+
     @Before
-    public void setUp() {
+    public void setUp() throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+        bitcoindClient = new BitcoindClient(testnet);
+
+        oraclesAddress = new String[numOracles];
+
+        playersAccount = new String[numPlayers];
+        playersWIFAddress = new String[numPlayers];
+        playersPrivateKey = new BitcoinPrivateKey[numPlayers];
+
+        for(int i = 0; i < numOracles; i++)
+            oraclesAddress[i] = bitcoindClient.getAccountAddress(oracleAccountPrefix + i);
+
+        for(int i = 0; i < numPlayers; i++) {
+            playersAccount[i] = playerAccountPrefix + (i + 1);
+            playersWIFAddress[i] = getChangeAddress(bitcoindClient, null, playersAccount[i]);
+            playersPrivateKey[i] = BitcoinPrivateKey.fromWIF(
+                    bitcoindClient.getPrivateKey(playersWIFAddress[i]));
+        }
+
         oracles = new LinkedList<>();
         for(String oracleAddress : oraclesAddress)
             oracles.add(new Oracle(oracleAddress));
         channel = new ZeroMQChannel("localhost:4324", "172.19.2.54:8876");
     }
+
+    // Utils
 
     private List<AbsoluteOutput> getUnspentOutputs(String account) throws ParseTransactionException {
         List<AbsoluteOutput> unspentOutputs;
@@ -82,11 +103,12 @@ public class ProtocolTxsTest {
         String wifSrcAddress = BitcoinPublicKey.txAddressToWIF(hexToByteArray(srcAddress), testnet);
         Transaction inscriptionTx = TransactionBuilder.registerAsOracle(unspentOutput, bitcoindClient.isTestnet());
         inscriptionTx.sign(BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(wifSrcAddress)));
-        throw new NotImplementedException();
+        bitcoindClient.verifyTransaction(inscriptionTx);
     }
 
     @Test
     public void playersBetPromiseTest() throws Exception {
+        // Negotiated parameters
         int minOracles, maxOracles;
         long firstPaymentAmount, oraclePayment, amount, oracleInscription, oraclePenalty, fee, timeoutSeconds;
         firstPaymentAmount = oraclePayment = oracleInscription = oraclePenalty = fee = 4;
@@ -96,14 +118,16 @@ public class ProtocolTxsTest {
         String description = "Bet's description... really short actually";
         Bet.Amounts amounts = new Bet.Amounts(firstPaymentAmount, oraclePayment, amount, oracleInscription,
                 oraclePenalty, fee);
+
+        // Create Bet Object.
         BitcoinPublicKey[] playersPubKey = new BitcoinPublicKey[2];
-        playersPubKey[0] = new BitcoinPublicKey("030881eb43770203716888f131eaba4d9b35446d60cebafebcb9908ffdb050b006", true, true);
+        playersPubKey[0] = playersPrivateKey[0]  .get new BitcoinPublicKey("030881eb43770203716888f131eaba4d9b35446d60cebafebcb9908ffdb050b006", true, true);
         playersPubKey[1] = new BitcoinPublicKey("0450863AD64A87AE8A2FE83C1AF1A8403CB53F53E486D8511DAD8A04887E5B23522CD470243453A299FA9E77237716103ABC11A1DF38855ED6F2EE187E9C582BA6",
                 false, true);
         Bet b1 = new Bet(description, minOracles, maxOracles, oracles, new LinkedList<Oracle>(), playersPubKey, amounts,
                 TimeUnit.SECONDS, timeoutSeconds, channel);
-        List<AbsoluteOutput> srcOutputs = getUnspentOutputs(player1Account);
-        String wifChangeAddress = bitcoindClient.getAccountAddress(player1Account);
+        List<AbsoluteOutput> srcOutputs = getUnspentOutputs(playersAccount[0]);
+        String wifChangeAddress = bitcoindClient.getAccountAddress(playersAccount[0]);
 
         List<BitcoinPrivateKey> privateKeys = new LinkedList<>();
         for(AbsoluteOutput ao : srcOutputs) {
@@ -118,6 +142,10 @@ public class ProtocolTxsTest {
     }
 
     public Transaction betPromiseFlow() throws Exception {
+        /**
+         * Sample of a flow where two players negotiate a bet.
+         */
+
         // Parameters
         int minOracles, maxOracles;
         long firstPaymentAmount, oraclePayment, amount, oracleInscription, oraclePenalty, fee, timeoutSeconds;
@@ -137,15 +165,15 @@ public class ProtocolTxsTest {
                                 TimeUnit.SECONDS, timeoutSeconds, channel);
 
         // Player 1
-        List<AbsoluteOutput> player1SrcOutputs = getUnspentOutputs(player1Account);
-        String player1WifChangeAddress = bitcoindClient.getAccountAddress(player1Account);
+        List<AbsoluteOutput> player1SrcOutputs = getUnspentOutputs(playersAccount[0]);
+        String player1WifChangeAddress = bitcoindClient.getAccountAddress(playersAccount[0]);
 
         Transaction player1BetPromise = TransactionBuilder.betPromise(player1SrcOutputs, player1WifChangeAddress, agreedBet, true);
         Transaction sharedTx = new Transaction(player1BetPromise);
 
         // Player 2
-        List<AbsoluteOutput> player2SrcOutputs = getUnspentOutputs(player2Account);
-        String player2WifChangeAddress = bitcoindClient.getAccountAddress(player2Account);
+        List<AbsoluteOutput> player2SrcOutputs = getUnspentOutputs(playersAccount[1]);
+        String player2WifChangeAddress = bitcoindClient.getAccountAddress(playersAccount[1]);
         Transaction player2ExpectedBet = TransactionBuilder.betPromise(player2SrcOutputs, player2WifChangeAddress,
                                                                       agreedBet, false);
         if(TransactionBuilder.updateBetPromise(player2SrcOutputs, player2WifChangeAddress, agreedBet, false,
@@ -194,8 +222,8 @@ public class ProtocolTxsTest {
                 bet.getRelativeBetResolutionSecs());
     }
 
-    @Test
-    public Transaction oracleBetInscriptionFlow(Bet bet) throws Exception {
+    //@Test
+    public void oracleBetInscriptionFlow(Bet bet) throws Exception {
         final int totalOracles = 5;
         final Transaction betPromiseTransaction = betPromiseFlow();
         List<List<byte[]>> expectedAnswers = new LinkedList<>();
@@ -256,6 +284,11 @@ public class ProtocolTxsTest {
 //        BitcoinPrivateKey player1PrivateKey = bet.getPlayersPubKey()
         Transaction betPromise = betPromiseFlow();
         throw new NotImplementedException();
+    }
+
+    @Test
+    public void completeFlowTest() throws Exception {
+        Transaction transaction = betPromiseFlow();
     }
 
 

@@ -56,7 +56,7 @@ public class SignTest {
         client = new BitcoindClient(true);
     }
 
-    private String getAddressWithMoney() {
+    public String getAddressWithMoney() {
         List<String> testingAddresses = client.getAddresses("testingMoney");
         String addr = null;
         for(String s: testingAddresses) {
@@ -71,20 +71,31 @@ public class SignTest {
         return addr;
     }
 
-    private String getChangeAddress(Set<String> forbiddenAddresses) {
-        List<String> addresses = client.getAddresses("testingNoMoney");
+    public String getChangeAddress(Set<String> forbiddenAddresses) {
+        return getChangeAddress(client, forbiddenAddresses);
+    }
+
+    static public String getChangeAddress(BitcoindClient client, Set<String> forbiddenAddresses, String account) {
+        List<String> addresses = client.getAddresses(account);
         for(String address: addresses)
-            if(!forbiddenAddresses.contains(address))
+            if(forbiddenAddresses == null || !forbiddenAddresses.contains(address))
                 return address;
         // GetRawChangeAddress must be used here
         throw new NotImplementedException();
     }
 
-    private String getChangeAddress(String... forbiddenAddresses) {
+    static public String getChangeAddress(BitcoindClient client, Set<String> forbiddenAddresses) {
+        return getChangeAddress(client, forbiddenAddresses, "testingNoMoney");
+    }
+
+    public String getChangeAddress(String... forbiddenAddresses) {
+        return getChangeAddress(client, forbiddenAddresses);
+    }
+    static public String getChangeAddress(BitcoindClient client, String... forbiddenAddresses) {
         Set<String> fA = new HashSet<>();
         for(String forbiddenAdress : forbiddenAddresses)
             fA.add(forbiddenAdress);
-        return getChangeAddress(fA);
+        return getChangeAddress(client, fA);
     }
 
     private List<String> getAvailableOutputs(String addr) throws NoSuchAlgorithmException {
