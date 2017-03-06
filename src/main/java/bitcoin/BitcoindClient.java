@@ -283,6 +283,10 @@ public class BitcoindClient {
         return getTxTime(tx.txid());
     }
 
+    public String getAccount(String address) {
+        return bitcoindRpcClient.getAccount(address);
+    }
+
 
 
     // Keep at the end

@@ -1,11 +1,9 @@
 <component name="libraryTable">
   <library name="Gradle: org.zeromq:jzmq:3.1.1-SNAPSHOT">
     <CLASSES>
-      <root url="jar://$USER_HOME$/Compiled_Software/jzmq/jzmq/target/jzmq-3.1.1-SNAPSHOT.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/org/zeromq/jzmq/3.1.1-SNAPSHOT/jzmq-3.1.1-SNAPSHOT.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
-    <jarDirectory url="jar://$USER_HOME$/Compiled_Software/jzmq/jzmq/target/jzmq-3.1.1-SNAPSHOT.jar!/" recursive="false" />
   </library>
 </component>
