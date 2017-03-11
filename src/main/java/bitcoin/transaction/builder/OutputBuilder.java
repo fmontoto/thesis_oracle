@@ -95,8 +95,9 @@ public class OutputBuilder {
     static public byte[] multisigOrSomeSignaturesTimeoutOutput(
             TimeUnit timeUnit, long timeoutVal, BitcoinPublicKey alwaysNeedKey,
             List<BitcoinPublicKey> optionalKeys) throws IOException, NoSuchAlgorithmException {
-        List<BitcoinPublicKey> needKey = Arrays.asList(new BitcoinPublicKey[] {alwaysNeedKey});
-        return multisigOrSomeSignaturesTimeoutOutput(timeUnit, timeoutVal, alwaysNeedKey, optionalKeys);
+        List<BitcoinPublicKey> neededKeys = Arrays.asList(new BitcoinPublicKey[] {alwaysNeedKey});
+        return multisigOrSomeSignaturesTimeoutOutput(timeUnit, timeoutVal, neededKeys,
+                                                     optionalKeys);
     }
 
     static public byte[] multisigOrOneSignatureTimeoutOutput(TimeUnit timeUnit,
@@ -182,7 +183,7 @@ public class OutputBuilder {
                 multisig);
     }
 
-    private static byte[] multisigScript(Collection<BitcoinPublicKey> keys, int requiredSignatures, boolean multisigVerify) throws IOException, NoSuchAlgorithmException {
+    public static byte[] multisigScript(Collection<BitcoinPublicKey> keys, int requiredSignatures, boolean multisigVerify) throws IOException, NoSuchAlgorithmException {
         return multisigScript(keys.toArray(new BitcoinPublicKey[0]) , requiredSignatures, multisigVerify);
     }
 
@@ -194,7 +195,8 @@ public class OutputBuilder {
         if(keys.length < requiredSignatures)
             throw new InvalidParameterException("Required signatures are more than provided keys.");
 
-        return new Output(amount, multisigScript(keys, requiredSignatures));
+        byte[] redeemScript = multisigScript(keys, requiredSignatures);
+        return createPayToScriptHashOutputFromScript(amount, redeemScript);
     }
 
     static Output createOpReturnOutput(byte[] data) {

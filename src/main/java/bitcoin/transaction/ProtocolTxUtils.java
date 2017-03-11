@@ -1,5 +1,6 @@
 package bitcoin.transaction;
 
+import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import core.Bet;
 import core.BetTxForm;
@@ -26,7 +27,7 @@ import static core.Utils.hexToByteArray;
 public class ProtocolTxUtils {
     static public int getOracleNumber(Transaction betPromiseTx, String oracleWifAddress, Bet bet) throws IOException, NoSuchAlgorithmException {
         byte[] expectedRedeemScript = multisigScript(bet.getPlayersPubKey(),
-                                                     bet.getPlayersPubKey().length);
+                bet.getPlayersPubKey().length);
         BetTxForm betTxForm = BetTxForm.fromSerialized(
                 hexToByteArray(betPromiseTx.getOutputs().get(0).getParsedScript().get(3)));
         return betTxForm.getOracles().indexOf(oracleWifAddress);
@@ -49,7 +50,7 @@ public class ProtocolTxUtils {
             offset += varIntByteSize(answers);
             List<byte[]> expectedAnswersHash = new LinkedList<>();
 
-            for(int i = 0; i < answers; i++) {
+            for (int i = 0; i < answers; i++) {
                 int size = Math.toIntExact(readVarInt(buffer, offset));
                 offset += varIntByteSize(size);
                 expectedAnswersHash.add(Arrays.copyOfRange(buffer, offset, offset + size));
@@ -67,12 +68,11 @@ public class ProtocolTxUtils {
             outputStream.write(publicKey.serialize());
 
             outputStream.write(serializeVarInt(expectedAnswersHash.size()));
-            for(byte[] b :expectedAnswersHash) {
+            for (byte[] b : expectedAnswersHash) {
                 outputStream.write(b.length);
                 outputStream.write(b);
             }
             return outputStream.toByteArray();
         }
-
     }
 }

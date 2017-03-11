@@ -289,11 +289,11 @@ public class Bet {
         public Amounts(long firstPaymentAmount, long oraclePayment, long amount,
                        long oracleInscription, long oraclePenalty, long fee) {
 
-            this.firstPaymentAmount = firstPaymentAmount;
-            this.oraclePayment = oraclePayment;
-            this.amount = amount;
-            this.oracleInscription = oracleInscription;
-            this.oraclePenalty = oraclePenalty;
+            this.firstPaymentAmount = firstPaymentAmount; // c
+            this.oraclePayment = oraclePayment;  // oracle_payment
+            this.amount = amount;  // N
+            this.oracleInscription = oracleInscription;  // registration
+            this.oraclePenalty = oraclePenalty;  // two_answers_penalty
             this.fee = fee;
         }
 

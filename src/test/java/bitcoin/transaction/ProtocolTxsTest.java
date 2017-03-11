@@ -4,7 +4,6 @@ import bitcoin.BitcoindClient;
 import bitcoin.ClientUtils;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
-import bitcoin.transaction.builder.TransactionBuilder;
 import core.*;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -14,15 +13,19 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static bitcoin.Constants.getHashType;
 import static bitcoin.key.Utils.r160SHA256Hash;
 import static bitcoin.transaction.SignTest.getChangeAddress;
+import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOrSomeSignaturesTimeoutOutput;
+import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOutput;
+import static bitcoin.transaction.builder.OutputBuilder.multisigScript;
 import static bitcoin.transaction.builder.TransactionBuilder.*;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
@@ -39,6 +42,7 @@ public class ProtocolTxsTest {
 
     String[] oraclesAddress;
     List<Oracle> oracles;
+    List<BitcoinPublicKey> oraclePublicKeys;
     Channel channel;
 
     String[] playersAccount;
@@ -77,6 +81,9 @@ public class ProtocolTxsTest {
         oracles = new LinkedList<>();
         for(String oracleAddress : oraclesAddress)
             oracles.add(new Oracle(oracleAddress));
+        oraclePublicKeys = new LinkedList<>();
+        for(Oracle oracle : oracles)
+            oraclePublicKeys.add(getOraclePublicKey(oracle));
         channel = new ZeroMQChannel("localhost:4324", "172.19.2.54:8876");
     }
 
@@ -88,6 +95,13 @@ public class ProtocolTxsTest {
 
     private AbsoluteOutput getUnspentOutput() throws ParseTransactionException {
         return ClientUtils.getUnspentOutputs(bitcoindClient, null).get(0);
+    }
+
+    private BitcoinPublicKey getOraclePublicKey(Oracle oracle) throws NoSuchAlgorithmException,
+                                                                      IOException,
+                                                                      InvalidKeySpecException {
+        char[] privateKey = bitcoindClient.getPrivateKey(oracle.getAddress());
+        return BitcoinPrivateKey.fromWIF(privateKey).getPublicKey();
     }
 
     @Test
@@ -118,9 +132,10 @@ public class ProtocolTxsTest {
 
         return betPromiseFlow(agreedBet);
     }
-        public Transaction betPromiseFlow(Bet agreedBet)
-                throws ParseTransactionException, IOException, NoSuchAlgorithmException,
-                InvalidKeySpecException, SignatureException, InvalidKeyException {
+
+    public Transaction betPromiseFlow(Bet agreedBet)
+            throws ParseTransactionException, IOException, NoSuchAlgorithmException,
+            InvalidKeySpecException, SignatureException, InvalidKeyException {
         /**
          * Sample of a flow where two players negotiate a bet.
          */
@@ -300,7 +315,7 @@ public class ProtocolTxsTest {
         Transaction betPromise = betPromiseFlow(agreedBet);
 
         // betPromise is the first transaction of the bet protocol to go into the blockchain, it
-        // reflects the intention and commitment from both player. It has the hashed description
+        // reflects the intention and commitment from both players. It has the hashed description
         // of the bet and the list of the chosen oracles. When a mentioned oracle sees the
         // transaction it should get the description of the bet as described on it, after getting
         // it, make sure is the one supposed to be by hashing and comparing the result with the
@@ -309,16 +324,65 @@ public class ProtocolTxsTest {
         bitcoindClient.verifyTransaction(betPromise);
 
         // After the oracles see the betPromise transaction they sign on (or not) to participate.
-        //
         List<ParticipatingOracle> participatingOracles = new LinkedList<>();
+        List<Transaction> participatingOraclesTxs = new LinkedList<>();
 
-        // Once the parameters are ready, the first
         for(Oracle oracle : oracles) {
             ParticipatingOracle participatingOracle = ParticipatingOracle.participate(oracle,
                                                                                       betPromise);
             participatingOracles.add(participatingOracle);
-            //participatingOracle.generateParticipateTransaction(bitcoindClient, agreedBet, )
-            ;//oracleBetInscription()
+            Transaction oracleInscriptionTx = participatingOracle.generateInscriptionTransaction(
+                    bitcoindClient, agreedBet,
+                    agreedBet.getRelativeBetResolutionSecs() /* timeout */);
+            participatingOraclesTxs.add(oracleInscriptionTx);
+            // When this transaction takes some time from the promise bet, the timeout should
+            // be adjusted, as it is a relative timeout since the transaction was posted in the
+            // blockhain.
+        }
+
+
+        // Then the oracles send the transaction to the players, so they can sign it.
+        // So far the player don't need to know the public key of the oracle, just the address.
+        // But now they need it in order to check the redeem script the oracles set to the
+        // transaction.
+
+        // Player 1 puts its signature in the transaction and send it to player 2
+        for(Transaction tx : participatingOraclesTxs) {
+            //TODO check the tx is what is supposed to be. (the oracle did the right thing)
+            byte[] promiseBetRedeemScript = multisigScript(playersPubKey, playersPubKey.length);
+            int input_to_sign = tx.getInputs().size() - 1;
+            tx.setTempScriptSigForSigning(input_to_sign, promiseBetRedeemScript);
+            tx.getInputs().get(input_to_sign).setScript(
+                    tx.getPayToScriptSignature(playersPrivateKey[0], getHashType("ALL"),
+                                               input_to_sign));
+            // Now the transaction contains player 1's signature in the input script.
+
+        }
+
+        // Now player 2 takes the other's player signature, generate their and complete the tx. By
+        // using the two required signatures.
+        for(Transaction tx :participatingOraclesTxs) {
+            //TODO check the tx is what is supposed to be. (the oracle did the right thing)
+            byte[] promiseBetRedeemScript = multisigScript(playersPubKey, playersPubKey.length);
+            int input_to_sign = tx.getInputs().size() - 1;
+            byte[] player1Signature = tx.getInputs().get(input_to_sign).getScript();
+            tx.setTempScriptSigForSigning(input_to_sign, promiseBetRedeemScript);
+            byte[] player2Signature = tx.getPayToScriptSignature(
+                    playersPrivateKey[1], getHashType("ALL"), input_to_sign);
+            List<byte[]> signatures = Arrays.asList(player1Signature, player2Signature);
+            tx.getInputs().get(input_to_sign).setScript(
+                    redeemMultisigOutput(promiseBetRedeemScript, signatures));
+        }
+
+        // Oracle Inscription transactions are now ready to go to the blockchain.
+        for(int i = 0; i < participatingOraclesTxs.size(); i++) {
+            Transaction tx = participatingOraclesTxs.get(i);
+            // At bet promise, there are three outputs before the oracle's outputs.
+            int input_bet_promise = 3 + i;
+            byte[] promiseBetRedeemScript = multisigScript(playersPubKey, playersPubKey.length);
+            PayToScriptAbsoluteOutput betPromiseAbsoluteOutput = new PayToScriptAbsoluteOutput(
+                    betPromise, input_bet_promise, promiseBetRedeemScript);
+            bitcoindClient.verifyTransaction(tx, betPromiseAbsoluteOutput);
         }
         //Transaction transaction = betPromiseFlow();
     }

@@ -116,7 +116,8 @@ public class Output {
         Map<String, String> ret = new LinkedHashMap<String, String>();
         ret.put("value", String.valueOf(Long.toUnsignedString(value)));
         ret.put("script_length", String.valueOf(script != null ? script.length : 0));
-        ret.put("script", byteArrayToHex(script != null ? script : new byte[0]));
+        //ret.put("script", byteArrayToHex(script != null ? script : new byte[0]));
+        ret.put("script", parsedScript.toString());
         return ret;
     }
 

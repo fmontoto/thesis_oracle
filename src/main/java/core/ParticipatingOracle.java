@@ -61,12 +61,10 @@ public class ParticipatingOracle extends Oracle {
         //bitcoinPrivateKey.getPublicKey().getKey();
     }
 
-    public Transaction generateParticipateTransaction(BitcoindClient client, Bet bet,
+    public Transaction generateInscriptionTransaction(BitcoindClient client, Bet bet,
                                                       long timeoutSeconds)
             throws ParseTransactionException, IOException, NoSuchAlgorithmException,
                    InvalidKeySpecException, SignatureException, InvalidKeyException {
-
-
 
 
         String account = client.getAccount(getAddress());
@@ -79,11 +77,11 @@ public class ParticipatingOracle extends Oracle {
 
         BitcoinPublicKey pubKey = BitcoinPrivateKey.fromWIF(
                 client.getPrivateKey(getAddress())).getPublicKey();
-        List<byte[]> expectedAnswersHash = new LinkedList<>();
-        expectedAnswersHash.add(playerAWinsHash);
-        expectedAnswersHash.add(playerBWinsHash);
+        List<byte[]> expectedAnswersHashes = new LinkedList<>();
+        expectedAnswersHashes.add(playerAWinsHash);
+        expectedAnswersHashes.add(playerBWinsHash);
         return oracleInscription(unspentOutputs, outputKeys, pubKey, pubKey.toWIF(),
-                                 expectedAnswersHash, bet, betPromise, timeoutSeconds);
+                                 expectedAnswersHashes, bet, betPromise, timeoutSeconds);
     }
 }
 

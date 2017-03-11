@@ -242,6 +242,7 @@ public class BitcoindClient {
         try {
             return bitcoindRpcClient.signRawTransaction(transactionHex, inputs, keys);
         } catch(BitcoinRpcException e) {
+            System.out.println(printCLIVerification(transactionHex, inputs));
             throw new BitcoindClientException(e.getMessage());
         }
     }
@@ -262,7 +263,7 @@ public class BitcoindClient {
                                         input.getVout(),
                                         byteArrayToHex(input.getScript()),
                                         byteArrayToHex(input.getRedeemScript()),
-                                        new BigDecimal(input.getValue())));
+                                        new BigDecimal(input.getValue()).divide(new BigDecimal("100000000"))));
         }
 
         return verifyTransaction(tx.hexlify(), inputsList, new LinkedList<>());
@@ -288,6 +289,28 @@ public class BitcoindClient {
     }
 
 
+
+    private String printCLIVerification(String transactionHex, List<ExtendedTxInput> inputs) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("./bitcoin-cli -testnet signrawtransaction ");
+        sb.append(transactionHex + " '[");
+        boolean first = true;
+        for(ExtendedTxInput extendedTxInput : inputs) {
+            if(first)
+                first = false;
+            else
+                sb.append((","));
+            sb.append("{ \"txid\": \"" + extendedTxInput.txid() + "\"");
+            sb.append(", \"vout\":" + extendedTxInput.vout());
+            sb.append(", \"amount\": " + (extendedTxInput.amount().divide(new BigDecimal("100000000"))));
+            //sb.append(", \"redeemScript\": \"" + extendedTxInput.redeemScript() + "\"");
+            sb.append(", \"scriptPubKey\": \"" + extendedTxInput.redeemScript() + "\"");
+        }
+        if(!first)
+            sb.append("}");
+        sb.append("]' \"[]\"");
+        return sb.toString();
+    }
 
     // Keep at the end
     static public class BitcoindClientException extends Exception {

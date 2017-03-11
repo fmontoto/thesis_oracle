@@ -1,16 +1,19 @@
 package bitcoin.transaction.builder;
 
 import bitcoin.key.BitcoinPublicKey;
-import bitcoin.transaction.AbsoluteOutput;
-import bitcoin.transaction.Input;
-import bitcoin.transaction.PayToScriptAbsoluteOutput;
+import bitcoin.transaction.*;
+import com.sun.org.apache.xalan.internal.xsltc.dom.AbsoluteIterator;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.List;
 
 import static bitcoin.Constants.*;
+import static bitcoin.transaction.builder.OutputBuilder.multisigScript;
+import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 import static core.Utils.mergeArrays;
 
@@ -108,5 +111,27 @@ public class InputBuilder {
                                       , signaturesByteArray
                                       , pushDataOpcode(redeemScript.length)
                                       , redeemScript);
+    }
+
+    static public Input redeemBetPromiseOraclePayment(List<BitcoinPublicKey> playerPublicKeys,
+                                                       Transaction betPromise, int num_oracle) throws IOException, NoSuchAlgorithmException {
+        byte[] redeemScript = multisigScript(playerPublicKeys, 2, false);
+        String redeemScriptHex = byteArrayToHex(redeemScript);
+        int num_oracle_output = 0;
+
+        for(int num_output = 0; num_output < betPromise.getOutputs().size(); ++num_output) {
+            Output out = betPromise.getOutputs().get(num_output);
+            if(out.isPayToScript() && redeemScriptHex.equals(out.getParsedScript().get(2))) {
+                if(num_oracle_output == num_oracle)
+                    return new Input();
+                    //return new AbsoluteOutput()
+                    break;
+                //else
+                //    ++num_oracle_output;
+            }
+        }
+        //new AbsoluteOutput()
+        //TODO
+        throw new NotImplementedException();
     }
 }
