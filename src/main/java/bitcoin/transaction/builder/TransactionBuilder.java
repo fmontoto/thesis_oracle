@@ -6,6 +6,7 @@ import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.*;
 import core.Bet;
 import core.Constants;
+import core.Oracle;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
@@ -208,6 +209,27 @@ public class TransactionBuilder {
                                                         wifChangeAddress));
 
         return tx;
+    }
+
+    static public Transaction bet(Transaction betPromise, List<Transaction> oracleInscriptions,
+                                  Bet bet, List<Oracle> oracles) throws NoSuchAlgorithmException {
+        // Outputs
+        //TODO check the numbers
+        long bet_prize = bet.getAmount();
+        long oracle_payment = bet.getOraclePayment();
+
+        List<AbsoluteOutput> srcInputs = new LinkedList<>();
+        srcInputs.add(new AbsoluteOutput(betPromise, 1));
+        srcInputs.add(new AbsoluteOutput(betPromise, 2));
+        for(Transaction oracleInscription : oracleInscriptions)
+            srcInputs.add(new AbsoluteOutput(oracleInscription, 0));
+
+        List<Input> inputs = new LinkedList<>();
+        for(AbsoluteOutput ao: srcInputs)
+            inputs.add(new Input(ao, null));
+
+
+        throw new NotImplementedException();
     }
 
     static public boolean updateBetPromise(List<AbsoluteOutput> srcOutputs, String wifChangeAddress,

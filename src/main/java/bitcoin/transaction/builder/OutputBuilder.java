@@ -252,6 +252,73 @@ public class OutputBuilder {
         );
 
         return timeOutOptionalPath(null, noTimeout, onTimeout, timeUnit, timeoutVal, false);
+    }
+
+    private static byte[] threePathScript(byte[] first_path, byte[] second_path, byte[] third_path)
+            throws IOException {
+
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        buffer.write(getOpcode("OP_IF"));
+            buffer.write(getOpcode("OP_IF"));
+                buffer.write(third_path);
+            buffer.write(getOpcode("OP_ELSE"));;
+                buffer.write(second_path);
+            buffer.write(getOpcode("OP_ENDIF"));
+        buffer.write(getOpcode("OP_ELSE"));
+            buffer.write(first_path);
+        buffer.write(getOpcode("OP_ENDIF"));
+        return buffer.toByteArray();
+    }
+
+    private static byte[] checkMultiHash(List<byte[]> hashes, int requiredHashes) throws IOException {
+        if(requiredHashes > hashes.size())
+            throw new InvalidParameterException("Can not require more hashes than provided");
+        int max_fails = hashes.size() - requiredHashes;
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+        buffer.write(getOpcode("OP_0"));
+        buffer.write(getOpcode("OP_TOALTSTACK"));
+
+        for(byte[] hash: hashes) {
+            buffer.write(getOpcode("OP_DUP"));
+            buffer.write(getOpcode("OP_TOALTSTACK"));
+            buffer.write(getOpcode("OP_HASH160"));
+            buffer.write(pushDataOpcode(hash.length));
+            buffer.write(hash);
+            buffer.write(getOpcode("OP_EQUAL"));
+
+            buffer.write(getOpcode("OP_IF"));
+                buffer.write(getOpcode("OP_FROMALTSTACK"));
+                buffer.write(getOpcode("OP_DROP"));
+            buffer.write(getOpcode("OP_ELSE"));
+                buffer.write(getOpcode("OP_FROMALTSTACK"));
+                buffer.write(getOpcode("OP_FROMALTSTACK"));
+                buffer.write(getOpcode("OP_1ADD"));
+                buffer.write(getOpcode("OP_TOALTSTACK"));
+            buffer.write(getOpcode("OP_ENDIF"));
+        }
+
+        buffer.write(getOpcode("OP_FROMALTSTACK"));
+        buffer.write(pushNumberOpcode(max_fails));
+        // Verify the actual fails are less than the max allowed.
+        buffer.write(getOpcode("OP_GREATERTHAN"));
+        buffer.write(getOpcode("OP_VERIFY"));
+        return buffer.toByteArray();
+    }
+
+    private static byte[] betPrizeResolutionRedeemScript(
+            List<byte[]> playerAWinHashes, List<byte[]> playerBWinHashes,
+            List<BitcoinPublicKey> playerPubKeys, long timeout) {
+
+        throw new NotImplementedException();
 
     }
+    static public Output betPrizeResolution(List<byte[]> playerAWinHashes, List<byte[]> playerBWinHashes,
+                         List<BitcoinPublicKey> playerPubKeys, long timeout, long amount) {
+        byte[] redeemScript = betPrizeResolutionRedeemScript(playerAWinHashes, playerBWinHashes,
+                playerPubKeys, timeout);
+        throw new NotImplementedException();
+
+    }
+
 }

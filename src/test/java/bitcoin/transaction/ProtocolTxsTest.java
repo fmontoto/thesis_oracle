@@ -265,7 +265,7 @@ public class ProtocolTxsTest {
     }
 
     @Test
-    public void completeFlowTest() throws Exception {
+    public void completeTransactionFlowTest() throws Exception {
         // This method goes through all the transactions in the protocol.
 
         // Everyone willing to be chose as an oracle must send the inscription transaction to the
@@ -384,6 +384,9 @@ public class ProtocolTxsTest {
                     betPromise, input_bet_promise, promiseBetRedeemScript);
             bitcoindClient.verifyTransaction(tx, betPromiseAbsoluteOutput);
         }
+
+        // Now the oracles are commited, we can generate the Bet transaction.
+
         //Transaction transaction = betPromiseFlow();
     }
 

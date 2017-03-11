@@ -38,6 +38,9 @@ public class Input {
         this.sequenceNo = 0xffffffffL & sequenceNo;
     }
 
+    public Input(AbsoluteOutput ao, byte[] script) {
+        this(ao.getVout(), hexToByteArray(ao.getTxId()), script);
+    }
 
     public Input(byte[] rawInput, int offset) {
         int original_offset = offset;
