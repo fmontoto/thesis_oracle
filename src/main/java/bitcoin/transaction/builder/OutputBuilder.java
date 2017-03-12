@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static bitcoin.Constants.*;
 import static bitcoin.key.Utils.r160SHA256Hash;
@@ -24,6 +25,17 @@ import static core.Utils.mergeArrays;
  * Created by fmontoto on 17-01-17.
  */
 public class OutputBuilder {
+
+    static private byte[] checkTimeoutScript(TimeUnit timeUnit, long timeoutVal) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+        byte[] timeout = TransactionBuilder.createSequenceNumber(timeUnit, timeoutVal);
+        buffer.write(pushDataOpcode(timeout.length));
+        buffer.write(timeout);
+        buffer.write(getOpcode("OP_CHECKSEQUENCEVERIFY"));
+        buffer.write(getOpcode("OP_DROP"));
+        return buffer.toByteArray();
+    }
     static private byte[] timeOutOptionalPath(byte[] always, byte[] noTimeout,
                                               byte[] onTimeout, TimeUnit timeUnit,
                                               long timeoutVal, boolean finishWithTrue)
@@ -47,11 +59,7 @@ public class OutputBuilder {
             buffer.write(pushDataOpcode(onTimeout.length));
             buffer.write(onTimeout);
         }
-
-        buffer.write(pushDataOpcode(timeout.length));
-        buffer.write(timeout);
-        buffer.write(getOpcode("OP_CHECKSEQUENCEVERIFY"));
-        buffer.write(getOpcode("OP_DROP"));
+        buffer.write(checkTimeoutScript(timeUnit, timeoutVal));
         buffer.write(getOpcode("OP_ENDIF"));
         if(finishWithTrue)
             buffer.write(getOpcode("OP_1"));
@@ -191,7 +199,9 @@ public class OutputBuilder {
         return multisigScript(keys, requiredSignatures, false);
     }
 
-    static public Output createMultisigOutput(long amount, BitcoinPublicKey[] keys, int requiredSignatures) throws IOException, NoSuchAlgorithmException {
+    static public Output createMultisigOutput(
+            long amount, BitcoinPublicKey[] keys, int requiredSignatures)
+            throws IOException, NoSuchAlgorithmException {
         if(keys.length < requiredSignatures)
             throw new InvalidParameterException("Required signatures are more than provided keys.");
 
@@ -270,7 +280,8 @@ public class OutputBuilder {
         return buffer.toByteArray();
     }
 
-    private static byte[] checkMultiHash(List<byte[]> hashes, int requiredHashes) throws IOException {
+    private static byte[] checkMultiHash(List<byte[]> hashes, int requiredHashes,
+                                         boolean finishWithTrue) throws IOException {
         if(requiredHashes > hashes.size())
             throw new InvalidParameterException("Can not require more hashes than provided");
         int max_fails = hashes.size() - requiredHashes;
@@ -298,27 +309,167 @@ public class OutputBuilder {
             buffer.write(getOpcode("OP_ENDIF"));
         }
 
+        buffer.write(getOpcode("OP_DROP"));
+
         buffer.write(getOpcode("OP_FROMALTSTACK"));
         buffer.write(pushNumberOpcode(max_fails));
         // Verify the actual fails are less than the max allowed.
         buffer.write(getOpcode("OP_GREATERTHAN"));
-        buffer.write(getOpcode("OP_VERIFY"));
+        if(!finishWithTrue)
+            buffer.write(getOpcode("OP_VERIFY"));
         return buffer.toByteArray();
     }
 
     private static byte[] betPrizeResolutionRedeemScript(
             List<byte[]> playerAWinHashes, List<byte[]> playerBWinHashes,
-            List<BitcoinPublicKey> playerPubKeys, long timeout) {
+            List<BitcoinPublicKey> playerPubKeys, int requiredHashes, long timeoutSeconds,
+            BitcoinPublicKey onTimeout)
+            throws IOException, NoSuchAlgorithmException {
+        if(playerPubKeys.size() != 2)
+            throw new InvalidParameterException("Only two player supported.");
 
-        throw new NotImplementedException();
+        // A wins
+        ByteArrayOutputStream aWinsScriptBuffer = new ByteArrayOutputStream();
 
+        aWinsScriptBuffer.write(pushDataOpcode(playerPubKeys.get(0).getKey().length));
+        aWinsScriptBuffer.write(playerPubKeys.get(0).getKey());
+        aWinsScriptBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
+        aWinsScriptBuffer.write(checkMultiHash(playerAWinHashes, requiredHashes, false));
+
+        byte[] aWinsScript = aWinsScriptBuffer.toByteArray();
+
+        // B wins
+        ByteArrayOutputStream bWinsScriptBuffer = new ByteArrayOutputStream();
+
+        bWinsScriptBuffer.write(pushDataOpcode(playerPubKeys.get(1).getKey().length));
+        bWinsScriptBuffer.write(playerPubKeys.get(1).getKey());
+        bWinsScriptBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
+        bWinsScriptBuffer.write(checkMultiHash(playerBWinHashes, requiredHashes, false));
+
+        byte[] bWinsScript = bWinsScriptBuffer.toByteArray();
+
+        // Timeout Script
+        ByteArrayOutputStream timeoutScriptBuffer = new ByteArrayOutputStream();
+
+        timeoutScriptBuffer.write(checkTimeoutScript(TimeUnit.SECONDS, timeoutSeconds));
+        aWinsScriptBuffer.write(pushDataOpcode(onTimeout.getKey().length));
+        aWinsScriptBuffer.write(onTimeout.getKey());
+        aWinsScriptBuffer.write(getOpcode("OP_CHECKSIG"));
+
+        byte[] timeoutScript = timeoutScriptBuffer.toByteArray();
+
+        return threePathScript(aWinsScript, bWinsScript, timeoutScript);
     }
-    static public Output betPrizeResolution(List<byte[]> playerAWinHashes, List<byte[]> playerBWinHashes,
-                         List<BitcoinPublicKey> playerPubKeys, long timeout, long amount) {
+
+    static public Output betPrizeResolution(
+            List<byte[]> playerAWinHashes, List<byte[]> playerBWinHashes,
+            List<BitcoinPublicKey> playerPubKeys, int requiredHashes, long timeoutSeconds,
+            BitcoinPublicKey onTimeout, long amount) throws IOException, NoSuchAlgorithmException {
         byte[] redeemScript = betPrizeResolutionRedeemScript(playerAWinHashes, playerBWinHashes,
-                playerPubKeys, timeout);
-        throw new NotImplementedException();
-
+                playerPubKeys, requiredHashes, timeoutSeconds, onTimeout);
+        return createPayToScriptHashOutputFromScript(amount, redeemScript);
     }
 
+    static public byte[] betOraclePaymentScript(
+            byte[] playerAWinsHash, byte[] playerBWinsHash, BitcoinPublicKey oracleKey,
+            BitcoinPublicKey playerAPublicKey, BitcoinPublicKey playerBPublicKey,
+            long betTimeoutSeconds, long replyUntilTimeout)
+            throws IOException, NoSuchAlgorithmException {
+
+        // Path to be taken by the oracle if it participate until the end in the bet.
+        ByteArrayOutputStream oracleAnswerBuffer = new ByteArrayOutputStream();
+        oracleAnswerBuffer.write(pushDataOpcode(oracleKey.getKey().length));
+        oracleAnswerBuffer.write(oracleKey.getKey());
+        oracleAnswerBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
+        oracleAnswerBuffer.write(checkTimeoutScript(TimeUnit.SECONDS, betTimeoutSeconds));
+
+        oracleAnswerBuffer.write(getOpcode("OP_IF"));
+        oracleAnswerBuffer.write(getOpcode("OP_HASH160"));
+        oracleAnswerBuffer.write(pushDataOpcode(playerAWinsHash.length));
+        oracleAnswerBuffer.write(playerAWinsHash);
+        oracleAnswerBuffer.write(getOpcode("OP_EQUALVERIFY"));
+        oracleAnswerBuffer.write(getOpcode("OP_ELSE"));
+        oracleAnswerBuffer.write(getOpcode("OP_HASH160"));
+        oracleAnswerBuffer.write(pushDataOpcode(playerBWinsHash.length));
+        oracleAnswerBuffer.write(playerBWinsHash);
+        oracleAnswerBuffer.write(getOpcode("OP_EQUALVERIFY"));
+        oracleAnswerBuffer.write(getOpcode("OP_ENDIF"));
+
+        byte[] oracleAnswer = oracleAnswerBuffer.toByteArray();
+
+        // Path when the oracle does not answer to the bet.
+        ByteArrayOutputStream timeoutBuffer = new ByteArrayOutputStream();
+        timeoutBuffer.write(pushDataOpcode(playerAPublicKey.getKey().length));
+        timeoutBuffer.write(playerAPublicKey.getKey());
+        timeoutBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
+
+        timeoutBuffer.write(pushDataOpcode(playerBPublicKey.getKey().length));
+        timeoutBuffer.write(playerBPublicKey.getKey());
+        timeoutBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
+
+        byte[] onTimeout = timeoutBuffer.toByteArray();
+
+        return timeOutOptionalPath(null, oracleAnswer, onTimeout, TimeUnit.SECONDS,
+                                   replyUntilTimeout, true);
+    }
+
+    static public Output betOraclePayment(
+            byte[] playerAWinsHash, byte[] playerBWinsHash, BitcoinPublicKey oracleKey,
+            BitcoinPublicKey playerAPublicKey, BitcoinPublicKey playerBPublicKey,
+            long betTimeoutSeconds, long replyUntilSeconds, long amount)
+            throws IOException, NoSuchAlgorithmException {
+        byte[] redeemScript = betOraclePaymentScript(playerAWinsHash, playerBWinsHash,
+                oracleKey, playerAPublicKey, playerBPublicKey, betTimeoutSeconds,
+                replyUntilSeconds);
+        return createPayToScriptHashOutputFromScript(amount, redeemScript);
+    }
+
+
+    static public byte[] undueChargePayment(
+            BitcoinPublicKey playerAPublicKey, BitcoinPublicKey playerBPublicKey,
+            byte[] oraclePlayerAWinHash, byte[] oraclePlayerBWinHash,
+            List<byte[]> allPlayerAWinHash, List<byte[]> allPlayerBWinHash, int requiredHashes)
+            throws IOException, NoSuchAlgorithmException {
+        if(allPlayerAWinHash.size() != allPlayerBWinHash.size())
+            throw new InvalidParameterException("Hash amount must be the same for both players.");
+        if(allPlayerAWinHash.size() < requiredHashes)
+            throw new InvalidParameterException("Required hashes is bigger than all of them.");
+        List<byte[]> playerAWinHash = allPlayerAWinHash.stream().filter(
+                p -> !Arrays.equals(p, oraclePlayerAWinHash)).collect(Collectors.toList());
+        List<byte[]> playerBWinHash = allPlayerBWinHash.stream().filter(
+                p -> !Arrays.equals(p, oraclePlayerBWinHash)).collect(Collectors.toList());
+
+        // Oracle said B won but actually A won.
+        ByteArrayOutputStream unduePlayerAWonBuffer = new ByteArrayOutputStream();
+        unduePlayerAWonBuffer.write(getOpcode("OP_HASH160"));
+        unduePlayerAWonBuffer.write(pushDataOpcode(oraclePlayerBWinHash.length));
+        unduePlayerAWonBuffer.write(oraclePlayerBWinHash);
+        unduePlayerAWonBuffer.write(getOpcode("OP_EQUALVERIFY"));
+
+        unduePlayerAWonBuffer.write(checkMultiHash(playerAWinHash, requiredHashes, false));
+
+        unduePlayerAWonBuffer.write(pushDataOpcode(playerAPublicKey.getKey().length));
+        unduePlayerAWonBuffer.write(playerAPublicKey.getKey());
+        unduePlayerAWonBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
+        byte[] unduePlayerAWonScript = unduePlayerAWonBuffer.toByteArray();
+
+        // Oracle said A won but actually B won.
+        ByteArrayOutputStream unduePlayerBWonBuffer = new ByteArrayOutputStream();
+        unduePlayerBWonBuffer.write(getOpcode("OP_HASH160"));
+        unduePlayerBWonBuffer.write(pushDataOpcode(oraclePlayerAWinHash.length));
+        unduePlayerBWonBuffer.write(oraclePlayerAWinHash);
+        unduePlayerBWonBuffer.write(getOpcode("OP_EQUALVERIFY"));
+
+        unduePlayerBWonBuffer.write(checkMultiHash(playerBWinHash, requiredHashes, false));
+
+        unduePlayerBWonBuffer.write(pushDataOpcode(playerBPublicKey.getKey().length));
+        unduePlayerBWonBuffer.write(playerBPublicKey.getKey());
+        unduePlayerBWonBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
+        byte[] unduePlayerBWonScript = unduePlayerBWonBuffer.toByteArray();
+
+        ByteArrayOutputStream oracleGetMoneyBackBuffer = new ByteArrayOutputStream();
+        throw new NotImplementedException();
+
+
+    }
 }

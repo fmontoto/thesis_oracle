@@ -113,6 +113,5 @@ public class TransactionBuilderTest {
         // We don't have the private key, so copy the signature
         tx.getInputs().get(0).setScript(inputScript);
         assertEquals(originalTx, tx.hexlify().toLowerCase());
-
     }
 }
