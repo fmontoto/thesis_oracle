@@ -425,10 +425,11 @@ public class OutputBuilder {
     }
 
 
-    static public byte[] undueChargePayment(
+    static public byte[] undueChargePaymentScript(
             BitcoinPublicKey playerAPublicKey, BitcoinPublicKey playerBPublicKey,
-            byte[] oraclePlayerAWinHash, byte[] oraclePlayerBWinHash,
-            List<byte[]> allPlayerAWinHash, List<byte[]> allPlayerBWinHash, int requiredHashes)
+            BitcoinPublicKey oraclePubKey, byte[] oraclePlayerAWinHash, byte[] oraclePlayerBWinHash,
+            List<byte[]> allPlayerAWinHash, List<byte[]> allPlayerBWinHash, int requiredHashes,
+            long timeoutSeconds)
             throws IOException, NoSuchAlgorithmException {
         if(allPlayerAWinHash.size() != allPlayerBWinHash.size())
             throw new InvalidParameterException("Hash amount must be the same for both players.");
@@ -450,7 +451,7 @@ public class OutputBuilder {
 
         unduePlayerAWonBuffer.write(pushDataOpcode(playerAPublicKey.getKey().length));
         unduePlayerAWonBuffer.write(playerAPublicKey.getKey());
-        unduePlayerAWonBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
+        unduePlayerAWonBuffer.write(getOpcode("OP_CHECKSIG"));
         byte[] unduePlayerAWonScript = unduePlayerAWonBuffer.toByteArray();
 
         // Oracle said A won but actually B won.
@@ -464,12 +465,47 @@ public class OutputBuilder {
 
         unduePlayerBWonBuffer.write(pushDataOpcode(playerBPublicKey.getKey().length));
         unduePlayerBWonBuffer.write(playerBPublicKey.getKey());
-        unduePlayerBWonBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
+        unduePlayerBWonBuffer.write(getOpcode("OP_CHECKSIG"));
         byte[] unduePlayerBWonScript = unduePlayerBWonBuffer.toByteArray();
 
         ByteArrayOutputStream oracleGetMoneyBackBuffer = new ByteArrayOutputStream();
-        throw new NotImplementedException();
+        oracleGetMoneyBackBuffer.write(checkTimeoutScript(TimeUnit.SECONDS, timeoutSeconds));
+        oracleGetMoneyBackBuffer.write(pushDataOpcode(oraclePubKey.getKey().length));
+        oracleGetMoneyBackBuffer.write(oraclePubKey.getKey());
+        oracleGetMoneyBackBuffer.write(getOpcode("OP_CHECKSIG"));
+        byte[] oracleGetMoneyBackScript = oracleGetMoneyBackBuffer.toByteArray();
 
-
+        return threePathScript(unduePlayerAWonScript, unduePlayerBWonScript,
+                               oracleGetMoneyBackScript);
     }
+
+    static public byte[] undueChargePaymentScript(
+            BitcoinPublicKey[] playersPubKey, BitcoinPublicKey oraclePubKey,
+            byte[] oraclePlayerAWinHash, byte[] oraclePlayerBWinHash,
+            List<byte[]> allPlayerAWinHash, List<byte[]> allPlayerBWinHash, int requiredHashes,
+            long timeoutSeconds) throws IOException, NoSuchAlgorithmException {
+
+        if(playersPubKey.length != 2)
+            throw new InvalidParameterException("Only two players accepted.");
+
+        return undueChargePaymentScript(playersPubKey[0], playersPubKey[1], oraclePubKey,
+                oraclePlayerAWinHash, oraclePlayerBWinHash, allPlayerAWinHash, allPlayerBWinHash,
+                requiredHashes, timeoutSeconds);
+    }
+
+    static public Output undueChargePayment(
+            BitcoinPublicKey[] playersPubKey, BitcoinPublicKey oraclePubKey,
+            byte[] oraclePlayerAWinHash, byte[] oraclePlayerBWinHash, List<byte[]> aWinHashes,
+            List<byte[]> bWinHashes, int requiredHashes, long timeoutSeconds, long amount)
+            throws IOException, NoSuchAlgorithmException {
+        if(playersPubKey.length != 2)
+            throw new InvalidParameterException("Only two players accepted.");
+
+        byte[] script = undueChargePaymentScript(playersPubKey, oraclePubKey, oraclePlayerAWinHash,
+                oraclePlayerBWinHash, aWinHashes, bWinHashes, requiredHashes, timeoutSeconds);
+        return createPayToScriptHashOutputFromScript(amount, script);
+    }
+
+
+
 }
