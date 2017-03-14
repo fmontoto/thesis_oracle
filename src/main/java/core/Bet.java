@@ -6,6 +6,9 @@ import java.io.*;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -19,6 +22,14 @@ import static core.Utils.mergeArrays;
  * Created by fmontoto on 16-12-16.
  */
 public class Bet {
+    // Within how many seconds after the bet resolution the oracle is supposed to answer to get
+    // its payment
+    private long REPLY_UNTIL_SECS_DELAY = 60 * 60 * 8;
+    // After UNDUE_CHARGE_ORACLE_RECLAIM_DELAY seconds the oracle can claim the deposit for undue
+    // charge, if it did behaved correctly (ie, did answer the same than the majority).
+    private long UNDUE_CHARGE_ORACLE_RECLAIM_DELAY = REPLY_UNTIL_SECS_DELAY + 60 * 60 * 4;
+    // After TWO_ANSWERS_PENALTY_SECS_DELAY
+    private long TWO_ANSWERS_PENALTY_SECS_DELAY = UNDUE_CHARGE_ORACLE_RECLAIM_DELAY + 60 * 60 * 4;
 
     private String description;
     private int minOracles;
@@ -27,37 +38,42 @@ public class Bet {
     private List<Oracle> backupOracles;
     private List<BitcoinPublicKey> participantOracles;
     private BitcoinPublicKey[] playersPubKey;
-    private long relativeBetResolutionSecs;
+    private long epochBetResolutionSecs;
     private Channel channel;
     Amounts amounts;
 
-
-    public Bet(String description, int minOracles, int max_oracles, List<Oracle> oracles,
+    public Bet(String description, int minOracles, int maxOracles, List<Oracle> oracles,
                List<Oracle> backupOracles, BitcoinPublicKey[] playersPubKey, Amounts amounts,
-               TimeUnit timeoutUnit, long timeoutVal, Channel channel) {
-
+               ZonedDateTime betResolutionDate, Channel channel) {
         this.description = description;
         this.minOracles = minOracles;
-        this.maxOracles = max_oracles;
+        this.maxOracles = maxOracles;
         this.oracles = new ArrayList<>(oracles);
         this.backupOracles = new ArrayList<>(backupOracles);
         this.playersPubKey = playersPubKey;
         this.amounts = amounts;
-        relativeBetResolutionSecs = timeoutUnit.toSeconds(timeoutVal);
+        this.epochBetResolutionSecs = betResolutionDate.toEpochSecond();
         participantOracles = new LinkedList<>();
         this.channel = channel;
 
         if(playersPubKey.length != 2)
             throw new InvalidParameterException("Only two players accepted");
         if(maxOracles != this.oracles.size())
-            throw new InvalidParameterException("oracles list must have same amount of oraclas as maxOracles specify.");
+            throw new InvalidParameterException(
+                    "oracles list must have same amount of oraclas as maxOracles specify.");
+        long relBetResolutionSecs = epochBetResolutionSecs - ZonedDateTime.now().toEpochSecond();
+        if(relBetResolutionSecs <= 0) {
+            throw new InvalidParameterException(
+                    "The date of the bet resolution must be in the future");
+        }
     }
 
-    public Bet(String description, int num_oracles, List<Oracle>oracles, List<Oracle> backupOracles,
-               BitcoinPublicKey[] playersPubKey, Amounts amounts, TimeUnit timeoutUnit, long timeoutVal,
-               Channel channel) {
-        this(description, num_oracles, num_oracles, oracles, backupOracles, playersPubKey, amounts,
-                timeoutUnit, timeoutVal, channel);
+    public Bet(String description, int minOracles, int maxOracles, List<Oracle> oracles,
+               List<Oracle> backupOracles, BitcoinPublicKey[] playersPubKey, Amounts amounts,
+               TimeUnit timeoutUnit, long timeoutVal, Channel channel) {
+
+        this(description, minOracles, maxOracles, oracles, backupOracles, playersPubKey, amounts,
+                ZonedDateTime.now().plusSeconds(timeoutUnit.toSeconds(timeoutVal)), channel);
     }
 
     public void addParticipantOracle(BitcoinPublicKey participantOracle) {
@@ -94,7 +110,7 @@ public class Bet {
                           , serializeVarInt(participantOracles.size())
                           , participantOraclesOutputStream.toByteArray()
                           , amounts.serialize()
-                          , serializeVarInt(relativeBetResolutionSecs)
+                          , serializeVarInt(epochBetResolutionSecs)
                           , channel.serialize()
         );
     }
@@ -150,13 +166,15 @@ public class Bet {
         Amounts amounts = Amounts.fromSerialized(buffer, offset);
         offset += amounts.serializationSize();
 
-        long timeoutSeconds = readVarInt(buffer, offset);
-        offset += varIntByteSize(timeoutSeconds);
+        long betResolutionSecs = readVarInt(buffer, offset);
+        offset += varIntByteSize(betResolutionSecs);
 
         Channel channel = Channel.fromSerialized(buffer, offset);
 
-        Bet bet = new Bet(description, minOracles, maxOracles, oracles, backupOracles, playersKey, amounts,
-                          TimeUnit.SECONDS, timeoutSeconds, channel);
+        ZonedDateTime betResolution =
+                Instant.ofEpochSecond(betResolutionSecs).atZone(ZoneId.systemDefault());
+        Bet bet = new Bet(description, minOracles, maxOracles, oracles, backupOracles, playersKey,
+                          amounts, betResolution, channel);
         for(BitcoinPublicKey bitcoinPublicKey : participantOracles)
             bet.addParticipantOracle(bitcoinPublicKey);
 
@@ -165,6 +183,10 @@ public class Bet {
 
     static public Bet fromSerialized(byte[] buffer) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
         return fromSerialized(buffer, 0);
+    }
+
+    public int getRequiredHashes() {
+        return (minOracles / 2) + 1;
     }
 
     public byte[] getHash() throws NoSuchAlgorithmException, IOException {
@@ -227,7 +249,21 @@ public class Bet {
     }
 
     public long getRelativeBetResolutionSecs() {
+        long relativeBetResolutionSecs =
+                epochBetResolutionSecs  - ZonedDateTime.now().toEpochSecond();
         return relativeBetResolutionSecs;
+    }
+
+    public long getRelativeReplyUntilTimeoutSeconds() {
+        return getRelativeBetResolutionSecs() + REPLY_UNTIL_SECS_DELAY;
+    }
+
+    public long getRelativeUndueChargeTimeoutSeconds() {
+        return getRelativeBetResolutionSecs() + UNDUE_CHARGE_ORACLE_RECLAIM_DELAY;
+    }
+
+    public long getRelativeTwoAnswersTimeoutSeconds() {
+        return getRelativeBetResolutionSecs() + TWO_ANSWERS_PENALTY_SECS_DELAY;
     }
 
     public long getOracleInscription() {
@@ -244,7 +280,7 @@ public class Bet {
         if (minOracles != bet.minOracles) return false;
         if (maxOracles != bet.maxOracles) return false;
         if (!amounts.equals(bet.amounts)) return false;
-        if (relativeBetResolutionSecs != bet.relativeBetResolutionSecs) return false;
+        if (epochBetResolutionSecs != bet.epochBetResolutionSecs) return false;
         if (!description.equals(bet.description)) return false;
         if (!oracles.equals(bet.oracles)) return false;
         if (!backupOracles.equals(bet.backupOracles)) return false;
@@ -262,7 +298,7 @@ public class Bet {
         result = 31 * result + participantOracles.hashCode();
         result = 31 * result + Arrays.hashCode(playersPubKey);
         result = 31 * result + amounts.hashCode();
-        result = 31 * result + (int) (relativeBetResolutionSecs ^ (relativeBetResolutionSecs >>> 32));
+        result = 31 * result + (int) (epochBetResolutionSecs^ (epochBetResolutionSecs >>> 32));
         return result;
     }
 

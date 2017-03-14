@@ -413,6 +413,8 @@ public class OutputBuilder {
                                    replyUntilTimeout, true);
     }
 
+
+
     static public Output betOraclePayment(
             byte[] playerAWinsHash, byte[] playerBWinsHash, BitcoinPublicKey oracleKey,
             BitcoinPublicKey playerAPublicKey, BitcoinPublicKey playerBPublicKey,
@@ -424,6 +426,16 @@ public class OutputBuilder {
         return createPayToScriptHashOutputFromScript(amount, redeemScript);
     }
 
+    static public Output betOraclePayment(
+            byte[] playerAWinsHash, byte[] playerBWinsHash, BitcoinPublicKey oracleKey,
+            List<BitcoinPublicKey> playersPublicKey, long betTimeoutSeconds, long replyUntilSeconds,
+            long amount) throws IOException, NoSuchAlgorithmException {
+        if(playersPublicKey.size() != 2)
+            throw new InvalidParameterException("Only two players accepted.");
+        return betOraclePayment(playerAWinsHash, playerBWinsHash, oracleKey,
+                playersPublicKey.get(0), playersPublicKey.get(1), betTimeoutSeconds,
+                replyUntilSeconds, amount);
+    }
 
     static public byte[] undueChargePaymentScript(
             BitcoinPublicKey playerAPublicKey, BitcoinPublicKey playerBPublicKey,

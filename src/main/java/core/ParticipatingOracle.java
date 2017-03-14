@@ -66,7 +66,6 @@ public class ParticipatingOracle extends Oracle {
             throws ParseTransactionException, IOException, NoSuchAlgorithmException,
                    InvalidKeySpecException, SignatureException, InvalidKeyException {
 
-
         String account = client.getAccount(getAddress());
         List<AbsoluteOutput> unspentOutputs = getUnspentOutputs(client, account);
         List<BitcoinPrivateKey> outputKeys = new LinkedList<BitcoinPrivateKey>();

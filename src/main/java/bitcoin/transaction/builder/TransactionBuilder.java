@@ -211,8 +211,20 @@ public class TransactionBuilder {
         return tx;
     }
 
-    static public Transaction bet(Transaction betPromise, List<Transaction> oracleInscriptions,
-                                  Bet bet, List<Oracle> oracles) throws NoSuchAlgorithmException {
+    static public Transaction bet(
+            Transaction betPromise, List<Transaction> oracleInscriptions, Bet bet,
+            List<BitcoinPublicKey> oracles, List<byte[]> playerAWinHashes,
+            List<byte[]> playerBWinHashes, List<BitcoinPublicKey> playerPubKeys)
+            throws NoSuchAlgorithmException, IOException {
+
+        if(oracles.size() != playerAWinHashes.size()
+            || oracleInscriptions.size() != playerBWinHashes.size()
+            || oracleInscriptions.size() != oracles.size()) {
+            throw new InvalidParameterException(
+                    "Oracle inscriptions (" + oracleInscriptions.size() + "), hashes ("
+                            + playerAWinHashes.size() + ", " + playerBWinHashes.size()
+                            + ") and oracles (" + oracles.size() + ") must have the same size.");
+        }
         // Outputs
         //TODO check the numbers
         long bet_prize = bet.getAmount();
@@ -224,9 +236,54 @@ public class TransactionBuilder {
         for(Transaction oracleInscription : oracleInscriptions)
             srcInputs.add(new AbsoluteOutput(oracleInscription, 0));
 
+        long availableFromInputs = 0;
         List<Input> inputs = new LinkedList<>();
-        for(AbsoluteOutput ao: srcInputs)
+        for(AbsoluteOutput ao: srcInputs) {
             inputs.add(new Input(ao, null));
+            availableFromInputs += ao.getValue();
+        }
+
+        List<Output> outputs = new LinkedList<>();
+
+
+        // TODO This should be updated to reflect the time elapsed so far...
+        long timeoutSeconds = bet.getRelativeBetResolutionSecs();
+        long replyUntilSeconds = timeoutSeconds + 60 * 60 * 8; // TODO 8 hours after the evnet to reply
+        //TODO get amount
+        long thisTxFee = 100;
+        int n = oracles.size();
+        long amount = availableFromInputs - thisTxFee - n * 2 * bet.getOraclePayment();
+
+        outputs.add(betPrizeResolution(
+                playerAWinHashes, playerBWinHashes, playerPubKeys, bet.getRequiredHashes(),
+                timeoutSeconds, playerPubKeys.get(0), amount/2));
+        outputs.add(betPrizeResolution(
+                playerAWinHashes, playerBWinHashes, playerPubKeys, bet.getRequiredHashes(),
+                timeoutSeconds, playerPubKeys.get(1), amount/2));
+        for(int i = 0; i < oracles.size(); i++) {
+            outputs.add(betOraclePayment(playerAWinHashes.get(i), playerBWinHashes.get(i),
+                    oracles.get(i), playerPubKeys, timeoutSeconds, replyUntilSeconds, amount));
+            //outputs.add(undueChargePayment(playerPubKeys, oracles.get(i), playerAWinHashes.get(i),
+            //                               playerBWinHashes.get(i), playerAWinHashes,
+            //                              playerBWinHashes, bet.getRequiredHashes(),  ))
+
+        }
+            throw new NotImplementedException();
+    }
+
+    static public Output undueChargePayment(
+            BitcoinPublicKey[] playersPubKey, BitcoinPublicKey oraclePubKey,
+            byte[] oraclePlayerAWinHash, byte[] oraclePlayerBWinHash, List<byte[]> aWinHashes,
+            List<byte[]> bWinHashes, int requiredHashes, long timeoutSeconds, long amount)
+            throws IOException, NoSuchAlgorithmException {
+
+
+            //outputs.add(betOraclePayment())
+            //static public Output betOraclePayment(
+            //byte[] playerAWinsHash, byte[] playerBWinsHash, BitcoinPublicKey oracleKey,
+            //        BitcoinPublicKey playerAPublicKey, BitcoinPublicKey playerBPublicKey,
+            //long betTimeoutSeconds, long replyUntilSeconds, long amount)
+
 
 
         throw new NotImplementedException();

@@ -298,7 +298,7 @@ public class ProtocolTxsTest {
         long firstPaymentAmount, oraclePayment, amount, oracleInscription, oraclePenalty, fee,
                 timeoutSeconds;
         firstPaymentAmount = oraclePayment = oracleInscription = oraclePenalty = fee = 4;
-        timeoutSeconds = 1000;
+        timeoutSeconds = 60 * 60 * 24 * 3; // Three days
         amount = 10000;
         minOracles = maxOracles = oracles.size();
         String description = "Bet's description... really short actually";
