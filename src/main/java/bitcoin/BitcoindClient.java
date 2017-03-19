@@ -9,8 +9,10 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoinRpcException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
+import java.text.DecimalFormat;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
@@ -256,16 +258,7 @@ public class BitcoindClient {
     }
 
     public String verifyTransaction(Transaction tx, Collection<PayToScriptAbsoluteOutput> inputs) throws BitcoindClientException {
-        List<ExtendedTxInput> inputsList = new LinkedList<>();
-        for(PayToScriptAbsoluteOutput input : inputs) {
-            inputsList.add(
-                    new ExtendedTxInput(input.getTxId(),
-                                        input.getVout(),
-                                        byteArrayToHex(input.getScript()),
-                                        byteArrayToHex(input.getRedeemScript()),
-                                        new BigDecimal(input.getValue()).divide(new BigDecimal("100000000"))));
-        }
-
+        List<ExtendedTxInput> inputsList = inputConversion(inputs);
         return verifyTransaction(tx.hexlify(), inputsList, new LinkedList<>());
     }
 
@@ -289,9 +282,13 @@ public class BitcoindClient {
     }
 
 
+    public String printCLIVerification(Transaction tx, List<PayToScriptAbsoluteOutput> inputs) {
+        return printCLIVerification(tx.hexlify(), inputConversion(inputs));
+    }
 
     private String printCLIVerification(String transactionHex, List<ExtendedTxInput> inputs) {
         StringBuilder sb = new StringBuilder();
+        DecimalFormat df = new DecimalFormat("#.########");
         sb.append("./bitcoin-cli -testnet signrawtransaction ");
         sb.append(transactionHex + " '[");
         boolean first = true;
@@ -302,14 +299,29 @@ public class BitcoindClient {
                 sb.append((","));
             sb.append("{ \"txid\": \"" + extendedTxInput.txid() + "\"");
             sb.append(", \"vout\":" + extendedTxInput.vout());
-            sb.append(", \"amount\": " + (extendedTxInput.amount().divide(new BigDecimal("100000000"))));
-            //sb.append(", \"redeemScript\": \"" + extendedTxInput.redeemScript() + "\"");
-            sb.append(", \"scriptPubKey\": \"" + extendedTxInput.redeemScript() + "\"");
+            //sb.append(", \"amount\": " + (extendedTxInput.amount().divide(new BigDecimal("100000000"))));
+            sb.append(", \"amount\": " + df.format(extendedTxInput.amount()));
+            sb.append(", \"redeemScript\": \"" + extendedTxInput.redeemScript() + "\"");
+            sb.append(", \"scriptPubKey\": \"" + extendedTxInput.scriptPubKey() + "\"}");
         }
-        if(!first)
-            sb.append("}");
+        //if(!first)
+        //    sb.append("}");
         sb.append("]' \"[]\"");
         return sb.toString();
+    }
+
+    private List<ExtendedTxInput> inputConversion(Collection<PayToScriptAbsoluteOutput> inputs) {
+        List<ExtendedTxInput> inputsList = new LinkedList<>();
+        MathContext bdContext = MathContext.DECIMAL128;
+        for (PayToScriptAbsoluteOutput input : inputs) {
+            inputsList.add(
+                    new ExtendedTxInput(input.getTxId(),
+                            input.getVout(),
+                            byteArrayToHex(input.getScript()),
+                            byteArrayToHex(input.getRedeemScript()),
+                            new BigDecimal(input.getValue(), bdContext).divide(new BigDecimal("100000000"), bdContext)));
+        }
+        return inputsList;
     }
 
     // Keep at the end

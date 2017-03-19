@@ -53,16 +53,9 @@ public class ParticipatingOracle extends Oracle {
     static public ParticipatingOracle participate(Oracle oracle, Transaction betPromise)
             throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
         return new ParticipatingOracle(oracle, betPromise);
-
-
-        //BitcoinPrivateKey bitcoinPrivateKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(oracle.getAddress()));
-        //String account = client.getAccount(oracle.getAddress());
-
-        //bitcoinPrivateKey.getPublicKey().getKey();
     }
 
-    public Transaction generateInscriptionTransaction(BitcoindClient client, Bet bet,
-                                                      long timeoutSeconds)
+    public Transaction generateInscriptionTransaction(BitcoindClient client, Bet bet)
             throws ParseTransactionException, IOException, NoSuchAlgorithmException,
                    InvalidKeySpecException, SignatureException, InvalidKeyException {
 
@@ -77,10 +70,26 @@ public class ParticipatingOracle extends Oracle {
         BitcoinPublicKey pubKey = BitcoinPrivateKey.fromWIF(
                 client.getPrivateKey(getAddress())).getPublicKey();
         List<byte[]> expectedAnswersHashes = new LinkedList<>();
-        expectedAnswersHashes.add(playerAWinsHash);
-        expectedAnswersHashes.add(playerBWinsHash);
+        expectedAnswersHashes.add(getPlayerAWinsHash());
+        expectedAnswersHashes.add(getPlayerBWinsHash());
         return oracleInscription(unspentOutputs, outputKeys, pubKey, pubKey.toWIF(),
-                                 expectedAnswersHashes, bet, betPromise, timeoutSeconds);
+                                 expectedAnswersHashes, bet, betPromise);
+    }
+
+    public byte[] getPlayerAWins() {
+        return playerAWins;
+    }
+
+    public byte[] getPlayerBWins() {
+        return playerBWins;
+    }
+
+    public byte[] getPlayerAWinsHash() {
+        return playerAWinsHash;
+    }
+
+    public byte[] getPlayerBWinsHash() {
+        return playerBWinsHash;
     }
 }
 

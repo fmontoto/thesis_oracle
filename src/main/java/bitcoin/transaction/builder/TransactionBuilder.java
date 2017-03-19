@@ -4,6 +4,7 @@ import bitcoin.BitcoindClient;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.*;
+import com.sun.tools.corba.se.idl.constExpr.Not;
 import core.Bet;
 import core.Constants;
 import core.Oracle;
@@ -30,7 +31,8 @@ import static core.Utils.hexToByteArray;
  * Created by fmontoto on 29-11-16.
  */
 public class TransactionBuilder {
-    static private final Charset utf8 = Charset.forName("utf-8");
+    // Granularity is 512 seconds as defined by BIP 68
+    static public final long TIMEOUT_GRANULARITY = 512;
 
 
     static Output multisigOrTimeoutOutput(long amount, List<String> wifMultisigAddresses,
@@ -41,8 +43,7 @@ public class TransactionBuilder {
     }
 
     static public byte[] createSequenceNumber(TimeUnit timeUnit, long timeoutVal) {
-        // Granularity is 512 seconds as defined by BIP 68
-        long timeoutSeconds = timeUnit.toSeconds(timeoutVal) / 512;
+        long timeoutSeconds = timeUnit.toSeconds(timeoutVal) / TIMEOUT_GRANULARITY;
         long sequenceNo = (long)(1 << 22) | timeoutSeconds;
         return serializeScriptNum(sequenceNo);
     }
@@ -62,7 +63,7 @@ public class TransactionBuilder {
                        Arrays.asList(outputs));
     }
 
-    static private Transaction buildTx(Collection<Input> inputs, Collection<Output> outputs) {
+    public static Transaction buildTx(Collection<Input> inputs, Collection<Output> outputs) {
         final int version = 1;
         final int locktime = 0;
         return buildTx(version, locktime, inputs, outputs);
@@ -175,12 +176,14 @@ public class TransactionBuilder {
 
         Output data = OutputBuilder.createOpReturnOutput(bet.getWireRepresentation());
 
+        // Freeze timeout, so both outputs have the same one.
+        long timeoutSecs = bet.getRelativeBetResolutionSecs();
         Output prizePlayerA = OutputBuilder.oneSignatureOnTimeoutOrMultiSig(
                 bet.getPlayersPubKey()[0].getKey(), bet.getPlayersPubKey()[1].getKey(),
-                bet.getAmount(), TimeUnit.SECONDS, bet.getRelativeBetResolutionSecs());
+                bet.getAmount(), TimeUnit.SECONDS, timeoutSecs);
         Output prizePlayerB = OutputBuilder.oneSignatureOnTimeoutOrMultiSig(
                 bet.getPlayersPubKey()[1].getKey(), bet.getPlayersPubKey()[0].getKey(),
-                bet.getAmount(), TimeUnit.SECONDS, bet.getRelativeBetResolutionSecs());
+                bet.getAmount(), TimeUnit.SECONDS, timeoutSecs);
 
         outputs.add(data);
         outputs.add(prizePlayerA);
@@ -239,16 +242,15 @@ public class TransactionBuilder {
         long availableFromInputs = 0;
         List<Input> inputs = new LinkedList<>();
         for(AbsoluteOutput ao: srcInputs) {
-            inputs.add(new Input(ao, null));
+            inputs.add(new Input(ao, new byte[] {}));
             availableFromInputs += ao.getValue();
         }
 
         List<Output> outputs = new LinkedList<>();
 
 
-        // TODO This should be updated to reflect the time elapsed so far...
         long timeoutSeconds = bet.getRelativeBetResolutionSecs();
-        long replyUntilSeconds = timeoutSeconds + 60 * 60 * 8; // TODO 8 hours after the evnet to reply
+        long replyUntilSeconds = bet.getRelativeReplyUntilTimeoutSeconds();
         //TODO get amount
         long thisTxFee = 100;
         int n = oracles.size();
@@ -262,29 +264,24 @@ public class TransactionBuilder {
                 timeoutSeconds, playerPubKeys.get(1), amount/2));
         for(int i = 0; i < oracles.size(); i++) {
             outputs.add(betOraclePayment(playerAWinHashes.get(i), playerBWinHashes.get(i),
-                    oracles.get(i), playerPubKeys, timeoutSeconds, replyUntilSeconds, amount));
-            //outputs.add(undueChargePayment(playerPubKeys, oracles.get(i), playerAWinHashes.get(i),
-            //                               playerBWinHashes.get(i), playerAWinHashes,
-            //                              playerBWinHashes, bet.getRequiredHashes(),  ))
+                    oracles.get(i), playerPubKeys, timeoutSeconds, replyUntilSeconds,
+                    bet.getOraclePayment()));
+            outputs.add(undueChargePayment(
+                    playerPubKeys.toArray(new BitcoinPublicKey[2]), oracles.get(i),
+                    playerAWinHashes.get(i), playerBWinHashes.get(i), playerAWinHashes,
+                    playerBWinHashes, bet.getRequiredHashes(),
+                    bet.getRelativeUndueChargeTimeoutSeconds(), bet.getOraclePayment()));
 
         }
-            throw new NotImplementedException();
+
+        int version = 2;
+        int locktime = 0;
+        Transaction tx = buildTx(version, locktime, inputs, outputs);
+        return tx;
     }
 
-    static public Output undueChargePayment(
-            BitcoinPublicKey[] playersPubKey, BitcoinPublicKey oraclePubKey,
-            byte[] oraclePlayerAWinHash, byte[] oraclePlayerBWinHash, List<byte[]> aWinHashes,
-            List<byte[]> bWinHashes, int requiredHashes, long timeoutSeconds, long amount)
-            throws IOException, NoSuchAlgorithmException {
-
-
-            //outputs.add(betOraclePayment())
-            //static public Output betOraclePayment(
-            //byte[] playerAWinsHash, byte[] playerBWinsHash, BitcoinPublicKey oracleKey,
-            //        BitcoinPublicKey playerAPublicKey, BitcoinPublicKey playerBPublicKey,
-            //long betTimeoutSeconds, long replyUntilSeconds, long amount)
-
-
+    static public void playerSignsBet(BitcoinPrivateKey playerKey, Transaction bet,
+                                      BitcoinPublicKey[] playersPubKey) {
 
         throw new NotImplementedException();
     }
@@ -372,8 +369,9 @@ public class TransactionBuilder {
     // Oracle
     // Util
 
-    static Transaction opReturnOpTx(AbsoluteOutput absOutput, long fee, int version,
-                                  int locktime, byte[] data) throws IOException, NoSuchAlgorithmException {
+    static Transaction opReturnOpTx(
+            AbsoluteOutput absOutput, long fee, int version, int locktime, byte[] data)
+            throws IOException, NoSuchAlgorithmException {
         Input input = InputBuilder.payToPublicKeyHashCreateInput(absOutput);
         long value = absOutput.getValue() - fee;
 
@@ -388,8 +386,9 @@ public class TransactionBuilder {
 
     // Oracle register
 
-    static public Transaction registerAsOracle(AbsoluteOutput absOutput, String wifInscribeAddress,
-                                               long fee, int version, int locktime) throws IOException, NoSuchAlgorithmException {
+    static public Transaction registerAsOracle(
+            AbsoluteOutput absOutput, String wifInscribeAddress, long fee, int version,
+            int locktime) throws IOException, NoSuchAlgorithmException {
         Input input = InputBuilder.payToPublicKeyHashCreateInput(absOutput);
         long value = absOutput.getValue() - fee;
 
@@ -399,23 +398,26 @@ public class TransactionBuilder {
         return buildTx(version, locktime, input, dataOutput, changeOutput);
     }
 
-    static public Transaction registerAsOracle(AbsoluteOutput absOutput,
-                                               String wifAddressToInscribe) throws IOException, NoSuchAlgorithmException {
+    static public Transaction registerAsOracle(
+            AbsoluteOutput absOutput, String wifAddressToInscribe) throws IOException,
+                                                                          NoSuchAlgorithmException {
         final int version = 1;
         final int locktime = 0;
         final int fee = 1000;
         return registerAsOracle(absOutput, wifAddressToInscribe, fee, version, locktime);
 
     }
-    static public Transaction registerAsOracle(AbsoluteOutput absOutput,
-                                               long fee, boolean testnet) throws IOException, NoSuchAlgorithmException {
+    static public Transaction registerAsOracle(
+            AbsoluteOutput absOutput, long fee, boolean testnet) throws IOException,
+                                                                        NoSuchAlgorithmException {
         final int version = 1;
         final int locktime = 0;
         String wifOracleAddress = BitcoinPublicKey.txAddressToWIF(hexToByteArray(absOutput.getPayAddress()), testnet);
         return registerAsOracle(absOutput, wifOracleAddress, fee, version, locktime);
     }
 
-    static public Transaction registerAsOracle(AbsoluteOutput absOutput, boolean testnet) throws IOException, NoSuchAlgorithmException {
+    static public Transaction registerAsOracle(AbsoluteOutput absOutput, boolean testnet)
+            throws IOException, NoSuchAlgorithmException {
         String wifOracleAddress = BitcoinPublicKey.txAddressToWIF(hexToByteArray(absOutput.getPayAddress()), testnet);
         return registerAsOracle(absOutput, wifOracleAddress);
     }
@@ -424,8 +426,8 @@ public class TransactionBuilder {
     public static Transaction oracleInscription(
             List<AbsoluteOutput> srcOutputs, List<BitcoinPrivateKey> srcKeys,
             BitcoinPublicKey oraclePublicKey, String wifChangeAddress,
-            List<byte[]> expectedAnswersHash, Bet bet, Transaction betPromise,
-            long timeoutSeconds) throws IOException, NoSuchAlgorithmException,
+            List<byte[]> expectedAnswersHash, Bet bet, Transaction betPromise)
+            throws IOException, NoSuchAlgorithmException,
             InvalidKeySpecException, SignatureException, InvalidKeyException {
 
         if(expectedAnswersHash.size() != 2)
@@ -453,7 +455,8 @@ public class TransactionBuilder {
             }
         }
         if(idx == betPromise.getOutputs().size())
-            throw new InvalidParameterException("The provided promiseBet transaction does not contains the expected output.");
+            throw new InvalidParameterException(
+                    "The provided promiseBet transaction does not contains the expected output.");
 
         int oraclePos = bet.getOraclePos(oraclePublicKey.toWIF());
         PayToScriptAbsoluteOutput betPromiseOutput = new PayToScriptAbsoluteOutput(
@@ -464,7 +467,8 @@ public class TransactionBuilder {
         // Inscription Output
         List<BitcoinPublicKey> playersPubKey = Arrays.asList(bet.getPlayersPubKey());
         byte[] inscriptionRedeemScript = multisigOrSomeSignaturesTimeoutOutput(
-                TimeUnit.SECONDS, timeoutSeconds, oraclePublicKey, playersPubKey);
+                TimeUnit.SECONDS, bet.getRelativeBetResolutionSecs(), oraclePublicKey,
+                playersPubKey);
 
         // Inscription + Payment from players to participate + unduePaymentPenalty
         long inscriptionAmount = bet.getFirstPaymentAmount() + bet.getOracleInscription() +
@@ -473,11 +477,9 @@ public class TransactionBuilder {
                 inscriptionAmount, inscriptionRedeemScript);
 
         // Two answers penalty Output
-        // This penalty is finishing one day after the bet is resolved.
-        timeoutSeconds += (24 * 60 * 60);
         byte[] twoAnswersInsuranceRedeemScript = oracleTwoAnswersInsuranceRedeemScript(
                 playersPubKey, oraclePublicKey, expectedAnswersHash,
-                TimeUnit.SECONDS, timeoutSeconds);
+                TimeUnit.SECONDS, bet.getRelativeTwoAnswersTimeoutSeconds());
 
         Output twoAnswersInsuranceOutput = createPayToScriptHashOutputFromScript(
                 bet.getOraclePenalty(), twoAnswersInsuranceRedeemScript);
@@ -493,7 +495,8 @@ public class TransactionBuilder {
             throw new InvalidParameterException("Not enough money at the inputs to do the tx.");
 
         if(change > bet.getFee() * (tx.serialize().length + 34))
-            tx.getOutputs().add(createPayToPubKeyOutput(change - bet.getFee() * (tx.serialize().length + 34),
+            tx.getOutputs().add(
+                    createPayToPubKeyOutput(change - bet.getFee() * (tx.serialize().length + 34),
                     wifChangeAddress));
 
         for(int i = 0; i < srcKeys.size(); i++)
@@ -504,7 +507,9 @@ public class TransactionBuilder {
 
     // Utils
 
-    private static boolean reduceChange(Transaction completedTx, String wifChangeAddress, long amountToReduce) throws IOException, NoSuchAlgorithmException {
+    private static boolean reduceChange(Transaction completedTx, String wifChangeAddress,
+                                        long amountToReduce) throws IOException,
+                                                                    NoSuchAlgorithmException {
         Output changeOutput = null;
         String changeAddress = byteArrayToHex(BitcoinPublicKey.WIFToTxAddress(wifChangeAddress));
         for(Output ao: completedTx.getOutputs()) {

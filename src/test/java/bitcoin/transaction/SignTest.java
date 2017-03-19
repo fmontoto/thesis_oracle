@@ -13,7 +13,9 @@ import static bitcoin.Constants.*;
 import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOrOneSignatureTimeoutOutput;
 import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOrSomeSignaturesTimeoutOutput;
 import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOutput;
+import static bitcoin.transaction.builder.OutputBuilder.multisigOrOneSignatureTimeoutOutput;
 import static bitcoin.transaction.builder.OutputBuilder.multisigScript;
+import static bitcoin.transaction.builder.OutputBuilder.oneSignatureOnTimeoutOrMultiSig;
 import static bitcoin.transaction.builder.TransactionBuilder.*;
 import static bitcoin.transaction.Utils.*;
 import static core.Utils.byteArrayToHex;
@@ -254,7 +256,7 @@ public class SignTest {
         byte[] neededPublicKey = neededPrivKey.getPublicKey().getKey();
         String wifChangeAddr = wifOptionalAddress;
 
-        byte[] redeemScript = OutputBuilder.multisigOrOneSignatureTimeoutOutput(TimeUnit.MINUTES, 20,
+        byte[] redeemScript = multisigOrOneSignatureTimeoutOutput(TimeUnit.MINUTES, 20,
                                                                                 neededPublicKey, optionalPublicKey);
 
         Transaction t0 = payToScriptHash(srcOutput, redeemScript, srcOutput.getValue());
@@ -339,6 +341,54 @@ public class SignTest {
                                                    , scriptRedeem));
 
         client.verifyTransaction(t1, new PayToScriptAbsoluteOutput(t0, 0, scriptRedeem));
+    }
+
+    @Test
+    public void betPromisePayToScript() throws Exception {
+        AbsoluteOutput srcOutput = null;
+        List<AbsoluteOutput> unspentOutputs = client.getUnspent();
+        String changeAddr = null;
+        for(AbsoluteOutput ao: unspentOutputs)
+            if(ao.isPayToKey())
+                srcOutput = ao;
+        assertNotNull("Couldn't find unspent outputs.", srcOutput);
+        for(String addr: client.listReceivedByAddr())
+            changeAddr = addr;
+        if(changeAddr == null)
+            changeAddr = srcOutput.getPayAddress();
+        long available = srcOutput.getValue();
+         BitcoinPrivateKey changePrivKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(changeAddr));
+
+        BitcoinPrivateKey[] keys = new BitcoinPrivateKey[2];
+        keys[0] = new BitcoinPrivateKey(true, client.isTestnet());
+        keys[1] = new BitcoinPrivateKey(true, client.isTestnet());
+
+        byte[] addr = hexToByteArray(srcOutput.getPayAddress());
+        String wifAddr = BitcoinPublicKey.txAddressToWIF(addr, true);
+        BitcoinPrivateKey privKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(wifAddr));
+        Input t0Input = new Input(srcOutput, new byte[]{});
+        Output t0Output = oneSignatureOnTimeoutOrMultiSig(keys[0].getPublicKey().getKey(),
+                keys[1].getPublicKey().getKey(), available, TimeUnit.SECONDS, 100);
+        List<Input> inputs = new LinkedList<>();
+        List<Output> outputs = new LinkedList<>();
+        inputs.add(t0Input);
+        outputs.add(t0Output);
+
+        Transaction t0 = buildTx(inputs, outputs);
+        t0.sign(privKey);
+        byte[] redeemScript = multisigOrOneSignatureTimeoutOutput(TimeUnit.SECONDS, 100,
+                keys[0].getPublicKey().getKey(), keys[1].getPublicKey().getKey());
+
+        AbsoluteOutput scriptHashOutput = new AbsoluteOutput(t0, 0);
+
+        Transaction t1 = payToPublicKeyHash(scriptHashOutput, changeAddr, available);
+        // For a P2SH, the temporary scriptSig is the redeemScript itself.
+        t1.setTempScriptSigForSigning(0, redeemScript);
+        byte[] k0_signature = t1.getPayToScriptSignature(keys[0], getHashType("ALL"), 0);
+        byte[] k1_signature = t1.getPayToScriptSignature(keys[1], getHashType("ALL"), 0);
+
+        t1.getInputs().get(0).setScript(redeemMultisigOrOneSignatureTimeoutOutput(redeemScript, k0_signature, k1_signature));
+        client.verifyTransaction(t1, new PayToScriptAbsoluteOutput(t0, 0, redeemScript));
     }
 
     @Test

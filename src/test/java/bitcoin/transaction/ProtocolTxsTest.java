@@ -4,6 +4,7 @@ import bitcoin.BitcoindClient;
 import bitcoin.ClientUtils;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
+import com.sun.tools.corba.se.idl.constExpr.Not;
 import core.*;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -12,6 +13,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
+import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
@@ -23,12 +25,17 @@ import java.util.concurrent.TimeUnit;
 import static bitcoin.Constants.getHashType;
 import static bitcoin.key.Utils.r160SHA256Hash;
 import static bitcoin.transaction.SignTest.getChangeAddress;
+import static bitcoin.transaction.Utils.parseScript;
+import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOrOneSignatureTimeoutOutput;
 import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOrSomeSignaturesTimeoutOutput;
 import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOutput;
+import static bitcoin.transaction.builder.OutputBuilder.multisigOrOneSignatureTimeoutOutput;
+import static bitcoin.transaction.builder.OutputBuilder.multisigOrSomeSignaturesTimeoutOutput;
 import static bitcoin.transaction.builder.OutputBuilder.multisigScript;
 import static bitcoin.transaction.builder.TransactionBuilder.*;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
+import static spark.route.HttpMethod.before;
 import static spark.route.HttpMethod.get;
 
 /**
@@ -36,7 +43,7 @@ import static spark.route.HttpMethod.get;
  */
 public class ProtocolTxsTest {
     static final boolean testnet = true;
-    static final int numOracles = 3;
+    static final int numOracles = 5;
     static final int numPlayers = 2;
     BitcoindClient bitcoindClient;
 
@@ -48,6 +55,7 @@ public class ProtocolTxsTest {
     String[] playersAccount;
     String[] playersWIFAddress;
     BitcoinPrivateKey[] playersPrivateKey;
+    BitcoinPublicKey[] playersPubKey;
 
     final String playerAccountPrefix = "player";
     final String oracleAccountPrefix = "oracle";
@@ -67,6 +75,7 @@ public class ProtocolTxsTest {
         playersAccount = new String[numPlayers];
         playersWIFAddress = new String[numPlayers];
         playersPrivateKey = new BitcoinPrivateKey[numPlayers];
+        playersPubKey = new BitcoinPublicKey[numPlayers];
 
         for(int i = 0; i < numOracles; i++)
             oraclesAddress[i] = bitcoindClient.getAccountAddress(oracleAccountPrefix + i);
@@ -76,6 +85,8 @@ public class ProtocolTxsTest {
             playersWIFAddress[i] = getChangeAddress(bitcoindClient, null, playersAccount[i]);
             playersPrivateKey[i] = BitcoinPrivateKey.fromWIF(
                     bitcoindClient.getPrivateKey(playersWIFAddress[i]));
+            playersPubKey[i] = playersPrivateKey[i].getPublicKey();
+
         }
 
         oracles = new LinkedList<>();
@@ -169,7 +180,8 @@ public class ProtocolTxsTest {
                                player1BetPromise, sharedTx, true);
         // Player 2
         checkBetPromiseAndSign(bitcoindClient, agreedBet, player2WifChangeAddress,
-                               player2ExpectedBet, sharedTx, false); // Player 1 already signed, do
+                               player2ExpectedBet, sharedTx, false);
+                                                                      // Player 1 already signed, do
                                                                      // not allow modifications.
         return sharedTx;
     }
@@ -196,8 +208,7 @@ public class ProtocolTxsTest {
 
         return oracleInscription(
                 oracleSrcOutputs, oracleSrcKeys, oraclePrivKey.getPublicKey(),
-                oracleWifChangeAddress, expectedAnswersHash, bet, betPromiseTx,
-                bet.getRelativeBetResolutionSecs());
+                oracleWifChangeAddress, expectedAnswersHash, bet, betPromiseTx);
     }
 
     //@Test
@@ -268,6 +279,7 @@ public class ProtocolTxsTest {
     public void completeTransactionFlowTest() throws Exception {
         // This method goes through all the transactions in the protocol.
 
+        List<PayToScriptAbsoluteOutput> submittedTxs = new LinkedList<>();
         // Everyone willing to be chose as an oracle must send the inscription transaction to the
         // blockchain.
         List<Transaction> inscriptionTxs = new LinkedList<>();
@@ -293,25 +305,26 @@ public class ProtocolTxsTest {
         // the bet can be stablished.
         // See the communication package to see an example of this interactive process
 
+        Bet agreedBet;
         //Parameters:
-        int minOracles, maxOracles;
-        long firstPaymentAmount, oraclePayment, amount, oracleInscription, oraclePenalty, fee,
-                timeoutSeconds;
-        firstPaymentAmount = oraclePayment = oracleInscription = oraclePenalty = fee = 4;
-        timeoutSeconds = 60 * 60 * 24 * 3; // Three days
-        amount = 10000;
-        minOracles = maxOracles = oracles.size();
-        String description = "Bet's description... really short actually";
-        //
+        {
+            int minOracles, maxOracles;
+            long firstPaymentAmount, oraclePayment, amount, oracleInscription, oraclePenalty, fee,
+                    timeoutSeconds;
 
-        BitcoinPublicKey[] playersPubKey = new BitcoinPublicKey[2];
-        playersPubKey[0] = playersPrivateKey[0].getPublicKey();
-        playersPubKey[1] = playersPrivateKey[1].getPublicKey();
-        Bet.Amounts amounts = new Bet.Amounts(firstPaymentAmount, oraclePayment, amount, oracleInscription,
-                oraclePenalty, fee);
-        Bet agreedBet = new Bet(description, minOracles, maxOracles, oracles, new LinkedList<Oracle>(), playersPubKey, amounts,
-                TimeUnit.SECONDS, timeoutSeconds, channel);
+            firstPaymentAmount = oraclePayment = oracleInscription = oraclePenalty = fee = 4;
+            timeoutSeconds = 60 * 60 * 24 * 3; // Three days
+            amount = 10000;
+            minOracles = maxOracles = oracles.size();
+            String description = "Bet's description... really short actually";
+            //
 
+            Bet.Amounts amounts = new Bet.Amounts(
+                    firstPaymentAmount, oraclePayment, amount, oracleInscription, oraclePenalty, fee);
+            agreedBet = new Bet(
+                    description, minOracles, maxOracles, oracles, new LinkedList<>(),
+                    playersPubKey, amounts, TimeUnit.SECONDS, timeoutSeconds, channel);
+        }
         Transaction betPromise = betPromiseFlow(agreedBet);
 
         // betPromise is the first transaction of the bet protocol to go into the blockchain, it
@@ -332,14 +345,21 @@ public class ProtocolTxsTest {
                                                                                       betPromise);
             participatingOracles.add(participatingOracle);
             Transaction oracleInscriptionTx = participatingOracle.generateInscriptionTransaction(
-                    bitcoindClient, agreedBet,
-                    agreedBet.getRelativeBetResolutionSecs() /* timeout */);
+                    bitcoindClient, agreedBet);
             participatingOraclesTxs.add(oracleInscriptionTx);
             // When this transaction takes some time from the promise bet, the timeout should
             // be adjusted, as it is a relative timeout since the transaction was posted in the
             // blockhain.
         }
 
+        // Oracles send the "playerWinHash" for each player, the pre-image of this hashes is the
+        // oracle's vow, so it is the key to solve the bet.
+        List<byte[]> playerAWinHashes = new LinkedList<>();
+        List<byte[]> playerBWinHashes = new LinkedList<>();
+        for(ParticipatingOracle participatingOracle : participatingOracles) {
+            playerAWinHashes.add(participatingOracle.getPlayerAWinsHash());
+            playerBWinHashes.add(participatingOracle.getPlayerBWinsHash());
+        }
 
         // Then the oracles send the transaction to the players, so they can sign it.
         // So far the player don't need to know the public key of the oracle, just the address.
@@ -385,9 +405,106 @@ public class ProtocolTxsTest {
             bitcoindClient.verifyTransaction(tx, betPromiseAbsoluteOutput);
         }
 
+        Transaction betTransaction = bet(
+                betPromise, participatingOraclesTxs, agreedBet, oraclePublicKeys, playerAWinHashes,
+                playerBWinHashes, Arrays.asList(playersPubKey));
+
+        // This transaction requires a lot of signatures. Now each participant signs the tx.
+
+        // The players sign the betPromise outputs. Players' signatures are required at each input
+        // of the transaction.
+        // First the first two inputs, from the betPromise transaction.
+
+        //betTransaction.getInputs().remove(2);
+        //betTransaction.getInputs().remove(2);
+        //betTransaction.getInputs().remove(2);
+        //betTransaction.getInputs().remove(2);
+        //betTransaction.getInputs().remove(2);
+
+        {
+            List<byte[]> playersBetSignatures = new LinkedList<>();
+            for (int j, i = 1; i <= 2; i++) {
+                long timeoutSecs = agreedBet.getRelativeBetResolutionSecs();
+                byte[] scriptHash = hexToByteArray(
+                        betPromise.getOutputs().get(i).getParsedScript().get(2));
+                byte[] redeemScript = multisigOrOneSignatureTimeoutOutput(
+                        TimeUnit.SECONDS, timeoutSecs,
+                        playersPrivateKey[(i + 1) % 2].getPublicKey().getKey(),
+                        playersPrivateKey[i % 2].getPublicKey().getKey());
+                for (j = 40; j > 0 && !Arrays.equals(scriptHash, r160SHA256Hash(redeemScript)); --j)
+                    redeemScript = multisigOrOneSignatureTimeoutOutput(
+                            TimeUnit.SECONDS, timeoutSecs += j * TIMEOUT_GRANULARITY,
+                            playersPrivateKey[(i + 1) % 2].getPublicKey().getKey(),
+                            playersPrivateKey[i % 2].getPublicKey().getKey());
+                if (j == 0)
+                    throw new InvalidParameterException("Redeem script does not match the hash");
+                betTransaction.setTempScriptSigForSigning(i - 1, redeemScript);
+
+                for (int k = 0; k < playersPrivateKey.length; k++)
+                    playersBetSignatures.add(betTransaction.getPayToScriptSignature(
+                            playersPrivateKey[k], getHashType("ALL"), i - 1));
+
+                betTransaction.getInputs().get(i - 1).setScript(
+                        redeemMultisigOrOneSignatureTimeoutOutput(
+                                redeemScript,
+                                playersBetSignatures.get((i + 1 ) % 2),
+                                playersBetSignatures.get(i % 2)
+                        ));
+                playersBetSignatures.clear();
+                submittedTxs.add(new PayToScriptAbsoluteOutput(betPromise, i, redeemScript));
+            }
+        }
+
+        // Each oracle needs to sign once.
+        List<byte[]> oraclesBetSignatures = new LinkedList<>();
+        for(int i = 0; i < participatingOracles.size(); i++) {
+            ParticipatingOracle participatingOracle = participatingOracles.get(i);
+            BitcoinPrivateKey privKey = BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(
+                    participatingOracle.getAddress()));
+            int j, inputToSign = 2 + i;
+            byte[] scriptHash = hexToByteArray(
+                    participatingOraclesTxs.get(i).getOutputs().get(0).getParsedScript().get(2));
+            long timeoutSecs = agreedBet.getRelativeBetResolutionSecs();
+            byte[] redeemScript = multisigOrSomeSignaturesTimeoutOutput(
+                    TimeUnit.SECONDS, timeoutSecs, oraclePublicKeys.get(i),
+                    Arrays.asList(playersPubKey));
+            for(j = 40; j > 0 && !Arrays.equals(scriptHash, r160SHA256Hash(redeemScript)); --j)
+                redeemScript = multisigOrSomeSignaturesTimeoutOutput(
+                        TimeUnit.SECONDS, timeoutSecs += j * TIMEOUT_GRANULARITY,
+                        oraclePublicKeys.get(i), Arrays.asList(playersPubKey));
+            if(j == 0)
+                throw new InvalidParameterException("Redeem script does not match the hash");
+            submittedTxs.add(new PayToScriptAbsoluteOutput(participatingOraclesTxs.get(i), 0,
+                             redeemScript));
+
+            betTransaction.setTempScriptSigForSigning(inputToSign, redeemScript);
+            byte[] oracleSignature = betTransaction.getPayToScriptSignature(
+                    privKey, getHashType("ALL"), inputToSign);
+            byte[] playerASignature = betTransaction.getPayToScriptSignature(
+                    playersPrivateKey[0], getHashType("ALL"), inputToSign);
+            byte[] playerBSignature = betTransaction.getPayToScriptSignature(
+                    playersPrivateKey[1], getHashType("ALL"), inputToSign);
+            List<byte[]> signatures = new LinkedList<>();
+            signatures.add(oracleSignature);
+            signatures.add(playerASignature);
+            signatures.add(playerBSignature);
+            betTransaction.getInputs().get(inputToSign).setScript(
+                    redeemMultisigOutput(redeemScript, signatures));
+        }
+
+        //System.out.println(betPromise.hexlify());
+        //System.out.println(bitcoindClient.printCLIVerification(betTransaction, submittedTxs));
+        bitcoindClient.verifyTransaction(betTransaction,submittedTxs);
+
+        throw new NotImplementedException();
+
+    //static public Transaction bet(
+      //      Transaction betPromise, List<Transaction> oracleInscriptions, Bet bet,
+        //    List<BitcoinPublicKey> oracles, List<byte[]> playerAWinHashes,
+          //  List<byte[]> playerBWinHashes, List<BitcoinPublicKey> playerPubKeys)
+            //throws NoSuchAlgorithmException, IOException {
         // Now the oracles are commited, we can generate the Bet transaction.
 
-        //Transaction transaction = betPromiseFlow();
     }
 
 
