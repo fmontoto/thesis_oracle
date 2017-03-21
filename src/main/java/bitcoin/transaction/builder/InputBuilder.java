@@ -1,5 +1,6 @@
 package bitcoin.transaction.builder;
 
+import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.*;
 import com.sun.org.apache.xalan.internal.xsltc.dom.AbsoluteIterator;
@@ -39,6 +40,36 @@ public class InputBuilder {
 
     static public Input redeemScriptHash(PayToScriptAbsoluteOutput srcOutput) {
         return redeemScriptHash(srcOutput, 0xffffffff);
+    }
+
+
+
+    static public byte[] redeemMultisigOrOneSignatureTimeoutOutput(
+            byte[] alwaysNeededSignature, List<byte[]> optionalSignatures) {
+        if (optionalSignatures == null)
+            throw new NotImplementedException();
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        //byte[] timeout = TransactionBuilder.createSequenceNumber(timeUnit, timeoutVal);
+        /*
+        /byte[] script = mergeArrays(pushDataOpcode(alwaysNeededPublicKey.length),
+                alwaysNeededPublicKey,
+                new byte[] {getOpcode("OP_CHECKSIGVERIFY")},
+                new byte[] {getOpcode("OP_IF")},
+                pushDataOpcode(optionalPublicKey.length),
+                optionalPublicKey,
+                new byte[] {getOpcode("OP_CHECKSIGVERIFY")},
+                new byte[] {getOpcode("OP_ELSE")},
+                pushDataOpcode(timeout.length),
+                timeout,
+                new byte[] {getOpcode("OP_CHECKSEQUENCEVERIFY")},
+                new byte[] {getOpcode("OP_DROP")},
+                new byte[] {getOpcode("OP_ENDIF")},
+                new byte[] {getOpcode("OP_1")}
+        );
+        return script;
+        */
+        throw new NotImplementedException();
     }
 
     static public Input redeemMultiSigOutput() {

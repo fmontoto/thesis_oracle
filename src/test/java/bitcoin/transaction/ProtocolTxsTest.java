@@ -43,7 +43,7 @@ import static spark.route.HttpMethod.get;
  */
 public class ProtocolTxsTest {
     static final boolean testnet = true;
-    static final int numOracles = 5;
+    static final int numOracles = 5; // At least 5
     static final int numPlayers = 2;
     BitcoindClient bitcoindClient;
 
@@ -415,12 +415,6 @@ public class ProtocolTxsTest {
         // of the transaction.
         // First the first two inputs, from the betPromise transaction.
 
-        //betTransaction.getInputs().remove(2);
-        //betTransaction.getInputs().remove(2);
-        //betTransaction.getInputs().remove(2);
-        //betTransaction.getInputs().remove(2);
-        //betTransaction.getInputs().remove(2);
-
         {
             List<byte[]> playersBetSignatures = new LinkedList<>();
             for (int j, i = 1; i <= 2; i++) {
@@ -456,7 +450,6 @@ public class ProtocolTxsTest {
         }
 
         // Each oracle needs to sign once.
-        List<byte[]> oraclesBetSignatures = new LinkedList<>();
         for(int i = 0; i < participatingOracles.size(); i++) {
             ParticipatingOracle participatingOracle = participatingOracles.get(i);
             BitcoinPrivateKey privKey = BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(
@@ -468,11 +461,11 @@ public class ProtocolTxsTest {
             byte[] redeemScript = multisigOrSomeSignaturesTimeoutOutput(
                     TimeUnit.SECONDS, timeoutSecs, oraclePublicKeys.get(i),
                     Arrays.asList(playersPubKey));
-            for(j = 40; j > 0 && !Arrays.equals(scriptHash, r160SHA256Hash(redeemScript)); --j)
+            for(j = 0; j < 2000 && !Arrays.equals(scriptHash, r160SHA256Hash(redeemScript)); ++j)
                 redeemScript = multisigOrSomeSignaturesTimeoutOutput(
                         TimeUnit.SECONDS, timeoutSecs += j * TIMEOUT_GRANULARITY,
                         oraclePublicKeys.get(i), Arrays.asList(playersPubKey));
-            if(j == 0)
+            if(!Arrays.equals(scriptHash, r160SHA256Hash(redeemScript)))
                 throw new InvalidParameterException("Redeem script does not match the hash");
             submittedTxs.add(new PayToScriptAbsoluteOutput(participatingOraclesTxs.get(i), 0,
                              redeemScript));
@@ -484,28 +477,41 @@ public class ProtocolTxsTest {
                     playersPrivateKey[0], getHashType("ALL"), inputToSign);
             byte[] playerBSignature = betTransaction.getPayToScriptSignature(
                     playersPrivateKey[1], getHashType("ALL"), inputToSign);
-            List<byte[]> signatures = new LinkedList<>();
-            signatures.add(oracleSignature);
-            signatures.add(playerASignature);
-            signatures.add(playerBSignature);
+            List<byte[]> requiredSignature = new LinkedList<>();
+            List<byte[]> optionalignatures = new LinkedList<>();
+            requiredSignature.add(oracleSignature);
+            optionalignatures.add(playerASignature);
+            optionalignatures.add(playerBSignature);
             betTransaction.getInputs().get(inputToSign).setScript(
-                    redeemMultisigOutput(redeemScript, signatures));
+                    redeemMultisigOrSomeSignaturesTimeoutOutput(redeemScript, requiredSignature, optionalignatures));
         }
 
-        //System.out.println(betPromise.hexlify());
-        //System.out.println(bitcoindClient.printCLIVerification(betTransaction, submittedTxs));
         bitcoindClient.verifyTransaction(betTransaction,submittedTxs);
+
+        // Now, the transaction is ready to go into the blockchain.
+        // After the transaction resolution lets say that the first (numOracles - 2) oracles say
+        // player A wins. The oracle #(numOracles - 2) says player B wins. And the oracle
+        // #(numOracles - 1)  says nothing. (Oracles are numbered from 0 to (numOracles - 1))
+
+        List<Transaction> oracleAnswers = new LinkedList<>();
+        for(int i = 0; i < participatingOracles.size() - 2; i++) {
+            ParticipatingOracle oracle = participatingOracles.get(i);
+            BitcoinPrivateKey privKey = BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(
+                    oracle.getAddress()));
+            List<byte[]> playersHash = new LinkedList<>();
+            playersHash.add(oracle.getPlayerAWinsHash());
+            playersHash.add(oracle.getPlayerBWinsHash());
+
+            Transaction answer = oracleAnswer(betTransaction, agreedBet, i, oracle.getPlayerAWins(),
+                                              privKey, oracle.getAddress(), playersHash);
+
+        }
+
 
         throw new NotImplementedException();
 
-    //static public Transaction bet(
-      //      Transaction betPromise, List<Transaction> oracleInscriptions, Bet bet,
-        //    List<BitcoinPublicKey> oracles, List<byte[]> playerAWinHashes,
-          //  List<byte[]> playerBWinHashes, List<BitcoinPublicKey> playerPubKeys)
-            //throws NoSuchAlgorithmException, IOException {
-        // Now the oracles are commited, we can generate the Bet transaction.
-
     }
+
 
 
 }

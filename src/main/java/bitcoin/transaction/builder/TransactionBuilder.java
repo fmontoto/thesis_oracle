@@ -505,6 +505,52 @@ public class TransactionBuilder {
         return tx;
     }
 
+    static public Transaction oracleAnswer(
+            Transaction betTransaction, Bet bet, int oraclePosition, byte[] winnerHashPreImage,
+            BitcoinPrivateKey oracleKey, String dstWIFAddress, List<byte[]> playersWinHash)
+            throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+        int winnerPos = -1;
+        for(int i = 0; i < playersWinHash.size(); i++) {
+            if(Arrays.equals(r160SHA256Hash(winnerHashPreImage), playersWinHash.get(i)))
+                winnerPos = i;
+        }
+        if(winnerPos == -1)
+            throw new InvalidParameterException("Not a valid winner pre hash.");
+
+        int toRedeemOutputPos = 2 + 2 * oraclePosition;
+        long available = betTransaction.getOutputs().get(oraclePosition).getValue();
+        long fee = 100; // TODO calculate it...
+        long betTimeoutSeconds = bet.getRelativeBetResolutionSecs();
+        long replyUntilSeconds = bet.getRelativeReplyUntilTimeoutSeconds();
+        byte[] expectedRedeeemHash = hexToByteArray(betTransaction.getOutputs()
+                .get(toRedeemOutputPos).getParsedScript().get(2));
+
+
+        byte[] redeemScript = betOraclePaymentScript(playersWinHash.get(0), playersWinHash.get(1),
+                oracleKey.getPublicKey(), bet.getPlayersPubKey()[0], bet.getPlayersPubKey()[1],
+                betTimeoutSeconds, replyUntilSeconds);
+        for(int i = 0; i < 2000 && !Arrays.equals(r160SHA256Hash(redeemScript), expectedRedeeemHash);
+            i++) {
+            for(int j = 0;
+                j < 2000 && !Arrays.equals(r160SHA256Hash(redeemScript), expectedRedeeemHash);
+                j++) {
+                redeemScript = betOraclePaymentScript(playersWinHash.get(0), playersWinHash.get(1),
+                        oracleKey.getPublicKey(), bet.getPlayersPubKey()[0], bet.getPlayersPubKey()[1],
+                        betTimeoutSeconds + i * TIMEOUT_GRANULARITY,
+                        replyUntilSeconds + j * TIMEOUT_GRANULARITY);
+            }
+        }
+
+        if(!Arrays.equals(r160SHA256Hash(redeemScript), expectedRedeeemHash))
+            throw new InvalidParameterException("RedeemScript does not match!");
+
+        AbsoluteOutput ao = new AbsoluteOutput(betTransaction, toRedeemOutputPos);
+        Input input = new Input(ao, redeemScript);
+        Output output = createPayToPubKeyOutput(available - fee, dstWIFAddress);
+
+        throw new NotImplementedException();
+    }
+
     // Utils
 
     private static boolean reduceChange(Transaction completedTx, String wifChangeAddress,
