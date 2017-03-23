@@ -91,6 +91,10 @@ public class Input {
         return sequenceNo;
     }
 
+    public void setSequenceNo(int sequenceNo) {
+        this.sequenceNo = 0xffffffffL & sequenceNo;
+    }
+
     public byte[] serialize() {
         return mergeArrays(arrayReverse(prevTxHash != null ? prevTxHash: new byte[32]),
                            serializeUint32(prevIdx),

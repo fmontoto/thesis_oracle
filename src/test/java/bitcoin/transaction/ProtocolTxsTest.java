@@ -4,6 +4,7 @@ import bitcoin.BitcoindClient;
 import bitcoin.ClientUtils;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
+import bitcoin.transaction.protocol.OracleAnswer;
 import com.sun.tools.corba.se.idl.constExpr.Not;
 import core.*;
 import org.junit.Before;
@@ -486,9 +487,11 @@ public class ProtocolTxsTest {
                     redeemMultisigOrSomeSignaturesTimeoutOutput(redeemScript, requiredSignature, optionalignatures));
         }
 
-        bitcoindClient.verifyTransaction(betTransaction,submittedTxs);
+        bitcoindClient.verifyTransaction(betTransaction, submittedTxs);
 
         // Now, the transaction is ready to go into the blockchain.
+
+
         // After the transaction resolution lets say that the first (numOracles - 2) oracles say
         // player A wins. The oracle #(numOracles - 2) says player B wins. And the oracle
         // #(numOracles - 1)  says nothing. (Oracles are numbered from 0 to (numOracles - 1))
@@ -502,9 +505,14 @@ public class ProtocolTxsTest {
             playersHash.add(oracle.getPlayerAWinsHash());
             playersHash.add(oracle.getPlayerBWinsHash());
 
-            Transaction answer = oracleAnswer(betTransaction, agreedBet, i, oracle.getPlayerAWins(),
-                                              privKey, oracle.getAddress(), playersHash);
+            OracleAnswer answer = OracleAnswer.build(
+                    betTransaction, agreedBet, i, oracle.getPlayerAWins(), privKey,
+                    oracle.getAddress(), playersHash);
+            oracleAnswers.add(answer.getAnswer());
 
+            submittedTxs.add(new PayToScriptAbsoluteOutput(betTransaction, 2 + 2 * i,
+                             answer.getRedeemScript()));
+            bitcoindClient.verifyTransaction(answer.getAnswer(), submittedTxs);
         }
 
 

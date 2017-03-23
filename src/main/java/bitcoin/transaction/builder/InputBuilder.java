@@ -144,6 +144,21 @@ public class InputBuilder {
                                       , redeemScript);
     }
 
+
+    static public byte[] redeemBetOraclePaymentScript(byte[] redeemScript, byte[] oracleSignature,
+                                                      byte[] playerWinPreImage, int posWinner) {
+        byte[] ifSelector = posWinner == 0 ? getOpcodeAsArray("OP_1") : getOpcodeAsArray("OP_0");
+        return mergeArrays(pushDataOpcode(playerWinPreImage.length)
+                , playerWinPreImage
+                , ifSelector
+                , pushDataOpcode(oracleSignature.length)
+                , oracleSignature
+                , getOpcodeAsArray("OP_1")
+                , pushDataOpcode(redeemScript.length)
+                , redeemScript);
+
+    }
+
     static public Input redeemBetPromiseOraclePayment(List<BitcoinPublicKey> playerPublicKeys,
                                                        Transaction betPromise, int num_oracle) throws IOException, NoSuchAlgorithmException {
         byte[] redeemScript = multisigScript(playerPublicKeys, 2, false);

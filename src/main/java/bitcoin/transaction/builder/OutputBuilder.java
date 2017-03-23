@@ -40,7 +40,6 @@ public class OutputBuilder {
                                               byte[] onTimeout, TimeUnit timeUnit,
                                               long timeoutVal, boolean finishWithTrue)
                                                         throws IOException {
-        byte[] timeout = TransactionBuilder.createSequenceNumber(timeUnit, timeoutVal);
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
         if(always != null && always.length > 0) {
@@ -56,7 +55,7 @@ public class OutputBuilder {
         buffer.write(getOpcode("OP_ELSE"));
 
         if(onTimeout != null && onTimeout.length > 0) {
-            buffer.write(pushDataOpcode(onTimeout.length));
+            //buffer.write(pushDataOpcode(onTimeout.length));
             buffer.write(onTimeout);
         }
         buffer.write(checkTimeoutScript(timeUnit, timeoutVal));
@@ -145,7 +144,7 @@ public class OutputBuilder {
      * @param wifDstAddr Destination address in WIF format
      * @return Output with the specified parameters.
      */
-    static Output createPayToPubKeyOutput(long value, String wifDstAddr) throws IOException, NoSuchAlgorithmException {
+    public static Output createPayToPubKeyOutput(long value, String wifDstAddr) throws IOException, NoSuchAlgorithmException {
 
         byte[] addr = BitcoinPublicKey.WIFToTxAddress(wifDstAddr);
         byte[] script =  mergeArrays(new byte[]{getOpcode("OP_DUP")},
@@ -405,7 +404,7 @@ public class OutputBuilder {
 
         timeoutBuffer.write(pushDataOpcode(playerBPublicKey.getKey().length));
         timeoutBuffer.write(playerBPublicKey.getKey());
-        timeoutBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
+        timeoutBuffer.write(getOpcode("OP_CHECKSIG"));
 
         byte[] onTimeout = timeoutBuffer.toByteArray();
 
