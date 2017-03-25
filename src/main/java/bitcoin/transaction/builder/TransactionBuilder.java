@@ -60,6 +60,11 @@ public class TransactionBuilder {
         return ret;
     }
 
+    static public Transaction buildTx(int version, int locktime, Input input,
+                                      Collection<Output> outputs) {
+        return buildTx(version, locktime, Arrays.asList(input), outputs);
+    }
+
     static public Transaction buildTx(int version, int locktime, Input input, Output... outputs) {
         return buildTx(version, locktime, Arrays.asList(input),
                        Arrays.asList(outputs));

@@ -159,6 +159,19 @@ public class InputBuilder {
 
     }
 
+    static public byte[] redeemPaymentOracleDidntPay(byte[] redeemScript, byte[] signature,
+                                                     byte[] secondSignature) {
+        return mergeArrays(
+                 pushDataOpcode(secondSignature.length)
+                , secondSignature
+                , pushDataOpcode(signature.length)
+                , signature
+                , getOpcodeAsArray("OP_0")
+                , pushDataOpcode(redeemScript.length)
+                , redeemScript);
+    }
+
+
     static public Input redeemBetPromiseOraclePayment(List<BitcoinPublicKey> playerPublicKeys,
                                                        Transaction betPromise, int num_oracle) throws IOException, NoSuchAlgorithmException {
         byte[] redeemScript = multisigScript(playerPublicKeys, 2, false);

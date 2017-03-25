@@ -2,11 +2,9 @@ package bitcoin.transaction.protocol;
 
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
-import bitcoin.transaction.AbsoluteOutput;
-import bitcoin.transaction.Input;
-import bitcoin.transaction.Output;
-import bitcoin.transaction.Transaction;
+import bitcoin.transaction.*;
 import core.Bet;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
@@ -20,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 
 import static bitcoin.Constants.getHashType;
 import static bitcoin.key.Utils.r160SHA256Hash;
+import static bitcoin.transaction.Utils.parseScript;
 import static bitcoin.transaction.Utils.readScriptNum;
 import static bitcoin.transaction.builder.InputBuilder.redeemBetOraclePaymentScript;
 import static bitcoin.transaction.builder.OutputBuilder.betOraclePaymentScript;
@@ -61,11 +60,16 @@ public class OracleAnswer {
     }
 
     byte[] redeemScript;
+    byte[] winnerHashPreImage;
+    BitcoinPublicKey oraclePublicKey;
     Transaction answer;
 
-    private OracleAnswer(byte[] redeemScript, Transaction answer) {
+    private OracleAnswer(byte[] redeemScript, Transaction answer, byte[] winnerHashPreImage,
+                         BitcoinPublicKey oraclePublicKey) {
         this.redeemScript = redeemScript;
         this.answer = answer;
+        this.oraclePublicKey = oraclePublicKey;
+        this.winnerHashPreImage = winnerHashPreImage;
     }
 
     public byte[] getRedeemScript() {
@@ -110,6 +114,29 @@ public class OracleAnswer {
         byte[] signature = tx.getPayToScriptSignature(oracleKey, getHashType("ALL"), 0);
         tx.getInputs().get(0).setScript(redeemBetOraclePaymentScript(
                 redeemOutput.redeemScript, signature, winnerHashPreImage, winnerPos));
-        return new OracleAnswer(redeemOutput.redeemScript, tx);
+        return new OracleAnswer(redeemOutput.redeemScript, tx, winnerHashPreImage,
+                                oracleKey.getPublicKey());
+    }
+
+    static public OracleAnswer parse(String hexRepr, boolean testnet)
+            throws ParseTransactionException, NoSuchAlgorithmException, IOException,
+                   InvalidKeySpecException {
+        Transaction transaction = new Transaction(hexRepr);
+        Input redeemInput = transaction.getInputs().get(0);
+        List<String> parsedScript = parseScript(redeemInput.getScript(), true);
+        if (parsedScript.size() != 8) {
+            throw new InvalidParameterException(
+                    "Expected script with 8 elements, got " + parsedScript.size() + " elements");
+        }
+
+        byte[] redeemScript = hexToByteArray(parsedScript.get(8 - 1));
+
+        List<String> parsedRedeemScript = parseScript(redeemScript, false);
+        BitcoinPublicKey oraclePublicKey = new BitcoinPublicKey(
+                hexToByteArray(parsedRedeemScript.get(2)), testnet);
+        byte[] winnerPreImage = hexToByteArray(parsedScript.get(1));
+        //TODO check agains the expected hashes.
+
+        return new OracleAnswer(redeemScript, transaction, winnerPreImage, oraclePublicKey);
     }
 }

@@ -5,11 +5,13 @@ import bitcoin.ClientUtils;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.protocol.OracleAnswer;
+import bitcoin.transaction.protocol.OracleDoesntAnswer;
 import com.sun.tools.corba.se.idl.constExpr.Not;
 import core.*;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import sun.awt.image.ImageWatched;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
@@ -313,9 +315,9 @@ public class ProtocolTxsTest {
             long firstPaymentAmount, oraclePayment, amount, oracleInscription, oraclePenalty, fee,
                     timeoutSeconds;
 
-            firstPaymentAmount = oraclePayment = oracleInscription = oraclePenalty = fee = 4;
+            firstPaymentAmount = oraclePayment = oracleInscription = oraclePenalty = fee = 40;
             timeoutSeconds = 60 * 60 * 24 * 3; // Three days
-            amount = 10000;
+            amount = 100000;
             minOracles = maxOracles = oracles.size();
             String description = "Bet's description... really short actually";
             //
@@ -505,9 +507,14 @@ public class ProtocolTxsTest {
             playersHash.add(oracle.getPlayerAWinsHash());
             playersHash.add(oracle.getPlayerBWinsHash());
 
-            OracleAnswer answer = OracleAnswer.build(
-                    betTransaction, agreedBet, i, oracle.getPlayerAWins(), privKey,
-                    oracle.getAddress(), playersHash);
+            byte[] winnerPlayer;
+            if(i == participatingOracles.size() - 2)
+                winnerPlayer = oracle.getPlayerBWins();
+            else
+                winnerPlayer = oracle.getPlayerAWins();
+            OracleAnswer answer;
+            answer = OracleAnswer.build(betTransaction, agreedBet, i, winnerPlayer, privKey,
+                                        oracle.getAddress(), playersHash);
             oracleAnswers.add(answer.getAnswer());
 
             submittedTxs.add(new PayToScriptAbsoluteOutput(betTransaction, 2 + 2 * i,
@@ -515,6 +522,32 @@ public class ProtocolTxsTest {
             bitcoindClient.verifyTransaction(answer.getAnswer(), submittedTxs);
         }
 
+        // Players can take #(numOracles - 1) payment, as the oracle didn't reply on time.
+        {
+            int numOracle = numOracles - 1;
+            List<String> wifOutputAddress = new LinkedList<>();
+            wifOutputAddress.add(playersWIFAddress[0]);
+            wifOutputAddress.add(playersWIFAddress[1]);
+
+            // Player A builds and sign the tx.
+            OracleDoesntAnswer tx = OracleDoesntAnswer.build(betTransaction, numOracle,
+                    oraclePublicKeys.get(numOracle),playerAWinHashes.get(numOracle),
+                    playerBWinHashes.get(numOracle), playersPrivateKey[0], agreedBet,
+                    wifOutputAddress);
+            // Then player B takes it, check the correctness of the outputs and also sign it.
+            //TODO check outputs
+            Transaction oracleDidntAnswerTx = tx.sign(playersPrivateKey[1]);
+            submittedTxs.add(new PayToScriptAbsoluteOutput(betTransaction,
+                    2 + 2 * (numOracles - 1), tx.getRedeemScript()));
+            bitcoindClient.verifyTransaction(oracleDidntAnswerTx, submittedTxs);
+        }
+
+
+        // Players can parse from the tx in the blockchain
+        List<OracleAnswer> oracleParsedAnswers = new LinkedList<>();
+        for(Transaction tx : oracleAnswers) {
+            oracleParsedAnswers.add(OracleAnswer.parse(tx.hexlify(), bitcoindClient.isTestnet()));
+        }
 
         throw new NotImplementedException();
 

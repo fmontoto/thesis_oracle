@@ -404,7 +404,7 @@ public class OutputBuilder {
 
         timeoutBuffer.write(pushDataOpcode(playerBPublicKey.getKey().length));
         timeoutBuffer.write(playerBPublicKey.getKey());
-        timeoutBuffer.write(getOpcode("OP_CHECKSIG"));
+        timeoutBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
 
         byte[] onTimeout = timeoutBuffer.toByteArray();
 
