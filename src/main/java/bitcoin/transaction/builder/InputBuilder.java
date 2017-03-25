@@ -1,22 +1,17 @@
 package bitcoin.transaction.builder;
 
-import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.*;
-import com.sun.org.apache.xalan.internal.xsltc.dom.AbsoluteIterator;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.List;
 
 import static bitcoin.Constants.*;
 import static bitcoin.transaction.builder.OutputBuilder.multisigScript;
-import static core.Utils.byteArrayToHex;
-import static core.Utils.hexToByteArray;
-import static core.Utils.mergeArrays;
+import static core.Utils.*;
 
 /**
  * Created by fmontoto on 18-01-17.

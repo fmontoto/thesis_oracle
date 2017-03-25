@@ -16,11 +16,9 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
-import static bitcoin.transaction.Utils.readVarInt;
-import static bitcoin.transaction.Utils.serializeVarInt;
-import static bitcoin.transaction.Utils.varIntByteSize;
-import static core.Utils.hexToByteArray;
 import static bitcoin.key.Utils.*;
+import static bitcoin.transaction.Utils.*;
+import static core.Utils.hexToByteArray;
 import static core.Utils.mergeArrays;
 
 /**

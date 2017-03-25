@@ -3,7 +3,8 @@ package bitcoin;
 import org.junit.Test;
 
 import static bitcoin.Constants.pushNumberOpcode;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Created by fmontoto on 23-11-16.

@@ -4,8 +4,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static core.Utils.byteArrayToHex;
-import static core.Utils.hexToByteArray;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Created by fmontoto on 23-11-16.

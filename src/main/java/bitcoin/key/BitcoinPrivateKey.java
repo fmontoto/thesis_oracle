@@ -16,10 +16,8 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 
 import static bitcoin.Utils.doubleSHA256;
-import static bitcoin.key.Utils.bitcoinB58Encode;
-import static bitcoin.key.Utils.get32ByteRepresentation;
+import static bitcoin.key.Utils.*;
 import static core.Utils.hexToByteArray;
-import static bitcoin.key.Utils.bytesToBigInteger;
 
 /**
  * Representation of a bitcoin Private Key.

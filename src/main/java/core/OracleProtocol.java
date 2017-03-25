@@ -1,6 +1,5 @@
 package core;
 
-import core.OracleList;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRpcException;
 

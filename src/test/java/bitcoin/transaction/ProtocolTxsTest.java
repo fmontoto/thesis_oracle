@@ -6,12 +6,10 @@ import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.protocol.OracleAnswer;
 import bitcoin.transaction.protocol.OracleDoesntAnswer;
-import com.sun.tools.corba.se.idl.constExpr.Not;
 import core.*;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import sun.awt.image.ImageWatched;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
@@ -28,18 +26,10 @@ import java.util.concurrent.TimeUnit;
 import static bitcoin.Constants.getHashType;
 import static bitcoin.key.Utils.r160SHA256Hash;
 import static bitcoin.transaction.SignTest.getChangeAddress;
-import static bitcoin.transaction.Utils.parseScript;
-import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOrOneSignatureTimeoutOutput;
-import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOrSomeSignaturesTimeoutOutput;
-import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOutput;
-import static bitcoin.transaction.builder.OutputBuilder.multisigOrOneSignatureTimeoutOutput;
-import static bitcoin.transaction.builder.OutputBuilder.multisigOrSomeSignaturesTimeoutOutput;
-import static bitcoin.transaction.builder.OutputBuilder.multisigScript;
+import static bitcoin.transaction.builder.InputBuilder.*;
+import static bitcoin.transaction.builder.OutputBuilder.*;
 import static bitcoin.transaction.builder.TransactionBuilder.*;
-import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
-import static spark.route.HttpMethod.before;
-import static spark.route.HttpMethod.get;
 
 /**
  * Created by fmontoto on 16-01-17.

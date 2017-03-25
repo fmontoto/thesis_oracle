@@ -3,7 +3,7 @@ package core;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Created by fmontoto on 19-01-17.

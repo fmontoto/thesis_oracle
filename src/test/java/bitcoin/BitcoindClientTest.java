@@ -4,12 +4,10 @@ import bitcoin.transaction.Transaction;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
 import java.util.logging.Logger;
 
-import static core.Utils.byteArrayToHex;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Created by fmontoto on 23-11-16.

@@ -4,8 +4,8 @@ import org.junit.Test;
 
 import java.security.InvalidParameterException;
 
-import static org.junit.Assert.*;
 import static bitcoin.transaction.Utils.*;
+import static org.junit.Assert.*;
 
 
 /**

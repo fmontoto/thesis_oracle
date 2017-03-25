@@ -1,7 +1,7 @@
 package core;
 
-import commandline.Player;
 import commandline.Oracle;
+import commandline.Player;
 import org.apache.commons.cli.ParseException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 

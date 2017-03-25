@@ -10,7 +10,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static core.Utils.hexToByteArray;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Created by fmontoto on 05-01-17.

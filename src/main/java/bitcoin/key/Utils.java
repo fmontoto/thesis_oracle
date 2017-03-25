@@ -13,9 +13,7 @@ import java.security.Security;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
-import static core.Utils.decodeB58;
-import static core.Utils.encodeB58;
-import static core.Utils.hexToByteArray;
+import static core.Utils.*;
 
 /**
  * Set of utilities for the key package.

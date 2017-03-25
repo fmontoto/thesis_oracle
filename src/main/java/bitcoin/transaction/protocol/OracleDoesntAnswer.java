@@ -7,7 +7,6 @@ import bitcoin.transaction.Input;
 import bitcoin.transaction.Output;
 import bitcoin.transaction.Transaction;
 import core.Bet;
-import org.omg.CORBA.DynAnyPackage.Invalid;
 import sun.plugin.dom.exception.InvalidStateException;
 
 import java.io.IOException;
@@ -22,14 +21,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.Constants.getHashType;
-import static bitcoin.key.Utils.r160SHA256Hash;
-import static bitcoin.transaction.Utils.parseScript;
 import static bitcoin.transaction.Utils.readScriptNum;
-import static bitcoin.transaction.builder.InputBuilder.redeemMultiSigOutput;
 import static bitcoin.transaction.builder.InputBuilder.redeemPaymentOracleDidntPay;
-import static bitcoin.transaction.builder.OutputBuilder.betOraclePaymentScript;
 import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
-import static bitcoin.transaction.builder.TransactionBuilder.TIMEOUT_GRANULARITY;
 import static bitcoin.transaction.builder.TransactionBuilder.buildTx;
 import static bitcoin.transaction.builder.TransactionBuilder.createSequenceNumber;
 import static core.Utils.hexToByteArray;

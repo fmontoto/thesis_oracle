@@ -4,11 +4,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 
-import static bitcoin.transaction.Utils.readVarInt;
-import static bitcoin.transaction.Utils.serializeVarInt;
-import static bitcoin.transaction.Utils.varIntByteSize;
+import static bitcoin.transaction.Utils.*;
 import static core.Constants.BET_DESCRIPTION;
 import static java.util.stream.Collectors.toSet;
 

@@ -1,6 +1,5 @@
 package bitcoin;
 
-import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.transaction.*;
 import bitcoin.transaction.Transaction;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;

@@ -4,13 +4,11 @@ import bitcoin.Constants;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import org.bitcoinj.core.ECKey;
-import org.omg.CORBA.DynAnyPackage.Invalid;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.InvalidKeyException;
-import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
@@ -19,9 +17,7 @@ import java.util.logging.Logger;
 
 import static bitcoin.Utils.doubleSHA256;
 import static bitcoin.transaction.Utils.*;
-import static core.Utils.byteArrayToHex;
-import static core.Utils.hexToByteArray;
-import static core.Utils.mergeArrays;
+import static core.Utils.*;
 
 /**
  * Created by fmontoto on 17-11-16.

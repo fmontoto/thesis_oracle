@@ -1,16 +1,13 @@
 package commandline;
 
+import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
+import bitcoin.key.Secp256k1;
 import communication.*;
 import core.Bet;
 import core.ConsistencyException;
 import core.Constants;
-import bitcoin.key.BitcoinPrivateKey;
-import bitcoin.key.Secp256k1;
 import edu.biu.scapi.exceptions.CommitValueException;
-import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTOutput;
-import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTStringPartyOne;
-import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTStringPartyTwo;
 import org.apache.commons.cli.*;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
@@ -31,7 +28,6 @@ import java.util.concurrent.*;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
-import static bitcoin.Utils.doubleSHA256;
 import static bitcoin.Utils.getOracleList;
 import static bitcoin.key.Utils.r160SHA256Hash;
 import static communication.MultipartyComputation.choseRandomlyFromList;

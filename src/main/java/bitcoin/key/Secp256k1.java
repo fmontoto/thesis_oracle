@@ -1,7 +1,9 @@
 package bitcoin.key;
 
 import java.math.BigInteger;
-import java.security.*;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.security.spec.*;
 import java.util.logging.Logger;
 

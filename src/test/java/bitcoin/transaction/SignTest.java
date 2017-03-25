@@ -3,32 +3,24 @@ package bitcoin.transaction;
 import bitcoin.BitcoindClient;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
-import bitcoin.transaction.builder.OutputBuilder;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
-import static bitcoin.Constants.*;
-import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOrOneSignatureTimeoutOutput;
-import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOrSomeSignaturesTimeoutOutput;
-import static bitcoin.transaction.builder.InputBuilder.redeemMultisigOutput;
-import static bitcoin.transaction.builder.OutputBuilder.*;
-import static bitcoin.transaction.builder.TransactionBuilder.*;
-import static bitcoin.transaction.Utils.*;
-import static core.Utils.byteArrayToHex;
-import static core.Utils.hexToByteArray;
-import static core.Utils.mergeArrays;
-import static org.junit.Assert.*;
-
-import java.io.IOException;
-import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SignatureException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+
+import static bitcoin.Constants.*;
+import static bitcoin.transaction.Utils.readScriptNum;
+import static bitcoin.transaction.builder.InputBuilder.*;
+import static bitcoin.transaction.builder.OutputBuilder.*;
+import static bitcoin.transaction.builder.TransactionBuilder.*;
+import static core.Utils.hexToByteArray;
+import static core.Utils.mergeArrays;
+import static org.junit.Assert.*;
 
 /**
  * Created by fmontoto on 23-11-16.

@@ -7,9 +7,7 @@ import java.nio.charset.Charset;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
-import static bitcoin.transaction.Utils.readVarInt;
-import static bitcoin.transaction.Utils.serializeVarInt;
-import static bitcoin.transaction.Utils.varIntByteSize;
+import static bitcoin.transaction.Utils.*;
 import static core.Utils.mergeArrays;
 
 /**

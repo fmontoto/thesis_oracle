@@ -2,8 +2,6 @@ package bitcoin.transaction;
 
 import java.security.NoSuchAlgorithmException;
 
-import static core.Utils.byteArrayToHex;
-
 /**
  * Created by fmontoto on 25-01-17.
  */

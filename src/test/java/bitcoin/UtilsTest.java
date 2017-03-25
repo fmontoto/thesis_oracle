@@ -6,8 +6,7 @@ import org.junit.Test;
 import java.util.List;
 
 import static bitcoin.Utils.getOracleList;
-import static bitcoin.Utils.compileOracleList;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by fmontoto on 11-01-17.

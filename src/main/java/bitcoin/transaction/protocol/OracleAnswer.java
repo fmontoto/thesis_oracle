@@ -4,7 +4,6 @@ import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.*;
 import core.Bet;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
@@ -23,9 +22,7 @@ import static bitcoin.transaction.Utils.readScriptNum;
 import static bitcoin.transaction.builder.InputBuilder.redeemBetOraclePaymentScript;
 import static bitcoin.transaction.builder.OutputBuilder.betOraclePaymentScript;
 import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
-import static bitcoin.transaction.builder.TransactionBuilder.TIMEOUT_GRANULARITY;
-import static bitcoin.transaction.builder.TransactionBuilder.buildTx;
-import static bitcoin.transaction.builder.TransactionBuilder.createSequenceNumber;
+import static bitcoin.transaction.builder.TransactionBuilder.*;
 import static core.Utils.hexToByteArray;
 
 /**

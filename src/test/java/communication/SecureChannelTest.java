@@ -1,16 +1,13 @@
 package communication;
 
-import edu.biu.SCProtocols.YaoProtocol.src.PartyTwo;
 import edu.biu.scapi.comm.Channel;
 import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTOutput;
 import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTStringPartyOne;
 import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTStringPartyTwo;
-import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.junit.Before;
 import org.junit.Test;
 import org.zeromq.ZMQ;
 
-import javax.rmi.CORBA.Tie;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.ClosedChannelException;
@@ -19,7 +16,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.*;
 import java.util.logging.Logger;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Created by fmontoto on 10-01-17.

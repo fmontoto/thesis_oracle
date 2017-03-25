@@ -1,12 +1,12 @@
 package bitcoin.transaction;
 
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static bitcoin.transaction.Utils.*;
-import static core.Utils.byteArrayToHex;
-import static core.Utils.hexToByteArray;
-import static core.Utils.mergeArrays;
+import static core.Utils.*;
 
 /**
  * Created by fmontoto on 17-11-16.

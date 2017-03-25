@@ -8,7 +8,8 @@ import java.math.BigInteger;
 import java.security.InvalidParameterException;
 
 import static core.Utils.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Created by fmontoto on 09-11-16.

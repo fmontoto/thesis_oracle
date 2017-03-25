@@ -8,7 +8,7 @@ import java.util.concurrent.*;
 
 import static communication.Utils.checkDataConsistencyOtherParty;
 import static core.Utils.mergeArrays;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class UtilsTest {
     ZMQ.Context zctx;

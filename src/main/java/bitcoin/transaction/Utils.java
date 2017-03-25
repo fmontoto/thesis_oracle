@@ -1,15 +1,11 @@
 package bitcoin.transaction;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
 import java.security.InvalidParameterException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Stack;
 
-import static bitcoin.Constants.getHashTypeName;
-import static bitcoin.Constants.getOpcodeName;
-import static bitcoin.Constants.isHashType;
+import static bitcoin.Constants.*;
 import static core.Utils.byteArrayToHex;
 
 /**

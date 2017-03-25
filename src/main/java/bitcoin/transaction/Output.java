@@ -1,14 +1,10 @@
 package bitcoin.transaction;
 
-import org.omg.CORBA.DynAnyPackage.Invalid;
-
 import java.security.InvalidParameterException;
 import java.util.*;
 
 import static bitcoin.transaction.Utils.*;
-import static core.Utils.byteArrayToHex;
-import static core.Utils.hexToByteArray;
-import static core.Utils.mergeArrays;
+import static core.Utils.*;
 
 /**
  * Created by fmontoto on 17-11-16.

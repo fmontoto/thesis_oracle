@@ -2,20 +2,24 @@ package core;
 
 import bitcoin.key.BitcoinPublicKey;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.key.Utils.r160SHA256Hash;
 import static bitcoin.transaction.Utils.*;
 import static core.Constants.charset;
-import static core.Utils.byteArrayToHex;
 import static core.Utils.mergeArrays;
 
 /**

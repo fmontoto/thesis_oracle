@@ -2,17 +2,13 @@ package bitcoin.transaction.builder;
 
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.Output;
-import org.omg.CORBA.DynAnyPackage.Invalid;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;

@@ -7,7 +7,6 @@ import org.zeromq.ZMQ;
 
 import java.security.InvalidParameterException;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
 import static org.junit.Assert.*;
 

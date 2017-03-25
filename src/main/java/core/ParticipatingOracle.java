@@ -1,13 +1,11 @@
 package core;
 
 import bitcoin.BitcoindClient;
-import bitcoin.ClientUtils;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.AbsoluteOutput;
 import bitcoin.transaction.ParseTransactionException;
 import bitcoin.transaction.Transaction;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
@@ -21,7 +19,6 @@ import java.util.List;
 import static bitcoin.ClientUtils.getUnspentOutputs;
 import static bitcoin.key.Utils.r160SHA256Hash;
 import static bitcoin.transaction.builder.TransactionBuilder.oracleInscription;
-import static bitcoin.transaction.builder.TransactionBuilder.registerAsOracle;
 
 /**
  * Created by fmontoto on 3/4/17.

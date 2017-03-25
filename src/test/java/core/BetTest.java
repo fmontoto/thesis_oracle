@@ -1,19 +1,17 @@
 package core;
 
 import bitcoin.key.BitcoinPublicKey;
-import org.bouncycastle.jcajce.provider.symmetric.DES;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Created by fmontoto on 19-01-17.

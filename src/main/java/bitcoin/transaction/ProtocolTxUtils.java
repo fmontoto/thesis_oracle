@@ -1,23 +1,18 @@
 package bitcoin.transaction;
 
-import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import core.Bet;
 import core.BetTxForm;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
-import static bitcoin.transaction.Utils.readVarInt;
-import static bitcoin.transaction.Utils.serializeVarInt;
-import static bitcoin.transaction.Utils.varIntByteSize;
+import static bitcoin.transaction.Utils.*;
 import static bitcoin.transaction.builder.OutputBuilder.multisigScript;
 import static core.Utils.hexToByteArray;
 

@@ -6,9 +6,10 @@ import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 
-import static core.Utils.hexToByteArray;
 import static bitcoin.key.Utils.bytesToBigInteger;
-import static org.junit.Assert.*;
+import static core.Utils.hexToByteArray;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 /**
  * Created by fmontoto on 10-11-16.

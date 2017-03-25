@@ -3,9 +3,6 @@ package bitcoin;
 import bitcoin.transaction.Output;
 import bitcoin.transaction.ParseTransactionException;
 import bitcoin.transaction.Transaction;
-import core.*;
-import org.omg.CORBA.DynAnyPackage.Invalid;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.security.InvalidParameterException;
 import java.security.MessageDigest;

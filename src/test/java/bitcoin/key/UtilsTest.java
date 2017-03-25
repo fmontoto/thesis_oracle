@@ -5,10 +5,10 @@ import org.junit.Test;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
-import static core.Utils.hexToByteArray;
 import static bitcoin.key.Utils.bitcoinB58Decode;
 import static bitcoin.key.Utils.bitcoinB58Encode;
-import static org.junit.Assert.*;
+import static core.Utils.hexToByteArray;
+import static org.junit.Assert.assertArrayEquals;
 
 /**
  * Created by fmontoto on 10-11-16.

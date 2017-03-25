@@ -7,13 +7,13 @@ import org.junit.Test;
 import org.zeromq.ZMQ;
 
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.security.InvalidParameterException;
 import java.util.*;
 import java.util.concurrent.*;
 
 import static communication.MultipartyComputation.choseRandomlyFromList;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by fmontoto on 20-01-17.

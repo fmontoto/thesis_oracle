@@ -4,11 +4,9 @@ import edu.biu.scapi.comm.Channel;
 import edu.biu.scapi.exceptions.CommitValueException;
 import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTStringPartyOne;
 import edu.biu.scapi.interactiveMidProtocols.coinTossing.CTStringPartyTwo;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.security.InvalidParameterException;
-import java.util.InvalidPropertiesFormatException;
 import java.util.LinkedList;
 import java.util.List;
 

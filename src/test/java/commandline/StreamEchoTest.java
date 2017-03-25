@@ -3,8 +3,6 @@ package commandline;
 import org.junit.Before;
 import org.zeromq.ZMQ;
 
-import static org.junit.Assert.*;
-
 /**
  * Created by fmontoto on 06-01-17.
  */

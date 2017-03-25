@@ -8,8 +8,8 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.LinkedList;
 import java.util.List;
 
-import static core.Utils.byteArrayToHex;
 import static bitcoin.key.Utils.get32ByteRepresentation;
+import static core.Utils.byteArrayToHex;
 import static org.junit.Assert.*;
 
 /**

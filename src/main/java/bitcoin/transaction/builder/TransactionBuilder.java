@@ -4,14 +4,11 @@ import bitcoin.BitcoindClient;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.*;
-import com.sun.tools.corba.se.idl.constExpr.Not;
 import core.Bet;
 import core.Constants;
-import core.Oracle;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.security.InvalidKeyException;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
@@ -20,10 +17,8 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static bitcoin.Constants.getHashType;
 import static bitcoin.key.Utils.r160SHA256Hash;
-import static bitcoin.transaction.Utils.*;
-import static bitcoin.transaction.builder.InputBuilder.redeemBetOraclePaymentScript;
+import static bitcoin.transaction.Utils.serializeScriptNum;
 import static bitcoin.transaction.builder.OutputBuilder.*;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
