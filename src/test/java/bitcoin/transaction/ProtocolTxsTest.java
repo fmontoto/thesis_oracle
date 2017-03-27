@@ -489,7 +489,7 @@ public class ProtocolTxsTest {
         // #(numOracles - 1)  says nothing. (Oracles are numbered from 0 to (numOracles - 1))
 
         List<Transaction> oracleAnswers = new LinkedList<>();
-        for(int i = 0; i < participatingOracles.size() - 2; i++) {
+        for(int i = 0; i < participatingOracles.size() - 1; i++) {
             ParticipatingOracle oracle = participatingOracles.get(i);
             BitcoinPrivateKey privKey = BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(
                     oracle.getAddress()));
@@ -533,11 +533,22 @@ public class ProtocolTxsTest {
         }
 
 
-        // Players can parse from the tx in the blockchain
-        List<OracleAnswer> oracleParsedAnswers = new LinkedList<>();
-        for(Transaction tx : oracleAnswers) {
-            oracleParsedAnswers.add(OracleAnswer.parse(tx.hexlify(), bitcoindClient.isTestnet()));
+
+        // The winner player can collect its prize.
+        {
+            // Players can parse from the tx in the blockchain
+            List<OracleAnswer> oracleParsedAnswers = new LinkedList<>();
+            for(Transaction tx : oracleAnswers) {
+                oracleParsedAnswers.add(OracleAnswer.parse(tx.hexlify(), bitcoindClient.isTestnet()));
+            }
+            List<byte[]> winnerPreImages = new LinkedList<>();
+            for(int i = 0; i < participatingOracles.size() - 2; i++)
+                winnerPreImages.add(oracleParsedAnswers.get(i).getWinnerHashPreImage());
+
+
         }
+
+
 
         throw new NotImplementedException();
 

@@ -77,6 +77,10 @@ public class OracleAnswer {
         return answer;
     }
 
+    public byte[] getWinnerHashPreImage() {
+        return winnerHashPreImage;
+    }
+
     static public OracleAnswer build(
             Transaction betTransaction, Bet bet, int oraclePosition, byte[] winnerHashPreImage,
             BitcoinPrivateKey oracleKey, String dstWIFAddress, List<byte[]> playersWinHash)

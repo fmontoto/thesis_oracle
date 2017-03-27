@@ -315,7 +315,7 @@ public class OutputBuilder {
         return buffer.toByteArray();
     }
 
-    private static byte[] betPrizeResolutionRedeemScript(
+    public static byte[] betPrizeResolutionRedeemScript(
             List<byte[]> playerAWinHashes, List<byte[]> playerBWinHashes,
             List<BitcoinPublicKey> playerPubKeys, int requiredHashes, long timeoutSeconds,
             BitcoinPublicKey onTimeout)
