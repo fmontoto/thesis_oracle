@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 import static bitcoin.Constants.*;
 import static bitcoin.key.Utils.r160SHA256Hash;
+import static core.Utils.byteArrayToHex;
 import static core.Utils.mergeArrays;
 
 /**
@@ -265,12 +266,12 @@ public class OutputBuilder {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         buffer.write(getOpcode("OP_IF"));
             buffer.write(getOpcode("OP_IF"));
-                buffer.write(third_path);
+                buffer.write(first_path);
             buffer.write(getOpcode("OP_ELSE"));;
                 buffer.write(second_path);
             buffer.write(getOpcode("OP_ENDIF"));
         buffer.write(getOpcode("OP_ELSE"));
-            buffer.write(first_path);
+            buffer.write(third_path);
         buffer.write(getOpcode("OP_ENDIF"));
         return buffer.toByteArray();
     }
@@ -347,9 +348,9 @@ public class OutputBuilder {
         ByteArrayOutputStream timeoutScriptBuffer = new ByteArrayOutputStream();
 
         timeoutScriptBuffer.write(checkTimeoutScript(TimeUnit.SECONDS, timeoutSeconds));
-        aWinsScriptBuffer.write(pushDataOpcode(onTimeout.getKey().length));
-        aWinsScriptBuffer.write(onTimeout.getKey());
-        aWinsScriptBuffer.write(getOpcode("OP_CHECKSIG"));
+        timeoutScriptBuffer.write(pushDataOpcode(onTimeout.getKey().length));
+        timeoutScriptBuffer.write(onTimeout.getKey());
+        timeoutScriptBuffer.write(getOpcode("OP_CHECKSIG"));
 
         byte[] timeoutScript = timeoutScriptBuffer.toByteArray();
 

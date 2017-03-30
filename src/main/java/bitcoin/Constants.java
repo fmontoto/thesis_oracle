@@ -173,8 +173,11 @@ public class Constants {
             throw new InvalidParameterException("Data must be greater than 0.");
         if(dataLength < 75)
             return new byte[]{(byte)dataLength};
-        if(dataLength < 256)
+        if(dataLength < 256) // TODO equal?
             return new byte[]{0x4c, (byte)(dataLength & 0xFF)};
+        if(dataLength < 65536)
+            return new byte[]{0x4d, (byte)(dataLength & 0xFF), (byte)((dataLength >> 8) & 0xFF)};
+        System.err.println(dataLength);
         throw new NotImplementedException();
     }
 

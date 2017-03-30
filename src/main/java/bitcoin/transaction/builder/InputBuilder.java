@@ -6,6 +6,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
@@ -164,6 +165,33 @@ public class InputBuilder {
                 , getOpcodeAsArray("OP_0")
                 , pushDataOpcode(redeemScript.length)
                 , redeemScript);
+    }
+
+    // preImageHashes should be a list of the pre images (answers) from the oracles. If pre image
+    // of the last hash expected is not in the list, a random value should be included as first
+    // pre image.
+    static public byte[] redeemPlayerPrize(byte[] redeemScript, byte[] playerSignature,
+                                           int playerNo, List<byte[]> preImageHashes)
+            throws IOException {
+        if(playerNo > 1)
+            throw new InvalidParameterException("Not expected ");
+        ByteArrayOutputStream preImagesStream = new ByteArrayOutputStream();
+        for(byte[] preImage : preImageHashes) {
+            preImagesStream.write(pushDataOpcode(preImage.length));
+            preImagesStream.write(preImage);
+        }
+
+        byte[] firstSelector = getOpcodeAsArray("OP_1");
+        byte secondSelector = (playerNo & 0x01) == 0 ? getOpcode("OP_1") : getOpcode("OP_0");
+
+        return mergeArrays(
+                preImagesStream.toByteArray(),
+                pushDataOpcode(playerSignature.length),
+                playerSignature,
+                new byte[]{secondSelector},
+                firstSelector,
+                pushDataOpcode(redeemScript.length),
+                redeemScript);
     }
 
 

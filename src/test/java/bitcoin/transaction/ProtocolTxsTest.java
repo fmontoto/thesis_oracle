@@ -6,6 +6,7 @@ import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.protocol.OracleAnswer;
 import bitcoin.transaction.protocol.OracleDoesntAnswer;
+import bitcoin.transaction.protocol.WinnerPlayerPrize;
 import core.*;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -535,6 +536,7 @@ public class ProtocolTxsTest {
 
 
         // The winner player can collect its prize.
+        Transaction winnerPrizeTx;
         {
             // Players can parse from the tx in the blockchain
             List<OracleAnswer> oracleParsedAnswers = new LinkedList<>();
@@ -545,8 +547,17 @@ public class ProtocolTxsTest {
             for(int i = 0; i < participatingOracles.size() - 2; i++)
                 winnerPreImages.add(oracleParsedAnswers.get(i).getWinnerHashPreImage());
 
-
+            WinnerPlayerPrize winnerPlayerPrize = WinnerPlayerPrize.build(agreedBet, betTransaction,
+                    winnerPreImages, playerAWinHashes, playerBWinHashes, playersPrivateKey[0],
+                    playersWIFAddress[0]);
+            submittedTxs.add(new PayToScriptAbsoluteOutput(
+                    betTransaction, 0, winnerPlayerPrize.getRedeemScript(0)));
+            submittedTxs.add(new PayToScriptAbsoluteOutput(
+                    betTransaction, 1, winnerPlayerPrize.getRedeemScript(1)));
+            winnerPrizeTx = winnerPlayerPrize.getTx();
         }
+
+        bitcoindClient.verifyTransaction(winnerPrizeTx, submittedTxs);
 
 
 
