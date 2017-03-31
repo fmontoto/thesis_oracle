@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 
 import static bitcoin.Constants.*;
 import static bitcoin.key.Utils.r160SHA256Hash;
-import static core.Utils.byteArrayToHex;
 import static core.Utils.mergeArrays;
 
 /**
@@ -195,7 +194,7 @@ public class OutputBuilder {
         return multisigScript(keys, requiredSignatures, false);
     }
 
-    static public Output createMultisigOutput(
+    static Output createMultisigOutput(
             long amount, BitcoinPublicKey[] keys, int requiredSignatures)
             throws IOException, NoSuchAlgorithmException {
         if(keys.length < requiredSignatures)
@@ -214,7 +213,7 @@ public class OutputBuilder {
         return new Output(value, script);
     }
 
-    static public byte[] oracleTwoAnswersInsuranceRedeemScript(
+    static byte[] oracleTwoAnswersInsuranceRedeemScript(
             List<BitcoinPublicKey> playersPubKey, BitcoinPublicKey oraclePubKey,
             List<byte[]> expectedAnswers, TimeUnit timeUnit, long timeoutVal) throws IOException,
                                                                         NoSuchAlgorithmException {
@@ -267,7 +266,7 @@ public class OutputBuilder {
         buffer.write(getOpcode("OP_IF"));
             buffer.write(getOpcode("OP_IF"));
                 buffer.write(first_path);
-            buffer.write(getOpcode("OP_ELSE"));;
+            buffer.write(getOpcode("OP_ELSE"));
                 buffer.write(second_path);
             buffer.write(getOpcode("OP_ENDIF"));
         buffer.write(getOpcode("OP_ELSE"));
@@ -309,8 +308,8 @@ public class OutputBuilder {
 
         buffer.write(getOpcode("OP_FROMALTSTACK"));
         buffer.write(pushNumberOpcode(max_fails));
-        // Verify the actual fails are less than the max allowed.
-        buffer.write(getOpcode("OP_GREATERTHAN"));
+        // Verify the actual fails are less or equal than the max allowed.
+        buffer.write(getOpcode("OP_LESSTHANOREQUAL"));
         if(!finishWithTrue)
             buffer.write(getOpcode("OP_VERIFY"));
         return buffer.toByteArray();
@@ -330,7 +329,7 @@ public class OutputBuilder {
         aWinsScriptBuffer.write(pushDataOpcode(playerPubKeys.get(0).getKey().length));
         aWinsScriptBuffer.write(playerPubKeys.get(0).getKey());
         aWinsScriptBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
-        aWinsScriptBuffer.write(checkMultiHash(playerAWinHashes, requiredHashes, false));
+        aWinsScriptBuffer.write(checkMultiHash(playerAWinHashes, requiredHashes, true));
 
         byte[] aWinsScript = aWinsScriptBuffer.toByteArray();
 
@@ -340,7 +339,7 @@ public class OutputBuilder {
         bWinsScriptBuffer.write(pushDataOpcode(playerPubKeys.get(1).getKey().length));
         bWinsScriptBuffer.write(playerPubKeys.get(1).getKey());
         bWinsScriptBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
-        bWinsScriptBuffer.write(checkMultiHash(playerBWinHashes, requiredHashes, false));
+        bWinsScriptBuffer.write(checkMultiHash(playerBWinHashes, requiredHashes, true));
 
         byte[] bWinsScript = bWinsScriptBuffer.toByteArray();
 
@@ -433,7 +432,7 @@ public class OutputBuilder {
                 replyUntilSeconds, amount);
     }
 
-    static public byte[] undueChargePaymentScript(
+    private static byte[] undueChargePaymentScript(
             BitcoinPublicKey playerAPublicKey, BitcoinPublicKey playerBPublicKey,
             BitcoinPublicKey oraclePubKey, byte[] oraclePlayerAWinHash, byte[] oraclePlayerBWinHash,
             List<byte[]> allPlayerAWinHash, List<byte[]> allPlayerBWinHash, int requiredHashes,
@@ -487,7 +486,7 @@ public class OutputBuilder {
                                oracleGetMoneyBackScript);
     }
 
-    static public byte[] undueChargePaymentScript(
+    private static byte[] undueChargePaymentScript(
             BitcoinPublicKey[] playersPubKey, BitcoinPublicKey oraclePubKey,
             byte[] oraclePlayerAWinHash, byte[] oraclePlayerBWinHash,
             List<byte[]> allPlayerAWinHash, List<byte[]> allPlayerBWinHash, int requiredHashes,
@@ -501,11 +500,11 @@ public class OutputBuilder {
                 requiredHashes, timeoutSeconds);
     }
 
-    static public Output undueChargePayment(
+    static Output undueChargePayment(
             BitcoinPublicKey[] playersPubKey, BitcoinPublicKey oraclePubKey,
             byte[] oraclePlayerAWinHash, byte[] oraclePlayerBWinHash, List<byte[]> aWinHashes,
             List<byte[]> bWinHashes, int requiredHashes, long timeoutSeconds, long amount)
-            throws IOException, NoSuchAlgorithmException {
+            throws IOException, NoSuchAlgorithmException, InvalidParameterException {
         if(playersPubKey.length != 2)
             throw new InvalidParameterException("Only two players accepted.");
 

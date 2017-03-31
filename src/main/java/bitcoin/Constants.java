@@ -202,8 +202,9 @@ public class Constants {
     }
 
     static public byte[] pushNumberOpcode(int val) {
-        if(val > 16 || val <= 0)
+        if(val > 16 || val < 0)
             throw new NotImplementedException();
+        if(val == 0) return getOpcodeAsArray("OP_0");
         return new byte[] {(byte)(getOpcode("OP_1") + val - 1)};
     }
 

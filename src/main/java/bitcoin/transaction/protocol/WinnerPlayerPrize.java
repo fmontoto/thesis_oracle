@@ -185,10 +185,6 @@ public class WinnerPlayerPrize {
         tx.getInputs().get(1).setScript(redeemPlayerPrize(winnerPlayerPrize.getRedeemScript(1),
                 signature1, playerNo, formattedPreImages));
 
-        List<String> parsedScript0 = parseScript(tx.getInputs().get(0).getScript(), true);
-        List<String> parsedScript1 = parseScript(tx.getInputs().get(1).getScript(), true);
-        List<String> redeem0 = parseScript(hexToByteArray(parsedScript0.get(parsedScript0.size() - 1)), false);
-        List<String> redeem1 = parseScript(hexToByteArray(parsedScript1.get(parsedScript1.size() - 1)), false);
         winnerPlayerPrize.setTransaction(tx);
         return winnerPlayerPrize;
     }
