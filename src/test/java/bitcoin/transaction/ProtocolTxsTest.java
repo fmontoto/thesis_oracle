@@ -6,6 +6,7 @@ import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.protocol.OracleAnswer;
 import bitcoin.transaction.protocol.OracleDoesntAnswer;
+import bitcoin.transaction.protocol.OracleWrongAnswer;
 import bitcoin.transaction.protocol.WinnerPlayerPrize;
 import core.*;
 import org.junit.Before;
@@ -513,7 +514,60 @@ public class ProtocolTxsTest {
             bitcoindClient.verifyTransaction(answer.getAnswer(), submittedTxs);
         }
 
-        // Players can take #(numOracles - 1) payment, as the oracle didn't reply on time.
+        // The winner player can collect its prize.
+        Transaction winnerPrizeTx;
+        List<byte[]> winnerPreImages = new LinkedList<>();
+        {
+            // Players can parse from the tx in the blockchain
+            List<OracleAnswer> oracleParsedAnswers = new LinkedList<>();
+            for(Transaction tx : oracleAnswers) {
+                oracleParsedAnswers.add(OracleAnswer.parse(tx, bitcoindClient.isTestnet()));
+            }
+            for(int i = 0; i < participatingOracles.size() - 2; i++)
+                winnerPreImages.add(oracleParsedAnswers.get(i).getWinnerHashPreImage());
+
+            WinnerPlayerPrize winnerPlayerPrize = WinnerPlayerPrize.build(agreedBet, betTransaction,
+                    winnerPreImages, playerAWinHashes, playerBWinHashes, playersPrivateKey[0],
+                    playersWIFAddress[0]);
+            submittedTxs.add(new PayToScriptAbsoluteOutput(
+                    betTransaction, 0, winnerPlayerPrize.getRedeemScript(0)));
+            submittedTxs.add(new PayToScriptAbsoluteOutput(
+                    betTransaction, 1, winnerPlayerPrize.getRedeemScript(1)));
+            winnerPrizeTx = winnerPlayerPrize.getTx();
+        }
+
+        bitcoindClient.verifyTransaction(winnerPrizeTx, submittedTxs);
+
+        // Also the player A can take oracle #(numOracles - 2) wrong anwser deposit, as it says the
+        // wrong answer
+
+        Transaction wrongAnswerTx;
+        {
+            int oraclePos = participatingOracles.size() - 2;
+            OracleAnswer parsedAnswer = OracleAnswer.parse(oracleAnswers.get(oraclePos).hexlify(),
+                    bitcoindClient.isTestnet());
+            parsedAnswer.getWinnerHashPreImage();
+            OracleAnswer oracleAnswer = OracleAnswer.parse(
+                    oracleAnswers.get(oraclePos), bitcoindClient.isTestnet());
+            byte[] winnerHashPreImage = oracleAnswer.getWinnerHashPreImage();
+            OracleWrongAnswer wrongAnswer = OracleWrongAnswer.build(agreedBet, betTransaction,
+                    oraclePos, oraclePublicKeys.get(oraclePos), playerAWinHashes, playerBWinHashes,
+                    winnerPreImages, winnerHashPreImage, playersPrivateKey[0],
+                    playersPubKey[0].toWIF());
+
+            submittedTxs.add(new PayToScriptAbsoluteOutput(
+                    betTransaction, wrongAnswer.getSrcOutputNo(), wrongAnswer.getRedeemScript()));
+            wrongAnswerTx = wrongAnswer.getTransaction();
+        }
+
+        bitcoindClient.verifyTransaction(wrongAnswerTx, submittedTxs);
+
+
+
+
+
+        // After REPLY_UNTIL_SECONDS_DELAY seconds from the bet resolution, players can
+        // take #(numOracles - 1) payment, as the oracle didn't reply on time.
         {
             int numOracle = numOracles - 1;
             List<String> wifOutputAddress = new LinkedList<>();
@@ -533,31 +587,6 @@ public class ProtocolTxsTest {
             bitcoindClient.verifyTransaction(oracleDidntAnswerTx, submittedTxs);
         }
 
-
-
-        // The winner player can collect its prize.
-        Transaction winnerPrizeTx;
-        {
-            // Players can parse from the tx in the blockchain
-            List<OracleAnswer> oracleParsedAnswers = new LinkedList<>();
-            for(Transaction tx : oracleAnswers) {
-                oracleParsedAnswers.add(OracleAnswer.parse(tx.hexlify(), bitcoindClient.isTestnet()));
-            }
-            List<byte[]> winnerPreImages = new LinkedList<>();
-            for(int i = 0; i < participatingOracles.size() - 2; i++)
-                winnerPreImages.add(oracleParsedAnswers.get(i).getWinnerHashPreImage());
-
-            WinnerPlayerPrize winnerPlayerPrize = WinnerPlayerPrize.build(agreedBet, betTransaction,
-                    winnerPreImages, playerAWinHashes, playerBWinHashes, playersPrivateKey[0],
-                    playersWIFAddress[0]);
-            submittedTxs.add(new PayToScriptAbsoluteOutput(
-                    betTransaction, 0, winnerPlayerPrize.getRedeemScript(0)));
-            submittedTxs.add(new PayToScriptAbsoluteOutput(
-                    betTransaction, 1, winnerPlayerPrize.getRedeemScript(1)));
-            winnerPrizeTx = winnerPlayerPrize.getTx();
-        }
-
-        bitcoindClient.verifyTransaction(winnerPrizeTx, submittedTxs);
 
 
 

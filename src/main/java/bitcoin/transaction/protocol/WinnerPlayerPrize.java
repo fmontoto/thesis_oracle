@@ -17,17 +17,15 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.Constants.getHashType;
-import static bitcoin.Constants.getOpcodeAsArray;
 import static bitcoin.key.Utils.r160SHA256Hash;
-import static bitcoin.transaction.Utils.parseScript;
 import static bitcoin.transaction.Utils.readScriptNum;
-import static bitcoin.transaction.builder.InputBuilder.redeemMultiSigOutput;
 import static bitcoin.transaction.builder.InputBuilder.redeemPlayerPrize;
 import static bitcoin.transaction.builder.OutputBuilder.betPrizeResolutionRedeemScript;
 import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
 import static bitcoin.transaction.builder.TransactionBuilder.TIMEOUT_GRANULARITY;
 import static bitcoin.transaction.builder.TransactionBuilder.buildTx;
 import static bitcoin.transaction.builder.TransactionBuilder.createSequenceNumber;
+import static bitcoin.transaction.protocol.Utils.playerNoFromPrivateKey;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 
@@ -83,45 +81,6 @@ public class WinnerPlayerPrize {
         redeemScripts.add(secondRedeemScript);
     }
 
-    private static List<byte[]> formatPreimages(
-            List<byte[]> playerAWinHashes, List<byte[]> playerBWinHashes,
-            List<byte[]> preImages) throws NoSuchAlgorithmException {
-
-        if(playerAWinHashes.size() != playerBWinHashes.size())
-            throw new InvalidParameterException("Hashes lists must be the same size.");
-
-        List<byte[]> ret = new LinkedList<>();
-        byte[] winnerHash = r160SHA256Hash(preImages.get(preImages.size() - 1));
-        int posAtAHashes = -1, posAtBHashes = -1;
-        for(int i = 0; i < playerAWinHashes.size(); i++) {
-            if(Arrays.equals(winnerHash, playerAWinHashes.get(i))) {
-                posAtAHashes = i;
-                break;
-            }
-        }
-        for(int i = 0; i < playerBWinHashes.size(); i++) {
-            if(Arrays.equals(winnerHash, playerBWinHashes.get(i))) {
-                posAtBHashes = i;
-                break;
-            }
-        }
-
-        if(posAtAHashes == -1 && posAtBHashes == -1)
-            throw new InvalidParameterException(
-                    "The preimages does not match any of the expected hashes.");
-
-        List<byte []> winnerPlayerHashes = posAtAHashes != -1 ? playerAWinHashes : playerBWinHashes;
-
-        for(byte[] preImage : preImages)
-            ret.add(preImage);
-
-        if(!Arrays.equals(winnerHash, winnerPlayerHashes.get(winnerPlayerHashes.size() - 1)))
-            ret.add(getOpcodeAsArray("OP_1"));
-
-        Collections.reverse(ret);
-        return ret;
-    }
-
     public static WinnerPlayerPrize build(Bet bet, Transaction betTransaction, List<byte[]> winnerPreImages,
                                           List<byte[]> playerAWinsHashes, List<byte[]> playerBWinsHashes,
                                           BitcoinPrivateKey winnerKey, String wifOutputAddress)
@@ -131,20 +90,11 @@ public class WinnerPlayerPrize {
         if(bet.getRequiredHashes() > winnerPreImages.size())
             throw new InvalidParameterException("Not enough pre images.");
 
-        int playerNo = -1;
-        if(Arrays.equals(bet.getPlayersPubKey()[0].getKey(), winnerKey.getPublicKey().getKey())) {
-            playerNo = 0;
-        }
-        else if(Arrays.equals(bet.getPlayersPubKey()[1].getKey(),
-                              winnerKey.getPublicKey().getKey())) {
-            playerNo = 1;
-        }
-        else {
-            throw new InvalidParameterException("Unknown winnerKey.");
-        }
+        int playerNo = playerNoFromPrivateKey(bet.getPlayersPubKey(), winnerKey);
 
         // We want to save as much space as possible in the txs, we only keep the required
         // pre images.
+        winnerPreImages = new LinkedList<>(winnerPreImages);
         while(winnerPreImages.size() > bet.getRequiredHashes())
             winnerPreImages.remove(0);
 
@@ -177,7 +127,7 @@ public class WinnerPlayerPrize {
         byte[] signature1 = tx.getPayToScriptSignature(winnerKey, getHashType("ALL"), 1);
 
 
-        List<byte[]> formattedPreImages = formatPreimages(playerAWinsHashes, playerBWinsHashes,
+        List<byte[]> formattedPreImages = Utils.formatPreimages(playerAWinsHashes, playerBWinsHashes,
                                                           winnerPreImages);
 
         tx.getInputs().get(0).setScript(redeemPlayerPrize(winnerPlayerPrize.getRedeemScript(0),

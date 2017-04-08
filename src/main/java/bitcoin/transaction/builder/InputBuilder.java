@@ -11,6 +11,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 import static bitcoin.Constants.*;
+import static bitcoin.transaction.Utils.parseScript;
 import static bitcoin.transaction.builder.OutputBuilder.multisigScript;
 import static core.Utils.*;
 
@@ -192,6 +193,34 @@ public class InputBuilder {
                 firstSelector,
                 pushDataOpcode(redeemScript.length),
                 redeemScript);
+    }
+
+    static public byte[] redeemUndueCharge(byte[] redeemScript, byte[] playerSignature,
+                                           byte[] oracleWrongWinnerPreImage, int playerWonNo,
+                                           List<byte[]> winnerPreImages)
+            throws IOException {
+        ByteArrayOutputStream preImagesStream = new ByteArrayOutputStream();
+        for(byte[] preImage : winnerPreImages) {
+            preImagesStream.write(pushDataOpcode(preImage.length));
+            preImagesStream.write(preImage);
+        }
+        byte[] firstSelector = getOpcodeAsArray("OP_1");
+        byte secondSelector = playerWonNo == 0 ? getOpcode("OP_1") : getOpcode("OP_0");
+        System.out.println(winnerPreImages.size());
+        System.out.println(playerWonNo);
+        System.out.println(parseScript(redeemScript, false));
+
+        return mergeArrays(
+                pushDataOpcode(playerSignature.length),
+                playerSignature,
+                preImagesStream.toByteArray(),
+                pushDataOpcode(oracleWrongWinnerPreImage.length),
+                oracleWrongWinnerPreImage,
+                new byte[] {secondSelector},
+                firstSelector,
+                pushDataOpcode(redeemScript.length),
+                redeemScript
+        );
     }
 
 

@@ -119,10 +119,9 @@ public class OracleAnswer {
                                 oracleKey.getPublicKey());
     }
 
-    static public OracleAnswer parse(String hexRepr, boolean testnet)
+    static public OracleAnswer parse(Transaction transaction, boolean testnet)
             throws ParseTransactionException, NoSuchAlgorithmException, IOException,
                    InvalidKeySpecException {
-        Transaction transaction = new Transaction(hexRepr);
         Input redeemInput = transaction.getInputs().get(0);
         List<String> parsedScript = parseScript(redeemInput.getScript(), true);
         if (parsedScript.size() != 8) {
@@ -139,5 +138,10 @@ public class OracleAnswer {
         //TODO check agains the expected hashes.
 
         return new OracleAnswer(redeemScript, transaction, winnerPreImage, oraclePublicKey);
+    }
+    static public OracleAnswer parse(String hexRepr, boolean testnet)
+            throws ParseTransactionException, NoSuchAlgorithmException, IOException,
+                   InvalidKeySpecException {
+        return parse(new Transaction(hexRepr), testnet);
     }
 }
