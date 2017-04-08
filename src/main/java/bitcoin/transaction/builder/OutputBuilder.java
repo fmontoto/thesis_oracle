@@ -442,10 +442,8 @@ public class OutputBuilder {
             throw new InvalidParameterException("Hash amount must be the same for both players.");
         if(allPlayerAWinHash.size() < requiredHashes)
             throw new InvalidParameterException("Required hashes is bigger than all of them.");
-        System.out.println(allPlayerAWinHash.size());
         List<byte[]> playerAWinHash = allPlayerAWinHash.stream().filter(
                 p -> !Arrays.equals(p, oraclePlayerAWinHash)).collect(Collectors.toList());
-        System.out.println(playerAWinHash.size());
         List<byte[]> playerBWinHash = allPlayerBWinHash.stream().filter(
                 p -> !Arrays.equals(p, oraclePlayerBWinHash)).collect(Collectors.toList());
 

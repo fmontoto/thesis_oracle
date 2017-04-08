@@ -128,7 +128,7 @@ public class OracleWrongAnswer {
         Transaction tx = buildTx(txVersion, txLockTime, input, output);
         byte[] signature = tx.getPayToScriptSignature(winnerPlayerKey, getHashType("ALL"), 0);
         tx.getInputs().get(0).setScript(redeemUndueCharge(oracleWrongAnswer.redeemScript,
-        signature, oracleWrongWinnerPreImage, playerNo, winnerPreImages));
+        signature, oracleWrongWinnerPreImage, playerNo, formattedPreImages));
 
         oracleWrongAnswer.setTransaction(tx);
         return oracleWrongAnswer;

@@ -206,9 +206,6 @@ public class InputBuilder {
         }
         byte[] firstSelector = getOpcodeAsArray("OP_1");
         byte secondSelector = playerWonNo == 0 ? getOpcode("OP_1") : getOpcode("OP_0");
-        System.out.println(winnerPreImages.size());
-        System.out.println(playerWonNo);
-        System.out.println(parseScript(redeemScript, false));
 
         return mergeArrays(
                 pushDataOpcode(playerSignature.length),
