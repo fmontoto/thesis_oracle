@@ -158,7 +158,7 @@ public class BitcoindClient {
     }
 
     private List<AbsoluteOutput> getUnspent(List<BitcoindRpcClient.Unspent> unspents) throws ParseTransactionException {
-        List<AbsoluteOutput> ret = new LinkedList<AbsoluteOutput>();
+        List<AbsoluteOutput> ret = new LinkedList<>();
         for(Unspent unspent: unspents) {
             Output o = getTransaction(unspent.txid()).getOutputs().get(unspent.vout());
             ret.add(new AbsoluteOutput(o.getValue(), o.getScript(), unspent.vout(), unspent.txid()));

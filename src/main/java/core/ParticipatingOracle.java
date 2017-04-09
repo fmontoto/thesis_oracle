@@ -69,8 +69,8 @@ public class ParticipatingOracle extends Oracle {
         List<byte[]> expectedAnswersHashes = new LinkedList<>();
         expectedAnswersHashes.add(getPlayerAWinsHash());
         expectedAnswersHashes.add(getPlayerBWinsHash());
-        return oracleInscription(unspentOutputs, outputKeys, pubKey, pubKey.toWIF(),
-                                 expectedAnswersHashes, bet, betPromise);
+        return oracleInscription(
+                unspentOutputs, outputKeys, pubKey, expectedAnswersHashes, bet, betPromise);
     }
 
     public byte[] getPlayerAWins() {

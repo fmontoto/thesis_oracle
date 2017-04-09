@@ -259,6 +259,24 @@ public class OutputBuilder {
         return timeOutOptionalPath(null, noTimeout, onTimeout, timeUnit, timeoutVal, false);
     }
 
+    private static byte[] threePathScriptFirstTwoShared(
+            byte[] firstPath, byte[] secondPath, byte[] sharedFirstSecond, byte[] thirdPath)
+            throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        buffer.write(getOpcode("OP_IF"));
+            buffer.write(getOpcode("OP_IF"));
+                buffer.write(firstPath);
+            buffer.write(getOpcode("OP_ELSE"));
+            buffer.write(secondPath);
+            buffer.write(getOpcode("OP_ENDIF"));
+            if(sharedFirstSecond != null)
+                buffer.write(sharedFirstSecond);
+        buffer.write(getOpcode("OP_ELSE"));
+            buffer.write(thirdPath);
+        buffer.write(getOpcode("OP_ENDIF"));
+        return buffer.toByteArray();
+    }
+
     private static byte[] threePathScript(byte[] first_path, byte[] second_path, byte[] third_path)
             throws IOException {
 
@@ -275,45 +293,59 @@ public class OutputBuilder {
         return buffer.toByteArray();
     }
 
-    private static byte[] checkMultiHash(List<byte[]> hashes, int requiredHashes,
-                                         boolean finishWithTrue) throws IOException {
+
+    private static List<byte[]> checkMultiHashTwoParts(
+            List<byte[]> hashes, int requiredHashes, boolean finishWithTrue) throws IOException {
+
         if(requiredHashes > hashes.size())
             throw new InvalidParameterException("Can not require more hashes than provided");
         int max_fails = hashes.size() - requiredHashes;
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        System.out.println("Max fails:" + max_fails);
+        ByteArrayOutputStream firstPart = new ByteArrayOutputStream();
+        ByteArrayOutputStream secondPart = new ByteArrayOutputStream();
 
-        buffer.write(getOpcode("OP_0"));
-        buffer.write(getOpcode("OP_TOALTSTACK"));
+        firstPart.write(getOpcode("OP_0"));
+        firstPart.write(getOpcode("OP_TOALTSTACK"));
 
         for(byte[] hash: hashes) {
-            buffer.write(getOpcode("OP_DUP"));
-            buffer.write(getOpcode("OP_TOALTSTACK"));
-            buffer.write(getOpcode("OP_HASH160"));
-            buffer.write(pushDataOpcode(hash.length));
-            buffer.write(hash);
-            buffer.write(getOpcode("OP_EQUAL"));
+            firstPart.write(getOpcode("OP_DUP"));
+            firstPart.write(getOpcode("OP_TOALTSTACK"));
+            firstPart.write(getOpcode("OP_HASH160"));
+            firstPart.write(pushDataOpcode(hash.length));
+            firstPart.write(hash);
+            firstPart.write(getOpcode("OP_EQUAL"));
 
-            buffer.write(getOpcode("OP_IF"));
-                buffer.write(getOpcode("OP_FROMALTSTACK"));
-                buffer.write(getOpcode("OP_DROP"));
-            buffer.write(getOpcode("OP_ELSE"));
-                buffer.write(getOpcode("OP_FROMALTSTACK"));
-                buffer.write(getOpcode("OP_FROMALTSTACK"));
-                buffer.write(getOpcode("OP_1ADD"));
-                buffer.write(getOpcode("OP_TOALTSTACK"));
-            buffer.write(getOpcode("OP_ENDIF"));
+            firstPart.write(getOpcode("OP_IF"));
+                firstPart.write(getOpcode("OP_FROMALTSTACK"));
+                firstPart.write(getOpcode("OP_DROP"));
+            firstPart.write(getOpcode("OP_ELSE"));
+                firstPart.write(getOpcode("OP_FROMALTSTACK"));
+                firstPart.write(getOpcode("OP_FROMALTSTACK"));
+                firstPart.write(getOpcode("OP_1ADD"));
+                firstPart.write(getOpcode("OP_TOALTSTACK"));
+            firstPart.write(getOpcode("OP_ENDIF"));
         }
 
-        buffer.write(getOpcode("OP_DROP"));
+        secondPart.write(getOpcode("OP_DROP"));
 
-        buffer.write(getOpcode("OP_FROMALTSTACK"));
-        buffer.write(pushNumberOpcode(max_fails));
+        secondPart.write(getOpcode("OP_FROMALTSTACK"));
+        secondPart.write(pushNumberOpcode(max_fails));
         // Verify the actual fails are less or equal than the max allowed.
-        buffer.write(getOpcode("OP_LESSTHANOREQUAL"));
+        secondPart.write(getOpcode("OP_LESSTHANOREQUAL"));
         if(!finishWithTrue)
-            buffer.write(getOpcode("OP_VERIFY"));
-        return buffer.toByteArray();
+            secondPart.write(getOpcode("OP_VERIFY"));
+        return Arrays.asList(firstPart.toByteArray(), secondPart.toByteArray());
     }
+
+    private static byte[] checkMultiHash(List<byte[]> hashes, int requiredHashes,
+                                         boolean finishWithTrue) throws IOException {
+        List<byte[]> twoParts = checkMultiHashTwoParts(hashes, requiredHashes, finishWithTrue);
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        byteArrayOutputStream.write(twoParts.get(0));
+        byteArrayOutputStream.write(twoParts.get(1));
+        return byteArrayOutputStream.toByteArray();
+    }
+
 
     public static byte[] betPrizeResolutionRedeemScript(
             List<byte[]> playerAWinHashes, List<byte[]> playerBWinHashes,
@@ -329,7 +361,9 @@ public class OutputBuilder {
         aWinsScriptBuffer.write(pushDataOpcode(playerPubKeys.get(0).getKey().length));
         aWinsScriptBuffer.write(playerPubKeys.get(0).getKey());
         aWinsScriptBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
-        aWinsScriptBuffer.write(checkMultiHash(playerAWinHashes, requiredHashes, true));
+        List<byte[]> aCheckMultiHash = checkMultiHashTwoParts(
+                playerAWinHashes, requiredHashes, true);
+        aWinsScriptBuffer.write(aCheckMultiHash.get(0));
 
         byte[] aWinsScript = aWinsScriptBuffer.toByteArray();
 
@@ -339,7 +373,9 @@ public class OutputBuilder {
         bWinsScriptBuffer.write(pushDataOpcode(playerPubKeys.get(1).getKey().length));
         bWinsScriptBuffer.write(playerPubKeys.get(1).getKey());
         bWinsScriptBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
-        bWinsScriptBuffer.write(checkMultiHash(playerBWinHashes, requiredHashes, true));
+        List<byte[]> bCheckMultihash =  checkMultiHashTwoParts(
+                playerBWinHashes, requiredHashes, true);
+        bWinsScriptBuffer.write(bCheckMultihash.get(0));
 
         byte[] bWinsScript = bWinsScriptBuffer.toByteArray();
 
@@ -352,8 +388,12 @@ public class OutputBuilder {
         timeoutScriptBuffer.write(getOpcode("OP_CHECKSIG"));
 
         byte[] timeoutScript = timeoutScriptBuffer.toByteArray();
+        if(!Arrays.equals(aCheckMultiHash.get(1), bCheckMultihash.get(1))) {
+            throw new RuntimeException("Not expected error, different common part");
+        }
 
-        return threePathScript(aWinsScript, bWinsScript, timeoutScript);
+        return threePathScriptFirstTwoShared(
+                aWinsScript, bWinsScript, aCheckMultiHash.get(1), timeoutScript);
     }
 
     static public Output betPrizeResolution(

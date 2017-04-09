@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import static bitcoin.Constants.*;
+import static bitcoin.key.Utils.r160SHA256Hash;
 import static bitcoin.transaction.Utils.readScriptNum;
 import static bitcoin.transaction.builder.InputBuilder.*;
 import static bitcoin.transaction.builder.OutputBuilder.*;
@@ -484,5 +485,73 @@ public class SignTest {
         t1.getInputs().get(0).setScript(redeemMultisigOutput(redeemScript, signatures));
 
         client.verifyTransaction(t1, new PayToScriptAbsoluteOutput(t0, 0, redeemScript));
+    }
+
+    @Test
+    public void multiPreImageCheck() throws Exception {
+        AbsoluteOutput srcOutput = null;
+        List<AbsoluteOutput> unspentOutputs = client.getUnspent();
+        for(AbsoluteOutput ao: unspentOutputs)
+            if(ao.isPayToKey())
+                srcOutput = ao;
+        assertNotNull("Couldn't find unspent outputs.", srcOutput);
+        String srcAddr = srcOutput.getPayAddress();
+        long available = srcOutput.getValue();
+
+        String wifSrcAddr = BitcoinPublicKey.txAddressToWIF(hexToByteArray(srcAddr), client.isTestnet());
+        BitcoinPrivateKey srcPrivKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(wifSrcAddr));
+
+        final int totalHashes = 6;
+        final int requiredHashes = (totalHashes / 2) + 1;
+        final int timeout = 600;
+
+        BitcoinPrivateKey player1 = new BitcoinPrivateKey(true, client.isTestnet());
+        BitcoinPrivateKey player2 = new BitcoinPrivateKey(true, client.isTestnet());
+        BitcoinPublicKey[] playersPubKeys = new BitcoinPublicKey[]{
+                player1.getPublicKey(), player2.getPublicKey()};
+
+        List<byte[]> aPreimages = new LinkedList<>();
+        List<byte[]> bPreimages = new LinkedList<>();
+        List<byte[]> aHashes = new LinkedList<>();
+        List<byte[]> bHashes = new LinkedList<>();
+        for(int i = 0; i < totalHashes; i++) {
+            byte[] random = new byte[15];
+            new Random().nextBytes(random);
+            aPreimages.add(random);
+            aHashes.add(r160SHA256Hash(random));
+            random = new byte[15];
+            new Random().nextBytes(random);
+            bPreimages.add(random);
+            bHashes.add(r160SHA256Hash(random));
+        }
+
+
+        byte[] redeemScript = betPrizeResolutionRedeemScript(aHashes, bHashes,
+                Arrays.asList(playersPubKeys), requiredHashes, timeout, player1.getPublicKey());
+
+        Transaction t0 = payToScriptHash(srcOutput, redeemScript, available);
+        t0.sign(srcPrivKey);
+
+        Transaction t1 = payToPublicKeyHash(new AbsoluteOutput(t0, 0), wifSrcAddr, available);
+
+
+        t1.setTempScriptSigForSigning(0, redeemScript);
+        byte[] signature = t1.getPayToScriptSignature(player1, getHashType("ALL"), 0);
+
+        System.out.println(aPreimages.size());
+        //aPreimages.remove(totalHashes - 1);
+        System.out.println(aPreimages.size());
+        //while(aPreimages.size() > requiredHashes)
+        //    aPreimages.remove(0);
+        List<byte[]> formattedPreImages = bitcoin.transaction.protocol.Utils.formatPreimages(
+                aHashes, bHashes, aPreimages);
+
+        System.out.println("Redeem size:" + redeemScript.length);
+
+        t1.getInputs().get(0).setScript(
+                redeemPlayerPrize(redeemScript, signature, 0, formattedPreImages));
+
+        client.verifyTransaction(t1, new PayToScriptAbsoluteOutput(t0, 0, redeemScript));
+
     }
 }

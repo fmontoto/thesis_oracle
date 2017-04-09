@@ -29,7 +29,7 @@ public class Utils {
         throw new InvalidParameterException("Unknown winnerKey.");
     }
 
-    static List<byte[]> formatPreimages(
+    public static List<byte[]> formatPreimages(
             List<byte[]> playerAWinHashes, List<byte[]> playerBWinHashes,
             List<byte[]> winnerPreImages) throws NoSuchAlgorithmException {
 
@@ -61,8 +61,10 @@ public class Utils {
         for(byte[] preImage : winnerPreImages)
             ret.add(preImage);
 
-        if(!Arrays.equals(winnerHash, winnerPlayerHashes.get(winnerPlayerHashes.size() - 1)))
-            ret.add(getOpcodeAsArray("OP_1"));
+        //if(Arrays.equals(winnerHash, winnerPlayerHashes.get(winnerPlayerHashes.size() - 1))) {
+            ret.add(getOpcodeAsArray("OP_8"));
+            System.out.println("Addes extra op1");
+        //}
 
         Collections.reverse(ret);
         return ret;

@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.key.Utils.r160SHA256Hash;
+import static bitcoin.transaction.Utils.parseScript;
 import static bitcoin.transaction.Utils.serializeScriptNum;
 import static bitcoin.transaction.builder.OutputBuilder.*;
 import static core.Utils.byteArrayToHex;
@@ -225,12 +226,9 @@ public class TransactionBuilder {
                             + playerAWinHashes.size() + ", " + playerBWinHashes.size()
                             + ") and oracles (" + oracles.size() + ") must have the same size.");
         }
-        // Outputs
-        //TODO check the numbers
-        long bet_prize = bet.getAmount();
-        long oracle_payment = bet.getOraclePayment();
 
         List<AbsoluteOutput> srcInputs = new LinkedList<>();
+        // The bet promise outputs
         srcInputs.add(new AbsoluteOutput(betPromise, 1));
         srcInputs.add(new AbsoluteOutput(betPromise, 2));
         for(Transaction oracleInscription : oracleInscriptions)
@@ -248,10 +246,8 @@ public class TransactionBuilder {
 
         long timeoutSeconds = bet.getRelativeBetResolutionSecs();
         long replyUntilSeconds = bet.getRelativeReplyUntilTimeoutSeconds();
-        //TODO get amount
-        long thisTxFee = 100;
         int n = oracles.size();
-        long amount = availableFromInputs - thisTxFee - n * 2 * bet.getOraclePayment();
+        long amount = availableFromInputs - n * bet.getOraclePayment();
 
         outputs.add(betPrizeResolution(
                 playerAWinHashes, playerBWinHashes, playerPubKeys, bet.getRequiredHashes(),
@@ -268,12 +264,22 @@ public class TransactionBuilder {
                     playerAWinHashes.get(i), playerBWinHashes.get(i), playerAWinHashes,
                     playerBWinHashes, bet.getRequiredHashes(),
                     bet.getRelativeUndueChargeTimeoutSeconds(), bet.getOraclePayment()));
-
         }
+
 
         int version = 2;
         int locktime = 0;
         Transaction tx = buildTx(version, locktime, inputs, outputs);
+        {
+            long txFee = bet.getFee() * tx.wireSize();
+            long output0 = tx.getOutput(0).getValue() - txFee / 2;
+            long output1 = tx.getOutput(1).getValue() - txFee / 2;
+            if(output0 < 0 || output1 < 0)
+                throw new InvalidParameterException(
+                        "Not enough output for paying fees:" + output0 + ";" + output1);
+            tx.getOutput(0).setValue(output0);
+            tx.getOutput(1).setValue(output1);
+        }
         return tx;
     }
 
@@ -304,13 +310,13 @@ public class TransactionBuilder {
     }
 
     static public void checkBetPromiseAndSign(BitcoindClient client, Bet agreedBet,
-                                              String wifChangeAddress, Transaction myIncompletedTx,
+                                              Transaction myIncompletedTx,
                                               Transaction completedTx, boolean allowModification)
             throws IOException, NoSuchAlgorithmException, ParseTransactionException,
             InvalidKeySpecException, SignatureException, InvalidKeyException {
 
         long txFee = completedTx.wireSize() * agreedBet.getFee();
-        HashMap<Output, Integer> srcOutputs = new HashMap<>();
+        HashMap<Integer, AbsoluteOutput> srcOutputs = new HashMap<>();
 
         if(allowModification) {
             long output1 = completedTx.getOutput(1).getValue() - txFee / 2;
@@ -331,19 +337,18 @@ public class TransactionBuilder {
 
         int idx = 0;
         for(Input i : completedTx.getInputs()) {
-            Output srcOutput = client.getTransaction(i.getPrevTxHash())
-                    .getOutputs().get(Math.toIntExact(i.getPrevIdx()));
             if(expectedInputs.contains(i)) {
-                srcOutputs.put(srcOutput, idx);
+                srcOutputs.put(idx, new AbsoluteOutput(client.getTransaction(i.getPrevTxHash()),
+                                                       Math.toIntExact(i.getPrevIdx())));
             }
             idx++;
         }
 
-        for(Map.Entry<Output, Integer> entry : srcOutputs.entrySet()) {
+        for(Map.Entry<Integer, AbsoluteOutput> entry : srcOutputs.entrySet()) {
             String WIF = BitcoinPublicKey.txAddressToWIF(
-                    hexToByteArray(entry.getKey().getPayAddress()), client.isTestnet());
+                    hexToByteArray(entry.getValue().getPayAddress()), client.isTestnet());
             BitcoinPrivateKey privKey = BitcoinPrivateKey.fromWIF(client.getPrivateKey(WIF));
-            completedTx.sign(privKey, entry.getValue());
+            completedTx.sign(privKey, entry.getKey());
         }
     }
 
@@ -409,9 +414,8 @@ public class TransactionBuilder {
     // Oracle inscription
     public static Transaction oracleInscription(
             List<AbsoluteOutput> srcOutputs, List<BitcoinPrivateKey> srcKeys,
-            BitcoinPublicKey oraclePublicKey, String wifChangeAddress,
-            List<byte[]> expectedAnswersHash, Bet bet, Transaction betPromise)
-            throws IOException, NoSuchAlgorithmException,
+            BitcoinPublicKey oraclePublicKey, List<byte[]> expectedAnswersHash, Bet bet,
+            Transaction betPromise) throws IOException, NoSuchAlgorithmException,
             InvalidKeySpecException, SignatureException, InvalidKeyException {
 
         if(expectedAnswersHash.size() != 2)
@@ -476,7 +480,6 @@ public class TransactionBuilder {
 
         return tx;
     }
-
 
     // Utils
 
