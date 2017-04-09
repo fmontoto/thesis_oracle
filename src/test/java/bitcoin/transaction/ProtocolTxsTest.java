@@ -1,7 +1,6 @@
 package bitcoin.transaction;
 
-import bitcoin.BitcoindClient;
-import bitcoin.ClientUtils;
+import bitcoin.*;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.protocol.OracleAnswer;
@@ -9,6 +8,8 @@ import bitcoin.transaction.protocol.OracleDoesntAnswer;
 import bitcoin.transaction.protocol.OracleWrongAnswer;
 import bitcoin.transaction.protocol.WinnerPlayerPrize;
 import core.*;
+import core.Constants;
+import core.Utils;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -159,18 +160,32 @@ public class ProtocolTxsTest {
         List<AbsoluteOutput> player2SrcOutputs = ClientUtils.getUnspentOutputs(bitcoindClient,
                                                                                playersAccount[1]);
         String player2WifChangeAddress = bitcoindClient.getAccountAddress(playersAccount[1]);
+
         Transaction player2ExpectedBet = betPromise(player2SrcOutputs, player2WifChangeAddress,
                                                                       agreedBet, false);
-        if(updateBetPromise(player2SrcOutputs, player2WifChangeAddress, agreedBet, false,
-                                               sharedTx)) {
-            // Remove change Output as it is changed at updateBetPromise
-            player2ExpectedBet.getOutputs().remove(player2ExpectedBet.getOutputs().size() - 1);
-            // Add the real change output.
-            player2ExpectedBet.getOutputs().add(
-                    sharedTx.getOutputs().get(sharedTx.getOutputs().size() - 1));
+
+        addSecondPlayerInputsAndChange(sharedTx, player2ExpectedBet);
+        {
+
+            long finalTxSize = sharedTx.wireSize();
+            long txFee = finalTxSize * agreedBet.getFee();
+            player2ExpectedBet.getOutput(1).setValue(
+                    player2ExpectedBet.getOutput(2).getValue() - txFee / 2
+            );
+            player2ExpectedBet.getOutput(2).setValue(
+                    player2ExpectedBet.getOutput(2).getValue() - txFee / 2);
         }
 
         // Player 1
+        {
+            long finalTxSize = sharedTx.wireSize();
+            long txFee = finalTxSize * agreedBet.getFee();
+            player1BetPromise.getOutput(1).setValue(
+                    player1BetPromise.getOutput(1).getValue() - txFee/2);
+            player1BetPromise.getOutput(2).setValue(
+                    player1BetPromise.getOutput(2).getValue() - txFee/2);
+        }
+
         checkBetPromiseAndSign(bitcoindClient, agreedBet, player1WifChangeAddress,
                                player1BetPromise, sharedTx, true);
         // Player 2
@@ -284,7 +299,7 @@ public class ProtocolTxsTest {
                     bitcoindClient, account, 100 /* fee */);
             Transaction transaction = registerAsOracle(availableOutput.get(0),
                                                        oracle.getAddress(),
-                                                       100 /* fee */,
+                                                       bitcoin.Constants.FEE,
                                                        1 /* tx version */,
                                                        0 /* locktime */);
             char[] privKey = bitcoindClient.getPrivateKey(BitcoinPublicKey.txAddressToWIF(
@@ -307,15 +322,18 @@ public class ProtocolTxsTest {
             long firstPaymentAmount, oraclePayment, amount, oracleInscription, oraclePenalty, fee,
                     timeoutSeconds;
 
-            firstPaymentAmount = oraclePayment = oracleInscription = oraclePenalty = fee = 40;
+            firstPaymentAmount = 60000;
+            oraclePayment = 3000000;
+            oracleInscription = 500000;
+            oraclePenalty = 10000000;
+            fee = bitcoin.Constants.FEE;
             timeoutSeconds = 60 * 60 * 24 * 3; // Three days
-            amount = 100000;
+            amount = 100000000;
             minOracles = maxOracles = oracles.size();
             String description = "Bet's description... really short actually";
-            //
 
-            Bet.Amounts amounts = new Bet.Amounts(
-                    firstPaymentAmount, oraclePayment, amount, oracleInscription, oraclePenalty, fee);
+            Bet.Amounts amounts = new Bet.Amounts(firstPaymentAmount, oraclePayment, amount,
+                                                  oracleInscription, oraclePenalty, fee);
             agreedBet = new Bet(
                     description, minOracles, maxOracles, oracles, new LinkedList<>(),
                     playersPubKey, amounts, TimeUnit.SECONDS, timeoutSeconds, channel);
@@ -590,7 +608,7 @@ public class ProtocolTxsTest {
 
 
 
-        throw new NotImplementedException();
+        //throw new NotImplementedException();
 
     }
 

@@ -11,6 +11,9 @@ import java.util.Map;
  */
 public class Constants {
 
+
+    static public int FEE = 140; // Satoshis per byte
+
     static private Constants instance = null;
 
     private Map<String, Byte> hashTypes;

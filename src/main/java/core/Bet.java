@@ -324,6 +324,7 @@ public class Bet {
         private final long amount;
         private final long oracleInscription;
         private final long oraclePenalty;
+        // Satoshis per byte fee.
         private final long fee;
 
         public Amounts(long firstPaymentAmount, long oraclePayment, long amount,

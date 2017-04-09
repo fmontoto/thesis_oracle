@@ -293,6 +293,17 @@ public class Transaction {
         return sb.toString();
     }
 
+    // Size in byte of the transaction when serialized
+    public long wireSize() {
+        return serialize().length;
+    }
+
+    public Output getOutput(int pos) {
+        return getOutputs().get(pos);
+    }
+
+    public Input getInput(int pos) { return getInputs().get(pos); }
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("{\n");
