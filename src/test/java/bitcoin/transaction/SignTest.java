@@ -534,23 +534,25 @@ public class SignTest {
 
         Transaction t1 = payToPublicKeyHash(new AbsoluteOutput(t0, 0), wifSrcAddr, available);
 
-
         t1.setTempScriptSigForSigning(0, redeemScript);
         byte[] signature = t1.getPayToScriptSignature(player1, getHashType("ALL"), 0);
-
-        System.out.println(aPreimages.size());
-        //aPreimages.remove(totalHashes - 1);
-        System.out.println(aPreimages.size());
-        //while(aPreimages.size() > requiredHashes)
-        //    aPreimages.remove(0);
+        while(aPreimages.size() > requiredHashes)
+            aPreimages.remove(0);
         List<byte[]> formattedPreImages = bitcoin.transaction.protocol.Utils.formatPreimages(
                 aHashes, bHashes, aPreimages);
-
-        System.out.println("Redeem size:" + redeemScript.length);
-
         t1.getInputs().get(0).setScript(
-                redeemPlayerPrize(redeemScript, signature, 0, formattedPreImages));
+                redeemPlayerPrize(redeemScript, signature, player1.getPublicKey(), 0, 0, formattedPreImages));
+        client.verifyTransaction(t1, new PayToScriptAbsoluteOutput(t0, 0, redeemScript));
 
+        t1.setTempScriptSigForSigning(0, redeemScript);
+        signature = t1.getPayToScriptSignature(player2, getHashType("ALL"), 0);
+        while(bPreimages.size() > requiredHashes)
+            bPreimages.remove(0);
+        formattedPreImages = bitcoin.transaction.protocol.Utils.formatPreimages(
+                aHashes, bHashes, bPreimages);
+        t1.getInput(0).setScript(
+                redeemPlayerPrize(redeemScript, signature, player2.getPublicKey(), 1,
+                        0, formattedPreImages));
         client.verifyTransaction(t1, new PayToScriptAbsoluteOutput(t0, 0, redeemScript));
 
     }

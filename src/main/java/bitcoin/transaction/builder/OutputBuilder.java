@@ -2,6 +2,7 @@ package bitcoin.transaction.builder;
 
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.Output;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -134,6 +135,20 @@ public class OutputBuilder {
         return createPayToScriptHashOutput(amount, redeemScriptHash);
     }
 
+    static public byte[] createPayToPubKeyScript(String wifDstAddr, boolean finishWithTrue)
+            throws IOException, NoSuchAlgorithmException {
+        byte[] addr = BitcoinPublicKey.WIFToTxAddress(wifDstAddr);
+        byte[] verify = getOpcodeAsArray("OP_CHECKSIGVERIFY");
+        if(finishWithTrue)
+            verify = getOpcodeAsArray("OP_CHECKSIG");
+        return  mergeArrays(new byte[]{getOpcode("OP_DUP")},
+                new byte[] {getOpcode("OP_HASH160")},
+                pushDataOpcode(addr.length),
+                addr,
+                new byte[]{getOpcode("OP_EQUALVERIFY")},
+                verify);
+    }
+
     /**
      *
      * @param value Output's value
@@ -141,14 +156,7 @@ public class OutputBuilder {
      * @return Output with the specified parameters.
      */
     public static Output createPayToPubKeyOutput(long value, String wifDstAddr) throws IOException, NoSuchAlgorithmException {
-
-        byte[] addr = BitcoinPublicKey.WIFToTxAddress(wifDstAddr);
-        byte[] script =  mergeArrays(new byte[]{getOpcode("OP_DUP")},
-                                     new byte[] {getOpcode("OP_HASH160")},
-                                     pushDataOpcode(addr.length),
-                                     addr,
-                                     new byte[]{getOpcode("OP_EQUALVERIFY")},
-                                     new byte[]{getOpcode("OP_CHECKSIG")});
+        byte[] script = createPayToPubKeyScript(wifDstAddr, true);
         return new Output(value, script);
     }
 
@@ -293,33 +301,29 @@ public class OutputBuilder {
         return buffer.toByteArray();
     }
 
-
     private static List<byte[]> checkMultiHashTwoParts(
             List<byte[]> hashes, int requiredHashes, boolean finishWithTrue) throws IOException {
 
         if(requiredHashes > hashes.size())
             throw new InvalidParameterException("Can not require more hashes than provided");
         int max_fails = hashes.size() - requiredHashes;
-        System.out.println("Max fails:" + max_fails);
         ByteArrayOutputStream firstPart = new ByteArrayOutputStream();
         ByteArrayOutputStream secondPart = new ByteArrayOutputStream();
 
         firstPart.write(getOpcode("OP_0"));
         firstPart.write(getOpcode("OP_TOALTSTACK"));
 
+        firstPart.write(getOpcode("OP_HASH160"));
         for(byte[] hash: hashes) {
             firstPart.write(getOpcode("OP_DUP"));
-            firstPart.write(getOpcode("OP_TOALTSTACK"));
-            firstPart.write(getOpcode("OP_HASH160"));
             firstPart.write(pushDataOpcode(hash.length));
             firstPart.write(hash);
             firstPart.write(getOpcode("OP_EQUAL"));
 
             firstPart.write(getOpcode("OP_IF"));
-                firstPart.write(getOpcode("OP_FROMALTSTACK"));
                 firstPart.write(getOpcode("OP_DROP"));
+                firstPart.write(getOpcode("OP_HASH160"));
             firstPart.write(getOpcode("OP_ELSE"));
-                firstPart.write(getOpcode("OP_FROMALTSTACK"));
                 firstPart.write(getOpcode("OP_FROMALTSTACK"));
                 firstPart.write(getOpcode("OP_1ADD"));
                 firstPart.write(getOpcode("OP_TOALTSTACK"));
@@ -346,36 +350,48 @@ public class OutputBuilder {
         return byteArrayOutputStream.toByteArray();
     }
 
-
+    // This is a very size-sensitive script, as it is limited by the 520 bytes limit
+    // at the bitcoin stack.
     public static byte[] betPrizeResolutionRedeemScript(
             List<byte[]> playerAWinHashes, List<byte[]> playerBWinHashes,
             List<BitcoinPublicKey> playerPubKeys, int requiredHashes, long timeoutSeconds,
             BitcoinPublicKey onTimeout)
             throws IOException, NoSuchAlgorithmException {
-        if(playerPubKeys.size() != 2)
+        // I'm using the payToKeyHash approach to keep the size of this script as slow as possible
+        // however the redeem transaction will pay an overhead making the whole process more byte
+        // intensive in the blockchain.
+
+        if (playerPubKeys.size() != 2)
             throw new InvalidParameterException("Only two player supported.");
+
+        if (!playerPubKeys.get(0).equals(onTimeout) && !playerPubKeys.get(1).equals(onTimeout)) {
+            // Optimization requires that the timeout key must be one of the ones from the players.
+            // However is the size is not a constraint could be implemented without this pre
+            // requisite.
+            throw new NotImplementedException();
+        }
+
+        int timeOutPlayer = playerPubKeys.get(0).equals(onTimeout) ? 0 : 1;
 
         // A wins
         ByteArrayOutputStream aWinsScriptBuffer = new ByteArrayOutputStream();
 
-        aWinsScriptBuffer.write(pushDataOpcode(playerPubKeys.get(0).getKey().length));
-        aWinsScriptBuffer.write(playerPubKeys.get(0).getKey());
-        aWinsScriptBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
-        List<byte[]> aCheckMultiHash = checkMultiHashTwoParts(
-                playerAWinHashes, requiredHashes, true);
-        aWinsScriptBuffer.write(aCheckMultiHash.get(0));
+        aWinsScriptBuffer.write(checkMultiHash(
+                playerAWinHashes, requiredHashes, false));
+        if (timeOutPlayer == 1) {
+            aWinsScriptBuffer.write(createPayToPubKeyScript(playerPubKeys.get(0).toWIF(), true));
+        }
 
         byte[] aWinsScript = aWinsScriptBuffer.toByteArray();
 
         // B wins
         ByteArrayOutputStream bWinsScriptBuffer = new ByteArrayOutputStream();
 
-        bWinsScriptBuffer.write(pushDataOpcode(playerPubKeys.get(1).getKey().length));
-        bWinsScriptBuffer.write(playerPubKeys.get(1).getKey());
-        bWinsScriptBuffer.write(getOpcode("OP_CHECKSIGVERIFY"));
-        List<byte[]> bCheckMultihash =  checkMultiHashTwoParts(
-                playerBWinHashes, requiredHashes, true);
-        bWinsScriptBuffer.write(bCheckMultihash.get(0));
+        bWinsScriptBuffer.write(checkMultiHash(
+                playerBWinHashes, requiredHashes, false));
+        if(timeOutPlayer == 0) {
+            bWinsScriptBuffer.write(createPayToPubKeyScript(playerPubKeys.get(1).toWIF(), true));
+        }
 
         byte[] bWinsScript = bWinsScriptBuffer.toByteArray();
 
@@ -383,17 +399,16 @@ public class OutputBuilder {
         ByteArrayOutputStream timeoutScriptBuffer = new ByteArrayOutputStream();
 
         timeoutScriptBuffer.write(checkTimeoutScript(TimeUnit.SECONDS, timeoutSeconds));
-        timeoutScriptBuffer.write(pushDataOpcode(onTimeout.getKey().length));
-        timeoutScriptBuffer.write(onTimeout.getKey());
-        timeoutScriptBuffer.write(getOpcode("OP_CHECKSIG"));
 
         byte[] timeoutScript = timeoutScriptBuffer.toByteArray();
-        if(!Arrays.equals(aCheckMultiHash.get(1), bCheckMultihash.get(1))) {
-            throw new RuntimeException("Not expected error, different common part");
-        }
+        byte[] sharedSignature = createPayToPubKeyScript(onTimeout.toWIF(), true);
 
-        return threePathScriptFirstTwoShared(
-                aWinsScript, bWinsScript, aCheckMultiHash.get(1), timeoutScript);
+        if(timeOutPlayer == 0)
+            return threePathScriptFirstTwoShared(
+                    aWinsScript, timeoutScript, sharedSignature, bWinsScript);
+        else
+            return threePathScriptFirstTwoShared(
+                    bWinsScript, timeoutScript, sharedSignature, aWinsScript);
     }
 
     static public Output betPrizeResolution(

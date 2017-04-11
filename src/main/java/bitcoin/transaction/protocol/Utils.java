@@ -61,10 +61,7 @@ public class Utils {
         for(byte[] preImage : winnerPreImages)
             ret.add(preImage);
 
-        //if(Arrays.equals(winnerHash, winnerPlayerHashes.get(winnerPlayerHashes.size() - 1))) {
-            ret.add(getOpcodeAsArray("OP_8"));
-            System.out.println("Addes extra op1");
-        //}
+        ret.add(getOpcodeAsArray("OP_1"));
 
         Collections.reverse(ret);
         return ret;

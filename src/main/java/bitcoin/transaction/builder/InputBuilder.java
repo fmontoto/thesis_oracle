@@ -172,8 +172,10 @@ public class InputBuilder {
     // of the last hash expected is not in the list, a random value should be included as first
     // pre image.
     static public byte[] redeemPlayerPrize(byte[] redeemScript, byte[] playerSignature,
-                                           int playerNo, List<byte[]> preImageHashes)
-            throws IOException {
+                                           BitcoinPublicKey playerPublicKey,
+                                           int playerNo, int onTimeoutPlayer,
+                                           List<byte[]> preImageHashes)
+            throws IOException, NoSuchAlgorithmException {
         if(playerNo > 1)
             throw new InvalidParameterException("Not expected ");
         ByteArrayOutputStream preImagesStream = new ByteArrayOutputStream();
@@ -182,15 +184,20 @@ public class InputBuilder {
             preImagesStream.write(preImage);
         }
 
-        byte[] firstSelector = getOpcodeAsArray("OP_1");
-        byte secondSelector = (playerNo & 0x01) == 0 ? getOpcode("OP_1") : getOpcode("OP_0");
+        byte[] selectors;
+        if(onTimeoutPlayer == playerNo) {
+            selectors = mergeArrays(getOpcodeAsArray("OP_1"), getOpcodeAsArray("OP_1"));
+        }
+        else
+            selectors = getOpcodeAsArray("OP_0");
 
         return mergeArrays(
-                preImagesStream.toByteArray(),
                 pushDataOpcode(playerSignature.length),
                 playerSignature,
-                new byte[]{secondSelector},
-                firstSelector,
+                pushDataOpcode(playerPublicKey.getKey().length),
+                playerPublicKey.getKey(),
+                preImagesStream.toByteArray(),
+                selectors,
                 pushDataOpcode(redeemScript.length),
                 redeemScript);
     }

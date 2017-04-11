@@ -131,9 +131,9 @@ public class WinnerPlayerPrize {
                                                           winnerPreImages);
 
         tx.getInputs().get(0).setScript(redeemPlayerPrize(winnerPlayerPrize.getRedeemScript(0),
-                signature0, playerNo, formattedPreImages));
+                signature0, winnerKey.getPublicKey(), playerNo, 0, formattedPreImages));
         tx.getInputs().get(1).setScript(redeemPlayerPrize(winnerPlayerPrize.getRedeemScript(1),
-                signature1, playerNo, formattedPreImages));
+                signature1, winnerKey.getPublicKey(), playerNo, 1, formattedPreImages));
 
         winnerPlayerPrize.setTransaction(tx);
         return winnerPlayerPrize;
