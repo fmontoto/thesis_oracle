@@ -227,6 +227,23 @@ public class InputBuilder {
         );
     }
 
+    static public byte[] redeemTwoAnswers(byte[] redeemScript, byte[] playerAAnswer,
+                                          byte[] playerBAnswer, byte[] playerSignature) {
+        return mergeArrays(
+                pushDataOpcode(playerBAnswer.length),
+                playerBAnswer,
+                pushDataOpcode(playerAAnswer.length),
+                playerAAnswer,
+                getOpcodeAsArray("OP_0"),
+                pushDataOpcode(playerSignature.length),
+                playerSignature,
+                getOpcodeAsArray("OP_1"),
+                pushDataOpcode(redeemScript.length),
+                redeemScript
+        );
+
+    }
+
 
     static public Input redeemBetPromiseOraclePayment(List<BitcoinPublicKey> playerPublicKeys,
                                                        Transaction betPromise, int num_oracle) throws IOException, NoSuchAlgorithmException {

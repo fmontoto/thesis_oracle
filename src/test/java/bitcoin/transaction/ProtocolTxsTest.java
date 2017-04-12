@@ -3,10 +3,7 @@ package bitcoin.transaction;
 import bitcoin.*;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
-import bitcoin.transaction.protocol.OracleAnswer;
-import bitcoin.transaction.protocol.OracleDoesntAnswer;
-import bitcoin.transaction.protocol.OracleWrongAnswer;
-import bitcoin.transaction.protocol.WinnerPlayerPrize;
+import bitcoin.transaction.protocol.*;
 import core.*;
 import core.Constants;
 import core.Utils;
@@ -39,7 +36,7 @@ import static core.Utils.hexToByteArray;
  */
 public class ProtocolTxsTest {
     static final boolean testnet = true;
-    static final int numOracles = 6; // At least 5
+    static final int numOracles = 7; // At least 5
     static final int numPlayers = 2;
     BitcoindClient bitcoindClient;
 
@@ -180,9 +177,9 @@ public class ProtocolTxsTest {
         // This method goes through all the transactions in the protocol.
 
         List<PayToScriptAbsoluteOutput> submittedTxs = new LinkedList<>();
-        // Everyone willing to be chose as an oracle must send the inscription transaction to the
+        // Everyone willing to be chose as an oracle must send the registration transaction to the
         // blockchain.
-        List<Transaction> inscriptionTxs = new LinkedList<>();
+        List<Transaction> registrationTxs = new LinkedList<>();
         for(Oracle oracle : oracles) {
             String account = bitcoindClient.getAccount(oracle.getAddress());
             List<AbsoluteOutput> availableOutput = ClientUtils.getOutputsAvailableAtLeast(
@@ -197,7 +194,7 @@ public class ProtocolTxsTest {
 
             transaction.sign(BitcoinPrivateKey.fromWIF(privKey));
             bitcoindClient.verifyTransaction(transaction);
-            inscriptionTxs.add(transaction);
+            registrationTxs.add(transaction);
         }
 
         // The required initial state for the players is to know the other party public key or
@@ -241,7 +238,7 @@ public class ProtocolTxsTest {
 
         // After the oracles see the betPromise transaction they sign on (or not) to participate.
         List<ParticipatingOracle> participatingOracles = new LinkedList<>();
-        List<Transaction> participatingOraclesTxs = new LinkedList<>();
+        List<Transaction> inscriptionTxs = new LinkedList<>();
 
         for(Oracle oracle : oracles) {
             ParticipatingOracle participatingOracle = ParticipatingOracle.participate(oracle,
@@ -249,7 +246,7 @@ public class ProtocolTxsTest {
             participatingOracles.add(participatingOracle);
             Transaction oracleInscriptionTx = participatingOracle.generateInscriptionTransaction(
                     bitcoindClient, agreedBet);
-            participatingOraclesTxs.add(oracleInscriptionTx);
+            inscriptionTxs.add(oracleInscriptionTx);
             // When this transaction takes some time from the promise bet, the timeout should
             // be adjusted, as it is a relative timeout since the transaction was posted in the
             // blockhain.
@@ -270,7 +267,7 @@ public class ProtocolTxsTest {
         // transaction.
 
         // Player 1 puts its signature in the transaction and send it to player 2
-        for(Transaction tx : participatingOraclesTxs) {
+        for(Transaction tx : inscriptionTxs) {
             //TODO check the tx is what is supposed to be. (the oracle did the right thing)
             byte[] promiseBetRedeemScript = multisigScript(playersPubKey, playersPubKey.length);
             int input_to_sign = tx.getInputs().size() - 1;
@@ -284,7 +281,7 @@ public class ProtocolTxsTest {
 
         // Now player 2 takes the other's player signature, generate their and complete the tx. By
         // using the two required signatures.
-        for(Transaction tx :participatingOraclesTxs) {
+        for(Transaction tx :inscriptionTxs) {
             //TODO check the tx is what is supposed to be. (the oracle did the right thing)
             byte[] promiseBetRedeemScript = multisigScript(playersPubKey, playersPubKey.length);
             int input_to_sign = tx.getInputs().size() - 1;
@@ -298,8 +295,8 @@ public class ProtocolTxsTest {
         }
 
         // Oracle Inscription transactions are now ready to go to the blockchain.
-        for(int i = 0; i < participatingOraclesTxs.size(); i++) {
-            Transaction tx = participatingOraclesTxs.get(i);
+        for(int i = 0; i < inscriptionTxs.size(); i++) {
+            Transaction tx = inscriptionTxs.get(i);
             // At bet promise, there are three outputs before the oracle's outputs.
             int inputBetPromise = 3 + i;
             byte[] promiseBetRedeemScript = multisigScript(playersPubKey, playersPubKey.length);
@@ -309,7 +306,7 @@ public class ProtocolTxsTest {
         }
 
         Transaction betTransaction = bet(
-                betPromise, participatingOraclesTxs, agreedBet, oraclePublicKeys, playerAWinHashes,
+                betPromise, inscriptionTxs, agreedBet, oraclePublicKeys, playerAWinHashes,
                 playerBWinHashes, Arrays.asList(playersPubKey));
 
         // This transaction requires a lot of signatures. Now each participant signs the tx.
@@ -360,7 +357,7 @@ public class ProtocolTxsTest {
                     participatingOracle.getAddress()));
             int j, inputToSign = 2 + i;
             byte[] scriptHash = hexToByteArray(
-                    participatingOraclesTxs.get(i).getOutputs().get(0).getParsedScript().get(2));
+                    inscriptionTxs.get(i).getOutputs().get(0).getParsedScript().get(2));
             long timeoutSecs = agreedBet.getRelativeBetResolutionSecs();
             byte[] redeemScript = multisigOrSomeSignaturesTimeoutOutput(
                     TimeUnit.SECONDS, timeoutSecs, oraclePublicKeys.get(i),
@@ -371,7 +368,7 @@ public class ProtocolTxsTest {
                         oraclePublicKeys.get(i), Arrays.asList(playersPubKey));
             if(!Arrays.equals(scriptHash, r160SHA256Hash(redeemScript)))
                 throw new InvalidParameterException("Redeem script does not match the hash");
-            submittedTxs.add(new PayToScriptAbsoluteOutput(participatingOraclesTxs.get(i), 0,
+            submittedTxs.add(new PayToScriptAbsoluteOutput(inscriptionTxs.get(i), 0,
                              redeemScript));
 
             betTransaction.setTempScriptSigForSigning(inputToSign, redeemScript);
@@ -470,6 +467,39 @@ public class ProtocolTxsTest {
         }
 
         bitcoindClient.verifyTransaction(wrongAnswerTx, submittedTxs);
+
+
+        // This can go even worse for oracle @(numOracles - 2) if a player get its other answer,
+        // ie. the oracle gives both answers.
+        Transaction bothAnswers;
+        {
+            int oraclePos = participatingOracles.size() - 2;
+            ParticipatingOracle oracle = participatingOracles.get(oraclePos);
+            OracleAnswer parsedAnswer = OracleAnswer.parse(oracleAnswers.get(oraclePos).hexlify(),
+                    bitcoindClient.isTestnet());
+            List<byte[]> oracleTwoAnswers = new LinkedList<>();
+            byte[] winnerHashPreImage = parsedAnswer.getWinnerHashPreImage();
+            if(Arrays.equals(winnerHashPreImage, oracle.getPlayerAWins())) {
+                oracleTwoAnswers.add(winnerHashPreImage);
+                oracleTwoAnswers.add(oracle.getPlayerBWins());
+            }
+            else {
+                oracleTwoAnswers.add(oracle.getPlayerAWins());
+                oracleTwoAnswers.add(winnerHashPreImage);
+            }
+
+            OracleTwoAnswers twoAnswersTx = OracleTwoAnswers.build(oracleTwoAnswers.get(0),
+                    oracleTwoAnswers.get(1), inscriptionTxs.get(oraclePos), agreedBet,
+                    playersPrivateKey[1], oraclePublicKeys.get(oraclePos),
+                    playersPubKey[1].toWIF());
+
+            submittedTxs.add(new PayToScriptAbsoluteOutput(
+                    inscriptionTxs.get(oraclePos), 1, twoAnswersTx.getRedeemScript()));
+            bothAnswers = twoAnswersTx.getTx();
+        }
+
+        bitcoindClient.verifyTransaction(bothAnswers, submittedTxs);
+
 
         // After REPLY_UNTIL_SECONDS_DELAY seconds from the bet resolution, players can
         // take #(numOracles - 1) payment, as the oracle didn't reply on time.

@@ -221,7 +221,7 @@ public class OutputBuilder {
         return new Output(value, script);
     }
 
-    static byte[] oracleTwoAnswersInsuranceRedeemScript(
+    static public byte[] oracleTwoAnswersInsuranceRedeemScript(
             List<BitcoinPublicKey> playersPubKey, BitcoinPublicKey oraclePubKey,
             List<byte[]> expectedAnswers, TimeUnit timeUnit, long timeoutVal) throws IOException,
                                                                         NoSuchAlgorithmException {
