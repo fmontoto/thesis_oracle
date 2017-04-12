@@ -204,8 +204,9 @@ public class InputBuilder {
 
     static public byte[] redeemUndueCharge(byte[] redeemScript, byte[] playerSignature,
                                            byte[] oracleWrongWinnerPreImage, int playerWonNo,
+                                           BitcoinPublicKey playerPublicKey,
                                            List<byte[]> winnerPreImages)
-            throws IOException {
+            throws IOException, NoSuchAlgorithmException {
         ByteArrayOutputStream preImagesStream = new ByteArrayOutputStream();
         for(byte[] preImage : winnerPreImages) {
             preImagesStream.write(pushDataOpcode(preImage.length));
@@ -217,6 +218,8 @@ public class InputBuilder {
         return mergeArrays(
                 pushDataOpcode(playerSignature.length),
                 playerSignature,
+                pushDataOpcode(playerPublicKey.getKey().length),
+                playerPublicKey.getKey(),
                 preImagesStream.toByteArray(),
                 pushDataOpcode(oracleWrongWinnerPreImage.length),
                 oracleWrongWinnerPreImage,

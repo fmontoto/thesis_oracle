@@ -26,7 +26,7 @@ import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 
 /**
- * Builds some useful transactions used in the protocol.
+ * Builds some useful transactions used in the redeem.
  * Created by fmontoto on 29-11-16.
  */
 public class TransactionBuilder {

@@ -1,4 +1,4 @@
-package bitcoin.transaction.protocol;
+package bitcoin.transaction.redeem;
 
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.transaction.AbsoluteOutput;
@@ -25,7 +25,7 @@ import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
 import static bitcoin.transaction.builder.TransactionBuilder.TIMEOUT_GRANULARITY;
 import static bitcoin.transaction.builder.TransactionBuilder.buildTx;
 import static bitcoin.transaction.builder.TransactionBuilder.createSequenceNumber;
-import static bitcoin.transaction.protocol.Utils.playerNoFromPrivateKey;
+import static bitcoin.transaction.redeem.Utils.playerNoFromPrivateKey;
 import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 

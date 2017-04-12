@@ -1,4 +1,4 @@
-package bitcoin.transaction.protocol;
+package bitcoin.transaction.redeem;
 
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
@@ -15,7 +15,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.Constants.getHashType;

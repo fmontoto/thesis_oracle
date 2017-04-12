@@ -3,14 +3,11 @@ package bitcoin.transaction;
 import bitcoin.*;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
-import bitcoin.transaction.protocol.*;
+import bitcoin.transaction.redeem.*;
 import core.*;
-import core.Constants;
-import core.Utils;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
@@ -174,7 +171,7 @@ public class ProtocolTxsTest {
 
     @Test
     public void completeTransactionFlowTest() throws Exception {
-        // This method goes through all the transactions in the protocol.
+        // This method goes through all the transactions in the redeem.
 
         List<PayToScriptAbsoluteOutput> submittedTxs = new LinkedList<>();
         // Everyone willing to be chose as an oracle must send the registration transaction to the
@@ -227,7 +224,7 @@ public class ProtocolTxsTest {
         }
         Transaction betPromise = betPromiseFlow(agreedBet);
 
-        // betPromise is the first transaction of the bet protocol to go into the blockchain, it
+        // betPromise is the first transaction of the bet redeem to go into the blockchain, it
         // reflects the intention and commitment from both players. It has the hashed description
         // of the bet and the list of the chosen oracles. When a mentioned oracle sees the
         // transaction it should get the description of the bet as described on it, after getting

@@ -1,4 +1,4 @@
-package bitcoin.transaction.protocol;
+package bitcoin.transaction.redeem;
 
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;

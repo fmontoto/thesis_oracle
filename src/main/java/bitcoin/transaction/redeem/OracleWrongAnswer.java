@@ -1,4 +1,4 @@
-package bitcoin.transaction.protocol;
+package bitcoin.transaction.redeem;
 
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
@@ -25,8 +25,8 @@ import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
 import static bitcoin.transaction.builder.OutputBuilder.undueChargePaymentScript;
 import static bitcoin.transaction.builder.TransactionBuilder.TIMEOUT_GRANULARITY;
 import static bitcoin.transaction.builder.TransactionBuilder.buildTx;
-import static bitcoin.transaction.protocol.Utils.formatPreimages;
-import static bitcoin.transaction.protocol.Utils.playerNoFromPrivateKey;
+import static bitcoin.transaction.redeem.Utils.formatPreimages;
+import static bitcoin.transaction.redeem.Utils.playerNoFromPrivateKey;
 import static core.Utils.hexToByteArray;
 
 /**
@@ -127,8 +127,9 @@ public class OracleWrongAnswer {
         int txVersion = 2, txLockTime = 0;
         Transaction tx = buildTx(txVersion, txLockTime, input, output);
         byte[] signature = tx.getPayToScriptSignature(winnerPlayerKey, getHashType("ALL"), 0);
-        tx.getInputs().get(0).setScript(redeemUndueCharge(oracleWrongAnswer.redeemScript,
-        signature, oracleWrongWinnerPreImage, playerNo, formattedPreImages));
+        tx.getInputs().get(0).setScript(redeemUndueCharge(
+                oracleWrongAnswer.redeemScript, signature, oracleWrongWinnerPreImage, playerNo,
+                winnerPlayerKey.getPublicKey(), formattedPreImages));
 
         oracleWrongAnswer.setTransaction(tx);
         return oracleWrongAnswer;

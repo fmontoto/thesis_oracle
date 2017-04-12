@@ -135,18 +135,22 @@ public class OutputBuilder {
         return createPayToScriptHashOutput(amount, redeemScriptHash);
     }
 
-    static public byte[] createPayToPubKeyScript(String wifDstAddr, boolean finishWithTrue)
+    static public byte[] createPayToPubKeyScriptNoVerify(String wifDstAddr)
             throws IOException, NoSuchAlgorithmException {
         byte[] addr = BitcoinPublicKey.WIFToTxAddress(wifDstAddr);
-        byte[] verify = getOpcodeAsArray("OP_CHECKSIGVERIFY");
-        if(finishWithTrue)
-            verify = getOpcodeAsArray("OP_CHECKSIG");
         return  mergeArrays(new byte[]{getOpcode("OP_DUP")},
                 new byte[] {getOpcode("OP_HASH160")},
                 pushDataOpcode(addr.length),
                 addr,
-                new byte[]{getOpcode("OP_EQUALVERIFY")},
-                verify);
+                new byte[]{getOpcode("OP_EQUALVERIFY")});
+    }
+
+    static public byte[] createPayToPubKeyScript(String wifDstAddr, boolean finishWithTrue)
+            throws IOException, NoSuchAlgorithmException {
+        byte[] verify = getOpcodeAsArray("OP_CHECKSIGVERIFY");
+        if(finishWithTrue)
+            verify = getOpcodeAsArray("OP_CHECKSIG");
+        return mergeArrays(createPayToPubKeyScriptNoVerify(wifDstAddr), verify);
     }
 
     /**
@@ -511,9 +515,7 @@ public class OutputBuilder {
 
         unduePlayerAWonBuffer.write(checkMultiHash(playerAWinHash, requiredHashes, false));
 
-        unduePlayerAWonBuffer.write(pushDataOpcode(playerAPublicKey.getKey().length));
-        unduePlayerAWonBuffer.write(playerAPublicKey.getKey());
-        unduePlayerAWonBuffer.write(getOpcode("OP_CHECKSIG"));
+        unduePlayerAWonBuffer.write(createPayToPubKeyScriptNoVerify(playerAPublicKey.toWIF()));
         byte[] unduePlayerAWonScript = unduePlayerAWonBuffer.toByteArray();
 
         // Oracle said A won but actually B won.
@@ -525,20 +527,17 @@ public class OutputBuilder {
 
         unduePlayerBWonBuffer.write(checkMultiHash(playerBWinHash, requiredHashes, false));
 
-        unduePlayerBWonBuffer.write(pushDataOpcode(playerBPublicKey.getKey().length));
-        unduePlayerBWonBuffer.write(playerBPublicKey.getKey());
-        unduePlayerBWonBuffer.write(getOpcode("OP_CHECKSIG"));
+        unduePlayerBWonBuffer.write(createPayToPubKeyScriptNoVerify(playerBPublicKey.toWIF()));
         byte[] unduePlayerBWonScript = unduePlayerBWonBuffer.toByteArray();
 
         ByteArrayOutputStream oracleGetMoneyBackBuffer = new ByteArrayOutputStream();
         oracleGetMoneyBackBuffer.write(checkTimeoutScript(TimeUnit.SECONDS, timeoutSeconds));
-        oracleGetMoneyBackBuffer.write(pushDataOpcode(oraclePubKey.getKey().length));
-        oracleGetMoneyBackBuffer.write(oraclePubKey.getKey());
-        oracleGetMoneyBackBuffer.write(getOpcode("OP_CHECKSIG"));
+        oracleGetMoneyBackBuffer.write(createPayToPubKeyScriptNoVerify(oraclePubKey.toWIF()));
         byte[] oracleGetMoneyBackScript = oracleGetMoneyBackBuffer.toByteArray();
 
-        return threePathScript(unduePlayerAWonScript, unduePlayerBWonScript,
-                               oracleGetMoneyBackScript);
+        byte[] ret = mergeArrays(threePathScript(unduePlayerAWonScript, unduePlayerBWonScript,
+                                 oracleGetMoneyBackScript), getOpcodeAsArray("OP_CHECKSIG"));
+        return ret;
     }
 
     public static byte[] undueChargePaymentScript(

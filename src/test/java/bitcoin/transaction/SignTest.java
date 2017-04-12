@@ -538,7 +538,7 @@ public class SignTest {
         byte[] signature = t1.getPayToScriptSignature(player1, getHashType("ALL"), 0);
         while(aPreimages.size() > requiredHashes)
             aPreimages.remove(0);
-        List<byte[]> formattedPreImages = bitcoin.transaction.protocol.Utils.formatPreimages(
+        List<byte[]> formattedPreImages = bitcoin.transaction.redeem.Utils.formatPreimages(
                 aHashes, bHashes, aPreimages);
         t1.getInputs().get(0).setScript(
                 redeemPlayerPrize(redeemScript, signature, player1.getPublicKey(), 0, 0, formattedPreImages));
@@ -548,7 +548,7 @@ public class SignTest {
         signature = t1.getPayToScriptSignature(player2, getHashType("ALL"), 0);
         while(bPreimages.size() > requiredHashes)
             bPreimages.remove(0);
-        formattedPreImages = bitcoin.transaction.protocol.Utils.formatPreimages(
+        formattedPreImages = bitcoin.transaction.redeem.Utils.formatPreimages(
                 aHashes, bHashes, bPreimages);
         t1.getInput(0).setScript(
                 redeemPlayerPrize(redeemScript, signature, player2.getPublicKey(), 1,
