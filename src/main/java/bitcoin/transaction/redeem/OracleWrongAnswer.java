@@ -20,7 +20,7 @@ import java.util.List;
 
 import static bitcoin.Constants.getHashType;
 import static bitcoin.key.Utils.r160SHA256Hash;
-import static bitcoin.transaction.builder.InputBuilder.redeemUndueCharge;
+import static bitcoin.transaction.builder.InputBuilder.redeemOracleWrongAnswer;
 import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
 import static bitcoin.transaction.builder.OutputBuilder.undueChargePaymentScript;
 import static bitcoin.transaction.builder.TransactionBuilder.TIMEOUT_GRANULARITY;
@@ -127,7 +127,7 @@ public class OracleWrongAnswer {
         int txVersion = 2, txLockTime = 0;
         Transaction tx = buildTx(txVersion, txLockTime, input, output);
         byte[] signature = tx.getPayToScriptSignature(winnerPlayerKey, getHashType("ALL"), 0);
-        tx.getInputs().get(0).setScript(redeemUndueCharge(
+        tx.getInputs().get(0).setScript(redeemOracleWrongAnswer(
                 oracleWrongAnswer.redeemScript, signature, oracleWrongWinnerPreImage, playerNo,
                 winnerPlayerKey.getPublicKey(), formattedPreImages));
 

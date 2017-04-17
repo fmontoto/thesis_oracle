@@ -8,6 +8,7 @@ import core.*;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import sun.awt.image.ImageWatched;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
@@ -520,8 +521,28 @@ public class ProtocolTxsTest {
         }
 
 
+        // The next timeout is the undue charge. All oracles that behaved correctly can take this
+        // deposit back.
+        List<Transaction> undueChargeRedeem = new LinkedList<>();
+        {
+            for (int i = 0; i < numOracles; i++) {
+                if(i == numOracles - 2) {
+                    continue; // Only oracle (numOracles - 2) didn't behave
+                }
+                Oracle oracle = oracles.get(i);
+                BitcoinPrivateKey privKey = BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(
+                        oracle.getAddress()));
+                UnduePayment unduePayment = UnduePayment.build(betTransaction, agreedBet,
+                        i, privKey, privKey.getPublicKey().toWIF(), playerAWinHashes,
+                        playerBWinHashes);
+                submittedTxs.add(new PayToScriptAbsoluteOutput(betTransaction,
+                        unduePayment.getOutputRedeemed(), unduePayment.getRedeemScript()));
+                undueChargeRedeem.add(unduePayment.getAnswer());
+                bitcoindClient.verifyTransaction(unduePayment.getAnswer(), submittedTxs);
+            }
+        }
 
-
+        //TODO two answers
         //throw new NotImplementedException();
 
     }

@@ -141,7 +141,6 @@ public class InputBuilder {
                                       , redeemScript);
     }
 
-
     static public byte[] redeemBetOraclePaymentScript(byte[] redeemScript, byte[] oracleSignature,
                                                       byte[] playerWinPreImage, int posWinner) {
         byte[] ifSelector = posWinner == 0 ? getOpcodeAsArray("OP_1") : getOpcodeAsArray("OP_0");
@@ -202,10 +201,23 @@ public class InputBuilder {
                 redeemScript);
     }
 
-    static public byte[] redeemUndueCharge(byte[] redeemScript, byte[] playerSignature,
-                                           byte[] oracleWrongWinnerPreImage, int playerWonNo,
-                                           BitcoinPublicKey playerPublicKey,
-                                           List<byte[]> winnerPreImages)
+    static public byte[] redeemUnduePayment(
+            BitcoinPublicKey oraclePublicKey, byte[] oracleSignature, byte[] redeemScript)
+            throws IOException, NoSuchAlgorithmException {
+        return mergeArrays(
+                pushDataOpcode(oracleSignature.length),
+                oracleSignature,
+                pushDataOpcode(oraclePublicKey.getKey().length),
+                oraclePublicKey.getKey(),
+                getOpcodeAsArray("OP_0"), // Selector
+                pushDataOpcode(redeemScript.length),
+                redeemScript);
+    }
+
+    static public byte[] redeemOracleWrongAnswer(byte[] redeemScript, byte[] playerSignature,
+                                                 byte[] oracleWrongWinnerPreImage, int playerWonNo,
+                                                 BitcoinPublicKey playerPublicKey,
+                                                 List<byte[]> winnerPreImages)
             throws IOException, NoSuchAlgorithmException {
         ByteArrayOutputStream preImagesStream = new ByteArrayOutputStream();
         for(byte[] preImage : winnerPreImages) {
