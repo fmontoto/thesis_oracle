@@ -41,6 +41,6 @@ public class BitcoindClientTest {
 
     @Test
     public void test() throws Exception {
-        assertEquals(255, (int)(((byte)255) & 0xFF));
+        assertEquals(255, ((byte)255) & 0xFF);
     }
 }

@@ -19,31 +19,26 @@ import java.util.concurrent.TimeUnit;
 
 import static bitcoin.Constants.getHashType;
 import static bitcoin.key.Utils.r160SHA256Hash;
-import static bitcoin.transaction.Utils.readScriptNum;
 import static bitcoin.transaction.builder.InputBuilder.redeemTwoAnswers;
-import static bitcoin.transaction.builder.InputBuilder.redeemTwoAnswersTimeout;
 import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
 import static bitcoin.transaction.builder.OutputBuilder.oracleTwoAnswersInsuranceRedeemScript;
 import static bitcoin.transaction.builder.TransactionBuilder.TIMEOUT_GRANULARITY;
 import static bitcoin.transaction.builder.TransactionBuilder.buildTx;
-import static bitcoin.transaction.builder.TransactionBuilder.createSequenceNumber;
 import static core.Utils.hexToByteArray;
 
 /**
  * Created by fmontoto on 4/11/17.
  */
-public class OracleTwoAnswers {
+public class PlayerTwoAnswers {
     private BitcoinPublicKey[] playerPubKeys;
     private byte[] redeemScript;
     private long timeoutSeconds;
     private Transaction tx;
-    private int outputNo;
 
 
-    public OracleTwoAnswers(BitcoinPublicKey[] playersPubKey, long timeoutSeconds, int outputNo) {
+    public PlayerTwoAnswers(BitcoinPublicKey[] playersPubKey, long timeoutSeconds) {
         this.playerPubKeys = playersPubKey;
         this.timeoutSeconds = timeoutSeconds;
-        this.outputNo = outputNo;
     }
 
     private void findRedeemScript(byte[] expectedHash, byte[] playerAWinsHash,
@@ -64,40 +59,39 @@ public class OracleTwoAnswers {
         redeemScript = redeemScr;
     }
 
-    public static OracleTwoAnswers build(
-            byte[] playerAWinHash, byte[] playerBWinHash, Transaction oracleInscriptionTx, Bet bet,
-            BitcoinPrivateKey oracleKey, String wifDstAddress)
+    public static PlayerTwoAnswers build(
+            byte[] playerAAnswer, byte[] playerBAnswer, Transaction oracleSinscriptionTx, Bet bet,
+            BitcoinPrivateKey playerKey, BitcoinPublicKey oracleKey, String wifDstAddress)
             throws NoSuchAlgorithmException, IOException, InvalidKeySpecException,
             SignatureException, InvalidKeyException {
+        if (!playerKey.getPublicKey().equals(bet.getPlayersPubKey()[0])
+                && !playerKey.getPublicKey().equals(bet.getPlayersPubKey()[1])) {
+            throw new InvalidParameterException("Unexpected player private key.");
+        }
 
-        int outputNo = 1;
-        OracleTwoAnswers oracleTwoAnswers = new OracleTwoAnswers(bet.getPlayersPubKey(),
-                bet.getRelativeTwoAnswersTimeoutSeconds(), 1);
+        PlayerTwoAnswers playerTwoAnswers = new PlayerTwoAnswers(bet.getPlayersPubKey(),
+                bet.getRelativeTwoAnswersTimeoutSeconds());
         byte[] expectedHash = hexToByteArray(
-                oracleInscriptionTx.getOutput(outputNo).getParsedScript().get(2));
-        oracleTwoAnswers.findRedeemScript(expectedHash, playerAWinHash, playerBWinHash,
-                                          oracleKey.getPublicKey());
+                oracleSinscriptionTx.getOutput(1).getParsedScript().get(2));
+        playerTwoAnswers.findRedeemScript(expectedHash, r160SHA256Hash(playerAAnswer),
+                r160SHA256Hash(playerBAnswer), oracleKey);
 
-        Input input = new Input(new AbsoluteOutput(oracleInscriptionTx, 1),
-                oracleTwoAnswers.redeemScript);
-        Output output = createPayToPubKeyOutput(oracleInscriptionTx.getOutput(1).getValue(),
+        Input input = new Input(new AbsoluteOutput(oracleSinscriptionTx, 1),
+                playerTwoAnswers.redeemScript);
+        Output output = createPayToPubKeyOutput(oracleSinscriptionTx.getOutput(1).getValue(),
                 wifDstAddress);
-        int txVersion = 2, txLockTime = 0;
-
-        input.setSequenceNo((int) readScriptNum(createSequenceNumber(TimeUnit.SECONDS,
-                oracleTwoAnswers.timeoutSeconds)));
+        int txVersion = 1, txLockTime = 0;
         Transaction tx = buildTx(txVersion, txLockTime, input, output);
-        //TODO fee
 
-        byte[] signature = tx.getPayToScriptSignature(oracleKey, getHashType("ALL"), 0);
+        byte[] signature = tx.getPayToScriptSignature(playerKey, getHashType("ALL"), 0);
 
-        tx.getInput(0).setScript(redeemTwoAnswersTimeout(oracleTwoAnswers.redeemScript,
-                                      signature));
+        tx.getInput(0).setScript(redeemTwoAnswers(playerTwoAnswers.redeemScript,
+                playerAAnswer, playerBAnswer, signature));
 
 
         //TODO set the fees
-        oracleTwoAnswers.setTx(tx);
-        return oracleTwoAnswers;
+        playerTwoAnswers.setTx(tx);
+        return playerTwoAnswers;
     }
 
     public void setTx(Transaction tx) {
@@ -110,10 +104,6 @@ public class OracleTwoAnswers {
 
     public byte[] getRedeemScript() {
         return redeemScript;
-    }
-
-    public int getOutputNo() {
-        return outputNo;
     }
 }
 

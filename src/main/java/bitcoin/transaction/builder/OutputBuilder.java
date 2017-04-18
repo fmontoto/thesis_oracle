@@ -99,7 +99,7 @@ public class OutputBuilder {
     static public byte[] multisigOrSomeSignaturesTimeoutOutput(
             TimeUnit timeUnit, long timeoutVal, BitcoinPublicKey alwaysNeedKey,
             List<BitcoinPublicKey> optionalKeys) throws IOException, NoSuchAlgorithmException {
-        List<BitcoinPublicKey> neededKeys = Arrays.asList(new BitcoinPublicKey[] {alwaysNeedKey});
+        List<BitcoinPublicKey> neededKeys = Arrays.asList(alwaysNeedKey);
         return multisigOrSomeSignaturesTimeoutOutput(timeUnit, timeoutVal, neededKeys,
                                                      optionalKeys);
     }
@@ -230,25 +230,12 @@ public class OutputBuilder {
             List<byte[]> expectedAnswers, TimeUnit timeUnit, long timeoutVal) throws IOException,
                                                                         NoSuchAlgorithmException {
 
-        // An idea to use less space in this script could be to move the expected answers
-        // to the altStack to hardcode them only once.
         if(playersPubKey.size() != 2 || playersPubKey.size() != expectedAnswers.size())
             throw new InvalidParameterException("Expected 2 players and 2 answers.");
 
         byte[] onTimeout = mergeArrays( pushDataOpcode(oraclePubKey.getKey().length)
                                       , oraclePubKey.getKey()
                                       , getOpcodeAsArray("OP_CHECKSIGVERIFY")
-                                      , getOpcodeAsArray("OP_IF")
-                                      , getOpcodeAsArray("OP_HASH160")
-                                      , pushDataOpcode(expectedAnswers.get(0).length)
-                                      , expectedAnswers.get(0)
-                                      , getOpcodeAsArray("OP_EQUALVERIFY")
-                                      , getOpcodeAsArray("OP_ELSE")
-                                      , getOpcodeAsArray("OP_HASH160")
-                                      , pushDataOpcode(expectedAnswers.get(1).length)
-                                      , expectedAnswers.get(1)
-                                      , getOpcodeAsArray("OP_EQUAL")
-                                      , getOpcodeAsArray("OP_ENDIF")
         );
 
         byte[] noTimeout = mergeArrays( getOpcodeAsArray("OP_1")
@@ -265,10 +252,10 @@ public class OutputBuilder {
                                       , getOpcodeAsArray("OP_HASH160")
                                       , pushDataOpcode(expectedAnswers.get(1).length)
                                       , expectedAnswers.get(1)
-                                      , getOpcodeAsArray("OP_EQUAL")
+                                      , getOpcodeAsArray("OP_EQUALVERIFY")
         );
 
-        return timeOutOptionalPath(null, noTimeout, onTimeout, timeUnit, timeoutVal, false);
+        return timeOutOptionalPath(null, noTimeout, onTimeout, timeUnit, timeoutVal, true);
     }
 
     private static byte[] threePathScriptFirstTwoShared(

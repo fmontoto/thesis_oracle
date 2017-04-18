@@ -190,13 +190,13 @@ public class OpenSecureChannel implements Callable<SecureChannelManager> {
         if(!otherPartyBitcoinAddr.equals(otherPartyPublicBitcoinKey.toWIF())){
             LOGGER.warning("The bitcoin key provided by the other party does not match the address");
             return false;
-        };
+        }
 
         // Check if the other party has control over the privateKey of its public bitcoin.key.
         if(!privateKeyPossession(otherPartyPublicBitcoinKey)) {
             LOGGER.warning("The other party did not prove the possession of the private bitcoin.key.");
             return false;
-        };
+        }
         return true;
     }
 

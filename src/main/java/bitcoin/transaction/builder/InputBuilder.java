@@ -256,7 +256,16 @@ public class InputBuilder {
                 pushDataOpcode(redeemScript.length),
                 redeemScript
         );
+    }
 
+    static public byte[] redeemTwoAnswersTimeout(byte[] redeemScript, byte[] oracleSignature) {
+        return mergeArrays(
+                pushDataOpcode(oracleSignature.length),
+                oracleSignature,
+                getOpcodeAsArray("OP_0"),
+                pushDataOpcode(redeemScript.length),
+                redeemScript
+        );
     }
 
 

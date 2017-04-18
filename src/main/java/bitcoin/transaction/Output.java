@@ -33,7 +33,7 @@ public class Output {
         try {
             parseScript();
         } catch (IndexOutOfBoundsException e) {
-            parsedScript = new LinkedList<>(Arrays.asList(new String[] {"ERROR. Non standard"}));
+            parsedScript = new LinkedList<>(Arrays.asList("ERROR. Non standard"));
             isPayToKey = false;
             isPayToScript = false;
         }
@@ -51,7 +51,7 @@ public class Output {
         try {
             parseScript();
         } catch (IndexOutOfBoundsException e) {
-            parsedScript = new LinkedList<>(Arrays.asList(new String[] {"ERROR. Non standard"}));
+            parsedScript = new LinkedList<>(Arrays.asList("ERROR. Non standard"));
             isPayToKey = false;
             isPayToScript = false;
         }
@@ -59,19 +59,13 @@ public class Output {
 
     private void parseScript() {
         parsedScript = Utils.parseScript(script, false);
-        if(parsedScript.size() == 6 && parsedScript.get(0).equals("OP_DUP")
-                                    && parsedScript.get(1).equals("OP_HASH160")
-                                    && parsedScript.get(2).equals("OP_PUSH_20_bytes")
-                                    && parsedScript.get(4).equals("OP_EQUALVERIFY")
-                                    && parsedScript.get(5).equals("OP_CHECKSIG"))
-            isPayToKey = true;
-        else
-            isPayToKey = false;
-        if(parsedScript.size() == 3 && parsedScript.get(0).equals("OP_HASH160")
-                                    && parsedScript.get(2).equals("OP_EQUAL"))
-            isPayToScript = true;
-        else
-            isPayToScript = false;
+        isPayToKey = parsedScript.size() == 6 && parsedScript.get(0).equals("OP_DUP")
+                && parsedScript.get(1).equals("OP_HASH160")
+                && parsedScript.get(2).equals("OP_PUSH_20_bytes")
+                && parsedScript.get(4).equals("OP_EQUALVERIFY")
+                && parsedScript.get(5).equals("OP_CHECKSIG");
+        isPayToScript = parsedScript.size() == 3 && parsedScript.get(0).equals("OP_HASH160")
+                && parsedScript.get(2).equals("OP_EQUAL");
     }
 
     public Output(byte[] rawOutput) {

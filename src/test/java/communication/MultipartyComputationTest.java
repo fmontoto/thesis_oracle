@@ -52,7 +52,7 @@ public class MultipartyComputationTest {
         manager2.start();
         channel1 = manager1.subscribe(filter);
         channel2 = manager2.subscribe(filter);
-        list = new LinkedList<>(Arrays.asList(new String[] {"a", "b", "c", "d", "e"}));
+        list = new LinkedList<>(Arrays.asList("a", "b", "c", "d", "e"));
     }
 
     @After

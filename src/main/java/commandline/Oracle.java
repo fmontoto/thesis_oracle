@@ -85,12 +85,7 @@ public class Oracle {
             formatter.printHelp("oracle Player", options);
             throw new ExceptionInInitializerError();
         }
-        if(cl.hasOption("testnet")) {
-            this.testnet = true;
-        }
-        else {
-            this.testnet = false;
-        }
+        this.testnet = cl.hasOption("testnet");
         this.account = cl.getOptionValue("account", "oracle");
         this.address = cl.getOptionValue("address", "");
         bitcoindClient = new BitcoindClient(this.testnet);
@@ -297,7 +292,7 @@ class BlockChainDaemon extends Thread{
                     } catch (InvalidParameterException e) {
                         continue;
                     }
-                    ;// TODO parse the BET_DESCRIPTION
+                    // TODO parse the BET_DESCRIPTION
                 }
             }
         }

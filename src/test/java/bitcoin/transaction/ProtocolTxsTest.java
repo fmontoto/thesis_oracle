@@ -8,7 +8,7 @@ import core.*;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import sun.awt.image.ImageWatched;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
@@ -486,7 +486,7 @@ public class ProtocolTxsTest {
                 oracleTwoAnswers.add(winnerHashPreImage);
             }
 
-            OracleTwoAnswers twoAnswersTx = OracleTwoAnswers.build(oracleTwoAnswers.get(0),
+            PlayerTwoAnswers twoAnswersTx = PlayerTwoAnswers.build(oracleTwoAnswers.get(0),
                     oracleTwoAnswers.get(1), inscriptionTxs.get(oraclePos), agreedBet,
                     playersPrivateKey[1], oraclePublicKeys.get(oraclePos),
                     playersPubKey[1].toWIF());
@@ -542,11 +542,29 @@ public class ProtocolTxsTest {
             }
         }
 
-        //TODO two answers
-        //throw new NotImplementedException();
-
+        // The last timeout is the two answers penalty, after this timeout the oracles that didn't
+        // reoky twice can get that amount back.
+        List<Transaction> twoAnswersPenaltyRedeem = new LinkedList<>();
+        {
+            for (int i = 0; i < numOracles; i++) {
+                if(i == numOracles - 2) {
+                    continue;
+                }
+                Oracle oracle = oracles.get(i);
+                BitcoinPrivateKey privKey = BitcoinPrivateKey.fromWIF(bitcoindClient.getPrivateKey(
+                        oracle.getAddress()));
+                OracleTwoAnswers oracleTwoAnswers = OracleTwoAnswers.build(playerAWinHashes.get(i),
+                        playerBWinHashes.get(i), inscriptionTxs.get(i), agreedBet, privKey,
+                        oracle.getAddress());
+                submittedTxs.add(new PayToScriptAbsoluteOutput(inscriptionTxs.get(i),
+                        oracleTwoAnswers.getOutputNo(), oracleTwoAnswers.getRedeemScript()));
+                twoAnswersPenaltyRedeem.add(oracleTwoAnswers.getTx());
+                bitcoindClient.verifyTransaction(oracleTwoAnswers.getTx(), submittedTxs);
+                Transaction txx = oracleTwoAnswers.getTx();
+                System.out.println("Total size:" + txx.wireSize());
+                if(txx != null)
+                    throw new NotImplementedException();
+            }
+        }
     }
-
-
-
 }

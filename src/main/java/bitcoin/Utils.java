@@ -27,7 +27,6 @@ public class Utils {
         try {
             ret = Integer.parseInt(intAsString);
         } catch (NumberFormatException | NullPointerException e) {
-            ;
         }
         return ret;
     }
