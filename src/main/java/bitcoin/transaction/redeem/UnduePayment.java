@@ -2,7 +2,10 @@ package bitcoin.transaction.redeem;
 
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
-import bitcoin.transaction.*;
+import bitcoin.transaction.AbsoluteOutput;
+import bitcoin.transaction.Input;
+import bitcoin.transaction.Output;
+import bitcoin.transaction.Transaction;
 import core.Bet;
 
 import java.io.IOException;
@@ -17,11 +20,8 @@ import java.util.concurrent.TimeUnit;
 
 import static bitcoin.Constants.getHashType;
 import static bitcoin.key.Utils.r160SHA256Hash;
-import static bitcoin.transaction.Utils.parseScript;
 import static bitcoin.transaction.Utils.readScriptNum;
-import static bitcoin.transaction.builder.InputBuilder.redeemBetOraclePaymentScript;
 import static bitcoin.transaction.builder.InputBuilder.redeemUnduePayment;
-import static bitcoin.transaction.builder.OutputBuilder.betOraclePaymentScript;
 import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
 import static bitcoin.transaction.builder.OutputBuilder.undueChargePaymentScript;
 import static bitcoin.transaction.builder.TransactionBuilder.*;

@@ -11,7 +11,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 import static bitcoin.Constants.*;
-import static bitcoin.transaction.Utils.parseScript;
 import static bitcoin.transaction.builder.OutputBuilder.multisigScript;
 import static core.Utils.*;
 

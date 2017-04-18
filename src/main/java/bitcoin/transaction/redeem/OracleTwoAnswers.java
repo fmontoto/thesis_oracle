@@ -20,13 +20,10 @@ import java.util.concurrent.TimeUnit;
 import static bitcoin.Constants.getHashType;
 import static bitcoin.key.Utils.r160SHA256Hash;
 import static bitcoin.transaction.Utils.readScriptNum;
-import static bitcoin.transaction.builder.InputBuilder.redeemTwoAnswers;
 import static bitcoin.transaction.builder.InputBuilder.redeemTwoAnswersTimeout;
 import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
 import static bitcoin.transaction.builder.OutputBuilder.oracleTwoAnswersInsuranceRedeemScript;
-import static bitcoin.transaction.builder.TransactionBuilder.TIMEOUT_GRANULARITY;
-import static bitcoin.transaction.builder.TransactionBuilder.buildTx;
-import static bitcoin.transaction.builder.TransactionBuilder.createSequenceNumber;
+import static bitcoin.transaction.builder.TransactionBuilder.*;
 import static core.Utils.hexToByteArray;
 
 /**

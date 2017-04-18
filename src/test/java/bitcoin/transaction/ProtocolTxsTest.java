@@ -1,6 +1,7 @@
 package bitcoin.transaction;
 
-import bitcoin.*;
+import bitcoin.BitcoindClient;
+import bitcoin.ClientUtils;
 import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.redeem.*;

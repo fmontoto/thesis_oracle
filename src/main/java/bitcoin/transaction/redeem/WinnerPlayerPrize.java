@@ -13,7 +13,9 @@ import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.Constants.getHashType;
@@ -22,11 +24,8 @@ import static bitcoin.transaction.Utils.readScriptNum;
 import static bitcoin.transaction.builder.InputBuilder.redeemPlayerPrize;
 import static bitcoin.transaction.builder.OutputBuilder.betPrizeResolutionRedeemScript;
 import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
-import static bitcoin.transaction.builder.TransactionBuilder.TIMEOUT_GRANULARITY;
-import static bitcoin.transaction.builder.TransactionBuilder.buildTx;
-import static bitcoin.transaction.builder.TransactionBuilder.createSequenceNumber;
+import static bitcoin.transaction.builder.TransactionBuilder.*;
 import static bitcoin.transaction.redeem.Utils.playerNoFromPrivateKey;
-import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 
 /**

@@ -6,7 +6,6 @@ import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.*;
 import core.Bet;
 import core.Constants;
-import core.ParticipatingOracle;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
@@ -19,7 +18,6 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.key.Utils.r160SHA256Hash;
-import static bitcoin.transaction.Utils.parseScript;
 import static bitcoin.transaction.Utils.serializeScriptNum;
 import static bitcoin.transaction.builder.OutputBuilder.*;
 import static core.Utils.byteArrayToHex;
