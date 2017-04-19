@@ -58,7 +58,7 @@ public class ParticipatingOracle extends Oracle {
 
         String account = client.getAccount(getAddress());
         List<AbsoluteOutput> unspentOutputs = getUnspentOutputs(client, account);
-        List<BitcoinPrivateKey> outputKeys = new LinkedList<BitcoinPrivateKey>();
+        List<BitcoinPrivateKey> outputKeys = new LinkedList<>();
         for(AbsoluteOutput ao : unspentOutputs) {
             outputKeys.add(BitcoinPrivateKey.fromWIF(client.getPrivateKey(
                     BitcoinPublicKey.txAddressToWIF(ao.getPayAddress(), client.isTestnet()))));

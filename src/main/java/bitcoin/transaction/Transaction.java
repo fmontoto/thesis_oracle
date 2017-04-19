@@ -271,6 +271,14 @@ public class Transaction {
         return txid(true);
     }
 
+    public long totalOutput() {
+        long ret = 0;
+        for(Output o : getOutputs()) {
+            ret += o.getValue();
+        }
+        return ret;
+    }
+
     static private String txid(byte[] rawTx) throws NoSuchAlgorithmException {
         return byteArrayToHex(arrayReverse(doubleSHA256(rawTx)));
     }

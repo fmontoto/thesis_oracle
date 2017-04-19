@@ -95,8 +95,7 @@ public class OracleAnswer {
             throw new InvalidParameterException("Not a valid winner pre hash.");
 
         int toRedeemOutputPos = 2 + 2 * oraclePosition;
-        long available = betTransaction.getOutputs().get(oraclePosition).getValue();
-        long fee = 100; // TODO calculate it...
+        long available = betTransaction.getOutput(toRedeemOutputPos).getValue();
 
         byte[] expectedRedeeemHash = hexToByteArray(betTransaction.getOutputs()
                 .get(toRedeemOutputPos).getParsedScript().get(2));
@@ -109,10 +108,16 @@ public class OracleAnswer {
         Input input = new Input(ao, redeemOutput.redeemScript);
         input.setSequenceNo((int) readScriptNum(createSequenceNumber(TimeUnit.SECONDS,
                 redeemOutput.betTimeoutSeconds)));
-        Output output = createPayToPubKeyOutput(available - fee, dstWIFAddress);
+        Output output = createPayToPubKeyOutput(available, dstWIFAddress);
         int txVersion = 2, txLockTime = 0;
         Transaction tx = buildTx(txVersion, txLockTime, input, output);
         byte[] signature = tx.getPayToScriptSignature(oracleKey, getHashType("ALL"), 0);
+        tx.getInputs().get(0).setScript(redeemBetOraclePaymentScript(
+                redeemOutput.redeemScript, signature, winnerHashPreImage, winnerPos));
+        // Thi tx might pay a different fee... It's up to the oracle.
+        setFeeFailIfNotEnough(tx, 0, bet.getFee());
+        tx.setTempScriptSigForSigning(0, redeemOutput.redeemScript);
+        signature = tx.getPayToScriptSignature(oracleKey, getHashType("ALL"), 0);
         tx.getInputs().get(0).setScript(redeemBetOraclePaymentScript(
                 redeemOutput.redeemScript, signature, winnerHashPreImage, winnerPos));
         return new OracleAnswer(redeemOutput.redeemScript, tx, winnerHashPreImage,

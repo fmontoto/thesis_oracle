@@ -6,6 +6,7 @@ import bitcoin.key.BitcoinPrivateKey;
 import bitcoin.key.BitcoinPublicKey;
 import bitcoin.transaction.redeem.*;
 import core.*;
+import org.apache.activemq.kaha.Store;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -17,9 +18,7 @@ import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.Constants.getHashType;
@@ -28,6 +27,7 @@ import static bitcoin.transaction.SignTest.getChangeAddress;
 import static bitcoin.transaction.builder.InputBuilder.*;
 import static bitcoin.transaction.builder.OutputBuilder.*;
 import static bitcoin.transaction.builder.TransactionBuilder.*;
+import static core.Utils.byteArrayToHex;
 import static core.Utils.hexToByteArray;
 
 /**
@@ -35,7 +35,7 @@ import static core.Utils.hexToByteArray;
  */
 public class ProtocolTxsTest {
     static final boolean testnet = true;
-    static final int numOracles = 7; // At least 5
+    static final int numOracles = 5; // At least 5
     static final int numPlayers = 2;
     BitcoindClient bitcoindClient;
 
@@ -143,8 +143,8 @@ public class ProtocolTxsTest {
 
         addSecondPlayerInputsAndChange(sharedTx, player2ExpectedBet);
         {
-
-            long finalTxSize = sharedTx.wireSize();
+            // Plus at least one signature per input.
+            long finalTxSize = sharedTx.wireSize() + sharedTx.getInputs().size() * 71;
             long txFee = finalTxSize * agreedBet.getFee();
             player2ExpectedBet.getOutput(1).setValue(
                     player2ExpectedBet.getOutput(1).getValue() - txFee / 2
@@ -155,7 +155,7 @@ public class ProtocolTxsTest {
 
         // Player 1
         {
-            long finalTxSize = sharedTx.wireSize();
+            long finalTxSize = sharedTx.wireSize() + sharedTx.getInputs().size() * 71;
             long txFee = finalTxSize * agreedBet.getFee();
             player1BetPromise.getOutput(1).setValue(
                     player1BetPromise.getOutput(1).getValue() - txFee/2);
@@ -171,9 +171,55 @@ public class ProtocolTxsTest {
         return sharedTx;
     }
 
+    static private long GetInputsValue(BitcoindClient client, Map<String, List<Long>> src,
+                                       Transaction tx) throws ParseTransactionException {
+        long value = 0;
+        for(Input i : tx.getInputs()) {
+            String srcTxId = byteArrayToHex(i.getPrevTxHash());
+            if(src.containsKey(srcTxId)) {
+                value += src.get(srcTxId).get(Math.toIntExact(i.getPrevIdx()));
+            } else {
+                Transaction srcTx = client.getTransaction(srcTxId);
+                value += srcTx.getOutput(Math.toIntExact(i.getPrevIdx())).getValue();
+            }
+        }
+        return value;
+    }
+    static private void StoreTransaction(List<Map.Entry<String, Transaction>> container,
+                                         Transaction tx, String name) {
+        container.add(new HashMap.SimpleImmutableEntry<>(name, tx));
+    }
+
+    static private void CheckTransactions(List<Map.Entry<String, Transaction>> transactions,
+                                          BitcoindClient client)
+            throws NoSuchAlgorithmException, ParseTransactionException {
+        Map<String, List<Long>> src = new HashMap<>();
+        for (Map.Entry<String, Transaction> entry: transactions) {
+            List<Long> outputs = new LinkedList<>();
+            src.put(entry.getValue().txid(), outputs);
+            for(Output o : entry.getValue().getOutputs())
+                outputs.add(o.getValue());
+        }
+
+        long inputValue, outputValue, totalFee, perByteFee;
+        for(Map.Entry<String, Transaction> entry : transactions) {
+            inputValue = GetInputsValue(client, src, entry.getValue());
+            outputValue = entry.getValue().totalOutput();
+            totalFee = inputValue - outputValue;
+            perByteFee = totalFee / entry.getValue().wireSize();
+            System.out.println("Fee for transaction '" + entry.getKey() + "':\n"
+                    + "\t\tPerByte:\t" + perByteFee + "\t"
+                    + "\t\tTotal:\t" + totalFee + "\t"
+                    + "\t\tTx Size:\t" + entry.getValue().wireSize());
+        }
+    }
+
+
     @Test
     public void completeTransactionFlowTest() throws Exception {
         // This method goes through all the transactions in the redeem.
+
+        List<HashMap.Entry<String, Transaction>> allTransactions = new LinkedList<>();
 
         List<PayToScriptAbsoluteOutput> submittedTxs = new LinkedList<>();
         // Everyone willing to be chose as an oracle must send the registration transaction to the
@@ -194,6 +240,7 @@ public class ProtocolTxsTest {
             transaction.sign(BitcoinPrivateKey.fromWIF(privKey));
             bitcoindClient.verifyTransaction(transaction);
             registrationTxs.add(transaction);
+            StoreTransaction(allTransactions, transaction, "Oracle registration");
         }
 
         // The required initial state for the players is to know the other party public key or
@@ -233,6 +280,7 @@ public class ProtocolTxsTest {
         // it, make sure is the one supposed to be by hashing and comparing the result with the
         // hash in the betPromise.
 
+        StoreTransaction(allTransactions, betPromise, "Bet Promise");
         bitcoindClient.verifyTransaction(betPromise);
 
         // After the oracles see the betPromise transaction they sign on (or not) to participate.
@@ -301,6 +349,7 @@ public class ProtocolTxsTest {
             byte[] promiseBetRedeemScript = multisigScript(playersPubKey, playersPubKey.length);
             PayToScriptAbsoluteOutput betPromiseAbsoluteOutput = new PayToScriptAbsoluteOutput(
                     betPromise, inputBetPromise, promiseBetRedeemScript);
+            StoreTransaction(allTransactions, tx, "Oracle inscription");
             bitcoindClient.verifyTransaction(tx, betPromiseAbsoluteOutput);
         }
 
@@ -386,6 +435,7 @@ public class ProtocolTxsTest {
                     redeemMultisigOrSomeSignaturesTimeoutOutput(redeemScript, requiredSignature, optionalignatures));
         }
 
+        StoreTransaction(allTransactions, betTransaction, "BetTransaction");
         bitcoindClient.verifyTransaction(betTransaction, submittedTxs);
 
         // Now, the transaction is ready to go into the blockchain.
@@ -416,6 +466,7 @@ public class ProtocolTxsTest {
 
             submittedTxs.add(new PayToScriptAbsoluteOutput(betTransaction, 2 + 2 * i,
                              answer.getRedeemScript()));
+            StoreTransaction(allTransactions, answer.getAnswer(), "Oracle Answer");
             bitcoindClient.verifyTransaction(answer.getAnswer(), submittedTxs);
         }
 
@@ -441,6 +492,7 @@ public class ProtocolTxsTest {
             winnerPrizeTx = winnerPlayerPrize.getTx();
         }
 
+        StoreTransaction(allTransactions, winnerPrizeTx, "Winner Tx");
         bitcoindClient.verifyTransaction(winnerPrizeTx, submittedTxs);
 
         // Also the player A can take oracle #(numOracles - 2) wrong anwser deposit, as it says the
@@ -465,6 +517,7 @@ public class ProtocolTxsTest {
             wrongAnswerTx = wrongAnswer.getTransaction();
         }
 
+        StoreTransaction(allTransactions, wrongAnswerTx, "WrongAnswerPenalty");
         bitcoindClient.verifyTransaction(wrongAnswerTx, submittedTxs);
 
 
@@ -497,6 +550,7 @@ public class ProtocolTxsTest {
             bothAnswers = twoAnswersTx.getTx();
         }
 
+        StoreTransaction(allTransactions, bothAnswers, "TwoAnswersPenalty");
         bitcoindClient.verifyTransaction(bothAnswers, submittedTxs);
 
 
@@ -518,6 +572,7 @@ public class ProtocolTxsTest {
             Transaction oracleDidntAnswerTx = tx.sign(playersPrivateKey[1]);
             submittedTxs.add(new PayToScriptAbsoluteOutput(betTransaction,
                     2 + 2 * (numOracles - 1), tx.getRedeemScript()));
+            StoreTransaction(allTransactions, oracleDidntAnswerTx, "Reply until seconds");
             bitcoindClient.verifyTransaction(oracleDidntAnswerTx, submittedTxs);
         }
 
@@ -539,6 +594,7 @@ public class ProtocolTxsTest {
                 submittedTxs.add(new PayToScriptAbsoluteOutput(betTransaction,
                         unduePayment.getOutputRedeemed(), unduePayment.getRedeemScript()));
                 undueChargeRedeem.add(unduePayment.getAnswer());
+                StoreTransaction(allTransactions, unduePayment.getAnswer(), "OracleUndue");
                 bitcoindClient.verifyTransaction(unduePayment.getAnswer(), submittedTxs);
             }
         }
@@ -560,12 +616,11 @@ public class ProtocolTxsTest {
                 submittedTxs.add(new PayToScriptAbsoluteOutput(inscriptionTxs.get(i),
                         oracleTwoAnswers.getOutputNo(), oracleTwoAnswers.getRedeemScript()));
                 twoAnswersPenaltyRedeem.add(oracleTwoAnswers.getTx());
+                StoreTransaction(allTransactions, oracleTwoAnswers.getTx(),
+                        "Two answers penalty redeem");
                 bitcoindClient.verifyTransaction(oracleTwoAnswers.getTx(), submittedTxs);
-                Transaction txx = oracleTwoAnswers.getTx();
-                System.out.println("Total size:" + txx.wireSize());
-                if(txx != null)
-                    throw new NotImplementedException();
             }
         }
+        CheckTransactions(allTransactions, bitcoindClient);
     }
 }

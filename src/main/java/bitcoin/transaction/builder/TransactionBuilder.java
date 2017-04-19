@@ -39,14 +39,21 @@ public class TransactionBuilder {
         throw new NotImplementedException();
     }
 
-    static public void setFeeFailIfNotEnough(Transaction tx, int inputToGetFeeFrom,
+    static public void setFeeFailIfNotEnough(Transaction tx, int outputToGetFeeFrom,
                                              int feePerByte) {
-        long newOutputValue = tx.getOutput(inputToGetFeeFrom).getValue()
-                - feePerByte * tx.wireSize();
+        setFeeFailIfNotEnough(tx, outputToGetFeeFrom, feePerByte, 0);
+    }
+
+    static public void setFeeFailIfNotEnough(Transaction tx, int outputToGetFeeFrom,
+        long feePerByte, int signaturesMissing) {
+
+
+        long newOutputValue = tx.getOutput(outputToGetFeeFrom).getValue()
+                - feePerByte * (tx.wireSize() + 71 * signaturesMissing);
         if (newOutputValue < 0)
             throw new InvalidParameterException("Not enough at the output to get the fee ("
                     + Math.abs(newOutputValue) + ") missing. Tx size:" + tx.wireSize());
-        tx.getOutputs().get(inputToGetFeeFrom).setValue(newOutputValue);
+        tx.getOutput(outputToGetFeeFrom).setValue(newOutputValue);
     }
 
     static public void setFeeFailIfNotEnough(Transaction tx, int inputToGetFeeFrom,
@@ -165,15 +172,9 @@ public class TransactionBuilder {
         if(playersPubKey.length != 2)
             throw new NotImplementedException();
 
-        long change = 0;
+        long available = 0;
         for(AbsoluteOutput absOutput : srcOutputs)
-            change += absOutput.getValue();
-
-        change -= (bet.getAmount()
-                + (long) Math.ceil((bet.getFirstPaymentAmount() * bet.getMaxOracles()) / 2.0));
-        if(change < 0)
-            throw new InvalidParameterException(
-                    "Not enough money to start the bet. At least " + (-change) + " more needed.");
+            available += absOutput.getValue();
 
         for(AbsoluteOutput srcOutput : srcOutputs)
             inputs.add(InputBuilder.payToPublicKeyHashCreateInput(srcOutput));
@@ -201,11 +202,12 @@ public class TransactionBuilder {
 
         long outputTotal = 0;
         Transaction tx = buildTx(version, locktime, inputs, outputs);
-        for(Output o: tx.getOutputs())
-            outputTotal += o.getValue();
+        for (int i = 0; i < 3 + numOracles; i++) {
+            outputTotal += tx.getOutput(i).getValue();
+        }
 
         long halfOutput = (long)Math.ceil(outputTotal / 2.0);
-        tx.getOutputs().add(createPayToPubKeyOutput(change - halfOutput,
+        tx.getOutputs().add(createPayToPubKeyOutput(available - halfOutput,
                 wifChangeAddress));
         return tx;
     }
@@ -245,7 +247,7 @@ public class TransactionBuilder {
         long timeoutSeconds = bet.getRelativeBetResolutionSecs();
         long replyUntilSeconds = bet.getRelativeReplyUntilTimeoutSeconds();
         int n = oracles.size();
-        long amount = availableFromInputs - n * bet.getOraclePayment();
+        long amount = availableFromInputs - ( 2 * n * bet.getOraclePayment());
 
         outputs.add(betPrizeResolution(
                 playerAWinHashes, playerBWinHashes, playerPubKeys, bet.getRequiredHashes(),
@@ -269,7 +271,11 @@ public class TransactionBuilder {
         int locktime = 0;
         Transaction tx = buildTx(version, locktime, inputs, outputs);
         {
-            long txFee = bet.getFee() * tx.wireSize();
+            long eachOracleRedeemSize = 4 * 20 + 3 * 71 + 10;
+            long playerBetPromiseRedeemSize = 3 * 20 + 2 * 71 + 10;
+            long txFee = bet.getFee() * (tx.wireSize()
+                                       + oracleInscriptions.size() * eachOracleRedeemSize
+                                       + 2 * playerBetPromiseRedeemSize);
             long output0 = tx.getOutput(0).getValue() - txFee / 2;
             long output1 = tx.getOutput(1).getValue() - txFee / 2;
             if(output0 < 0 || output1 < 0)
@@ -313,7 +319,8 @@ public class TransactionBuilder {
             throws IOException, NoSuchAlgorithmException, ParseTransactionException,
             InvalidKeySpecException, SignatureException, InvalidKeyException {
 
-        long txFee = completedTx.wireSize() * agreedBet.getFee();
+        long txFee =
+                (71 * completedTx.getInputs().size() + completedTx.wireSize()) * agreedBet.getFee();
         HashMap<Integer, AbsoluteOutput> srcOutputs = new HashMap<>();
 
         if(allowModification) {
@@ -390,7 +397,7 @@ public class TransactionBuilder {
         Output changeOutput = createPayToPubKeyOutput(absOutput.getValue(), wifInscribeAddress);
 
         Transaction tx = buildTx(version, locktime, input, dataOutput, changeOutput);
-        setFeeFailIfNotEnough(tx, 1, fee);
+        setFeeFailIfNotEnough(tx, 1, fee, 1);
         return tx;
     }
 
@@ -471,7 +478,20 @@ public class TransactionBuilder {
         outputs.add(twoAnswersInsuranceOutput);
         Transaction tx = buildTx(inputs, outputs);
 
-        setFeeFailIfNotEnough(tx, 0, bet.getFee());
+        long change = 0;
+        for(AbsoluteOutput ao : srcOutputs)
+            change += ao.getValue();
+        change += bet.getFirstPaymentAmount(); // Amount coming from the BetPromise
+
+        for(Output o : tx.getOutputs())
+            change -= o.getValue();
+        if(change < 0) {
+            throw new InvalidParameterException("Not enough inputs, missing " + change);
+        } else if (change > 34) {
+            tx.appendOutput(createPayToPubKeyOutput(change, oraclePublicKey.toWIF()));
+        }
+
+        setFeeFailIfNotEnough(tx, 0, bet.getFee(), srcKeys.size() + 2);
 
         for(int i = 0; i < srcKeys.size(); i++)
             tx.sign(srcKeys.get(i), i);
