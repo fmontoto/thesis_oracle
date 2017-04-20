@@ -25,6 +25,7 @@ import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
 import static bitcoin.transaction.builder.OutputBuilder.undueChargePaymentScript;
 import static bitcoin.transaction.builder.TransactionBuilder.TIMEOUT_GRANULARITY;
 import static bitcoin.transaction.builder.TransactionBuilder.buildTx;
+import static bitcoin.transaction.builder.TransactionBuilder.setFeeFailIfNotEnough;
 import static bitcoin.transaction.redeem.Utils.formatPreimages;
 import static bitcoin.transaction.redeem.Utils.playerNoFromPrivateKey;
 import static core.Utils.hexToByteArray;
@@ -114,8 +115,6 @@ public class OracleWrongAnswer {
         Output output1 = betTransaction.getOutputs().get(srcOutputNo);
         byte[] expectedHash =  hexToByteArray(
                 output1.getParsedScript().get(2));
-        //TODO fee
-        long value = output1.getValue() - 100;
 
         OracleWrongAnswer oracleWrongAnswer = new OracleWrongAnswer(
                 bet, oraclePos, playerAWinHashes, playerBWinHashes, srcOutputNo);
@@ -123,10 +122,19 @@ public class OracleWrongAnswer {
 
         Input input = new Input(new AbsoluteOutput(betTransaction, srcOutputNo),
                                 oracleWrongAnswer.getRedeemScript());
-        Output output = createPayToPubKeyOutput(value, wifOutputAddress);
+        Output output = createPayToPubKeyOutput(output1.getValue(), wifOutputAddress);
         int txVersion = 2, txLockTime = 0;
         Transaction tx = buildTx(txVersion, txLockTime, input, output);
+
         byte[] signature = tx.getPayToScriptSignature(winnerPlayerKey, getHashType("ALL"), 0);
+        tx.getInputs().get(0).setScript(redeemOracleWrongAnswer(
+                oracleWrongAnswer.redeemScript, signature, oracleWrongWinnerPreImage, playerNo,
+                winnerPlayerKey.getPublicKey(), formattedPreImages));
+
+        setFeeFailIfNotEnough(tx, 0, bet.getFee());
+
+        tx.setTempScriptSigForSigning(0, oracleWrongAnswer.getRedeemScript());
+        signature = tx.getPayToScriptSignature(winnerPlayerKey, getHashType("ALL"), 0);
         tx.getInputs().get(0).setScript(redeemOracleWrongAnswer(
                 oracleWrongAnswer.redeemScript, signature, oracleWrongWinnerPreImage, playerNo,
                 winnerPlayerKey.getPublicKey(), formattedPreImages));

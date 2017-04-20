@@ -24,6 +24,7 @@ import static bitcoin.transaction.builder.OutputBuilder.createPayToPubKeyOutput;
 import static bitcoin.transaction.builder.OutputBuilder.oracleTwoAnswersInsuranceRedeemScript;
 import static bitcoin.transaction.builder.TransactionBuilder.TIMEOUT_GRANULARITY;
 import static bitcoin.transaction.builder.TransactionBuilder.buildTx;
+import static bitcoin.transaction.builder.TransactionBuilder.setFeeFailIfNotEnough;
 import static core.Utils.hexToByteArray;
 
 /**
@@ -84,12 +85,17 @@ public class PlayerTwoAnswers {
         Transaction tx = buildTx(txVersion, txLockTime, input, output);
 
         byte[] signature = tx.getPayToScriptSignature(playerKey, getHashType("ALL"), 0);
+        tx.getInput(0).setScript(redeemTwoAnswers(playerTwoAnswers.redeemScript,
+                playerAAnswer, playerBAnswer, signature));
 
+        setFeeFailIfNotEnough(tx, 0, bet.getFee());
+
+        tx.setTempScriptSigForSigning(0, playerTwoAnswers.redeemScript);
+        signature = tx.getPayToScriptSignature(playerKey, getHashType("ALL"), 0);
         tx.getInput(0).setScript(redeemTwoAnswers(playerTwoAnswers.redeemScript,
                 playerAAnswer, playerBAnswer, signature));
 
 
-        //TODO set the fees
         playerTwoAnswers.setTx(tx);
         return playerTwoAnswers;
     }

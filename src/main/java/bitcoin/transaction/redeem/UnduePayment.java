@@ -90,9 +90,7 @@ public class UnduePayment {
             SignatureException, InvalidKeyException {
 
         int toRedeemOutputPos = 3 + 2 * oraclePosition;
-        long available = betTransaction.getOutputs().get(oraclePosition).getValue();
-        long fee = 100; // TODO calculate it...
-
+        long available = betTransaction.getOutput(toRedeemOutputPos).getValue();
 
         byte[] expectedRedeeemHash = hexToByteArray(betTransaction.getOutputs()
                 .get(toRedeemOutputPos).getParsedScript().get(2));
@@ -109,6 +107,12 @@ public class UnduePayment {
         int txVersion = 2, txLockTime = 0;
         Transaction tx = buildTx(txVersion, txLockTime, input, output);
         byte[] signature = tx.getPayToScriptSignature(oracleKey, getHashType("ALL"), 0);
+        tx.getInputs().get(0).setScript(redeemUnduePayment(oracleKey.getPublicKey(), signature,
+                redeemOutput.redeemScript));
+
+        setFeeFailIfNotEnough(tx, 0, bet.getFee());
+        tx.setTempScriptSigForSigning(0, redeemOutput.redeemScript);
+        signature = tx.getPayToScriptSignature(oracleKey, getHashType("ALL"), 0);
         tx.getInputs().get(0).setScript(redeemUnduePayment(oracleKey.getPublicKey(), signature,
                 redeemOutput.redeemScript));
 

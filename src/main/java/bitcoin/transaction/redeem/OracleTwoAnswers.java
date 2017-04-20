@@ -75,24 +75,25 @@ public class OracleTwoAnswers {
         oracleTwoAnswers.findRedeemScript(expectedHash, playerAWinHash, playerBWinHash,
                                           oracleKey.getPublicKey());
 
-        Input input = new Input(new AbsoluteOutput(oracleInscriptionTx, 1),
+        Input input = new Input(new AbsoluteOutput(oracleInscriptionTx, outputNo),
                 oracleTwoAnswers.redeemScript);
-        Output output = createPayToPubKeyOutput(oracleInscriptionTx.getOutput(1).getValue(),
+        Output output = createPayToPubKeyOutput(oracleInscriptionTx.getOutput(outputNo).getValue(),
                 wifDstAddress);
         int txVersion = 2, txLockTime = 0;
 
         input.setSequenceNo((int) readScriptNum(createSequenceNumber(TimeUnit.SECONDS,
                 oracleTwoAnswers.timeoutSeconds)));
         Transaction tx = buildTx(txVersion, txLockTime, input, output);
-        //TODO fee
-
         byte[] signature = tx.getPayToScriptSignature(oracleKey, getHashType("ALL"), 0);
-
         tx.getInput(0).setScript(redeemTwoAnswersTimeout(oracleTwoAnswers.redeemScript,
                                       signature));
 
+        setFeeFailIfNotEnough(tx, 0, bet.getFee());
+        tx.setTempScriptSigForSigning(0, oracleTwoAnswers.getRedeemScript());
+        signature = tx.getPayToScriptSignature(oracleKey, getHashType("ALL"), 0);
+        tx.getInput(0).setScript(redeemTwoAnswersTimeout(oracleTwoAnswers.redeemScript,
+                signature));
 
-        //TODO set the fees
         oracleTwoAnswers.setTx(tx);
         return oracleTwoAnswers;
     }

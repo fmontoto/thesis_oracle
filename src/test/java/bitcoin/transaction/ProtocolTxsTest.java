@@ -18,6 +18,8 @@ import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -171,20 +173,28 @@ public class ProtocolTxsTest {
         return sharedTx;
     }
 
+    static private long GetInputValue(BitcoindClient client, Input i, Map<String, List<Long>> src)
+            throws ParseTransactionException {
+        String srcTxId = byteArrayToHex(i.getPrevTxHash());
+        if(src.containsKey(srcTxId)) {
+            return src.get(srcTxId).get(Math.toIntExact(i.getPrevIdx()));
+        } else {
+            Transaction srcTx = client.getTransaction(srcTxId);
+            return srcTx.getOutput(Math.toIntExact(i.getPrevIdx())).getValue();
+        }
+
+    }
+
     static private long GetInputsValue(BitcoindClient client, Map<String, List<Long>> src,
-                                       Transaction tx) throws ParseTransactionException {
+                                       Transaction tx) throws ParseTransactionException,
+            NoSuchAlgorithmException {
         long value = 0;
         for(Input i : tx.getInputs()) {
-            String srcTxId = byteArrayToHex(i.getPrevTxHash());
-            if(src.containsKey(srcTxId)) {
-                value += src.get(srcTxId).get(Math.toIntExact(i.getPrevIdx()));
-            } else {
-                Transaction srcTx = client.getTransaction(srcTxId);
-                value += srcTx.getOutput(Math.toIntExact(i.getPrevIdx())).getValue();
-            }
+            value += GetInputValue(client, i, src);
         }
         return value;
     }
+
     static private void StoreTransaction(List<Map.Entry<String, Transaction>> container,
                                          Transaction tx, String name) {
         container.add(new HashMap.SimpleImmutableEntry<>(name, tx));
@@ -202,15 +212,24 @@ public class ProtocolTxsTest {
         }
 
         long inputValue, outputValue, totalFee, perByteFee;
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+        symbols.setGroupingSeparator(' ');
+        DecimalFormat df = new DecimalFormat("###,###", symbols);
         for(Map.Entry<String, Transaction> entry : transactions) {
+            System.out.println("'" + entry.getKey() + "':");
             inputValue = GetInputsValue(client, src, entry.getValue());
             outputValue = entry.getValue().totalOutput();
             totalFee = inputValue - outputValue;
             perByteFee = totalFee / entry.getValue().wireSize();
-            System.out.println("Fee for transaction '" + entry.getKey() + "':\n"
-                    + "\t\tPerByte:\t" + perByteFee + "\t"
-                    + "\t\tTotal:\t" + totalFee + "\t"
-                    + "\t\tTx Size:\t" + entry.getValue().wireSize());
+            System.out.println("\tInputs:");
+            for(Input i : entry.getValue().getInputs())
+                System.out.println("\t\t" + df.format(GetInputValue(client, i, src)));
+            System.out.println("\tOutputs:");
+            for(Output o : entry.getValue().getOutputs())
+                System.out.println("\t\t" + df.format(o.getValue()));
+            System.out.println("\tFee: PerByte:\t" + perByteFee + "\t"
+                             + "\t\tTotal:\t" + totalFee + "\t"
+                             + "\t\tTx Size:\t" + entry.getValue().wireSize());
         }
     }
 

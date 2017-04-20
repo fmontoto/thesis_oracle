@@ -56,9 +56,9 @@ public class TransactionBuilder {
         tx.getOutput(outputToGetFeeFrom).setValue(newOutputValue);
     }
 
-    static public void setFeeFailIfNotEnough(Transaction tx, int inputToGetFeeFrom,
+    static public void setFeeFailIfNotEnough(Transaction tx, int outputToGetFeeFrom,
                                              long feePerByte) {
-        setFeeFailIfNotEnough(tx, inputToGetFeeFrom, Math.toIntExact(feePerByte));
+        setFeeFailIfNotEnough(tx, outputToGetFeeFrom, Math.toIntExact(feePerByte));
     }
 
     static public byte[] createSequenceNumber(TimeUnit timeUnit, long timeoutVal) {

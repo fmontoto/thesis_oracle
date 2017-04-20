@@ -22,10 +22,12 @@ public class AbsoluteOutput extends Output{
         this.txId = txId;
     }
 
+    public AbsoluteOutput(Output output, int vout, String txId) {
+        this(output.getValue(), output.getScript(), vout, txId);
+    }
+
     public AbsoluteOutput(Transaction tx, int output) throws NoSuchAlgorithmException {
-        super(tx.getOutputs().get(output).getValue(), tx.getOutputs().get(output).getScript());
-        this.vout = output;
-        this.txId = tx.txid();
+        this(tx.getOutput(output), output, tx.txid());
     }
 
     public String getTxId() {

@@ -77,9 +77,7 @@ public class OracleDoesntAnswer {
         byte[] expectedHash = hexToByteArray(
                 betTransaction.getOutputs().get(outputPos).getParsedScript().get(2));
         long available = betTransaction.getOutputs().get(outputPos).getValue();
-        //TODO fee...
-        long fee = 10;
-        long eachOutput =  (available - fee) / wifOutputs.size();
+        long eachOutput =  available / wifOutputs.size();
 
         List<Output> outputs = new LinkedList<>();
         for(String address: wifOutputs)
@@ -97,7 +95,16 @@ public class OracleDoesntAnswer {
                 redeemOutput.replyUntilSeconds)));
         int txVersion = 2, txLockTime = 0;
         Transaction tx = buildTx(txVersion, txLockTime, input, outputs);
+
+        long perOutputFee = ((tx.wireSize() + 2 * 71) * bet.getFee()) / wifOutputs.size();
+        for(Output o : tx.getOutputs()) {
+            o.setValue(o.getValue() - perOutputFee);
+            if(o.getValue() < 0)
+                throw new InvalidParameterException("Not enough to pay fee:" + o.getValue());
+        }
+
         byte[] signature = tx.getPayToScriptSignature(playerPrivKey, getHashType("ALL"), 0);
+
         return new OracleDoesntAnswer(Arrays.asList(bet.getPlayersPubKey()), signature,
                 redeemOutput.redeemScript, tx, oraclePosition);
     }

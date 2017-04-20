@@ -106,9 +106,6 @@ public class WinnerPlayerPrize {
 
         long available = betTransaction.getOutputs().get(0).getValue()
                 + betTransaction.getOutputs().get(1).getValue();
-        // TODO check fee...
-        long fee = 100;
-        long prize = available - fee;
 
         winnerPlayerPrize.findRedeemScripts(firstExpectedHash, secondExpectedHash);
 
@@ -119,20 +116,26 @@ public class WinnerPlayerPrize {
             inputs.get(i).setSequenceNo((int) readScriptNum(createSequenceNumber(TimeUnit.SECONDS,
                 winnerPlayerPrize.getBetTimeoutSeconds())));
         }
-        Output output = createPayToPubKeyOutput(prize, wifOutputAddress);
+        Output output = createPayToPubKeyOutput(available, wifOutputAddress);
         int txVersion = 2, txLockTime = 0;
         Transaction tx = buildTx(txVersion, txLockTime, inputs, Arrays.asList(output));
-        byte[] signature0 = tx.getPayToScriptSignature(winnerKey, getHashType("ALL"), 0);
-        byte[] signature1 = tx.getPayToScriptSignature(winnerKey, getHashType("ALL"), 1);
-
-
         List<byte[]> formattedPreImages = Utils.formatPreimages(playerAWinsHashes, playerBWinsHashes,
-                                                          winnerPreImages);
+                winnerPreImages);
+        List<byte[]> signatures = new LinkedList<>();
+        for (int i = 0; i < 2; i++) {
+            signatures.add(tx.getPayToScriptSignature(winnerKey, getHashType("ALL"), i));
+            tx.getInputs().get(i).setScript(redeemPlayerPrize(winnerPlayerPrize.getRedeemScript(i),
+                    signatures.get(i), winnerKey.getPublicKey(), playerNo, i, formattedPreImages));
+        }
 
-        tx.getInputs().get(0).setScript(redeemPlayerPrize(winnerPlayerPrize.getRedeemScript(0),
-                signature0, winnerKey.getPublicKey(), playerNo, 0, formattedPreImages));
-        tx.getInputs().get(1).setScript(redeemPlayerPrize(winnerPlayerPrize.getRedeemScript(1),
-                signature1, winnerKey.getPublicKey(), playerNo, 1, formattedPreImages));
+        setFeeFailIfNotEnough(tx, 0, bet.getFee());
+        signatures.clear();
+        for (int i = 0; i < 2; i++) {
+            tx.setTempScriptSigForSigning(i, winnerPlayerPrize.getRedeemScript(i));
+            signatures.add(tx.getPayToScriptSignature(winnerKey, getHashType("ALL"), i));
+            tx.getInputs().get(i).setScript(redeemPlayerPrize(winnerPlayerPrize.getRedeemScript(i),
+                    signatures.get(i), winnerKey.getPublicKey(), playerNo, i, formattedPreImages));
+        }
 
         winnerPlayerPrize.setTransaction(tx);
         return winnerPlayerPrize;
