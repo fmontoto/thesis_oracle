@@ -1,6 +1,7 @@
 package core;
 
 import bitcoin.key.BitcoinPublicKey;
+import com.sun.javafx.binding.StringFormatter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -11,10 +12,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static bitcoin.key.Utils.r160SHA256Hash;
@@ -78,6 +76,15 @@ public class Bet {
 
         this(description, minOracles, maxOracles, oracles, backupOracles, playersPubKey, amounts,
                 ZonedDateTime.now().plusSeconds(timeoutUnit.toSeconds(timeoutVal)), channel);
+    }
+
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Description: " + description + "\n");
+        sb.append(String.format("Oracles: (%1$d, %2$d)\n", minOracles, maxOracles));
+        sb.append("//TODO\n");
+        sb.append(amounts.toString());
+        return sb.toString();
     }
 
     public void addParticipantOracle(BitcoinPublicKey participantOracle) {
@@ -336,6 +343,17 @@ public class Bet {
             this.oracleInscription = oracleInscription;  // registration
             this.oraclePenalty = oraclePenalty;  // two_answers_penalty
             this.fee = fee;
+        }
+
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("First payment:" + firstPaymentAmount + "\n");
+            sb.append("Oracle payment:" + oraclePayment + "\n");
+            sb.append("Bet amount:" + amount + "\n");
+            sb.append("Oracle inscription:" + oracleInscription + "\n");
+            sb.append("Oracle penalty:" + oraclePenalty + "\n");
+            sb.append("Transaction fee per byte:" + fee + " satoshis.\n");
+            return sb.toString();
         }
 
         public byte[] serialize() {

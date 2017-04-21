@@ -640,6 +640,7 @@ public class ProtocolTxsTest {
                 bitcoindClient.verifyTransaction(oracleTwoAnswers.getTx(), submittedTxs);
             }
         }
+        System.out.println(agreedBet);
         CheckTransactions(allTransactions, bitcoindClient);
     }
 }
