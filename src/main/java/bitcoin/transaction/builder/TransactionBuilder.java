@@ -487,7 +487,7 @@ public class TransactionBuilder {
             change -= o.getValue();
         if(change < 0) {
             throw new InvalidParameterException("Not enough inputs, missing " + change);
-        } else if (change > 34) {
+        } else if (change > 34 * bet.getFee()) { // 34 ~ extra output size.
             tx.appendOutput(createPayToPubKeyOutput(change, oraclePublicKey.toWIF()));
         }
 
